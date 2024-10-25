@@ -1,5 +1,4 @@
-%--------------------------------------------------------------------------
-% Illustrative Case: Efficiency of Structural Trap for Hydrogen Storage
+%% Illustrative Case: Efficiency of Structural Trap for Hydrogen Storage
 % 
 % This example simulates the storage of hydrogen in a saline aquifer and 
 % investigates the influence of physical properties such as H2 solubility, 
@@ -36,11 +35,12 @@
 %--------------------------------------------------------------------------
 
 clearvars; 
-mrstModule add ad-core ad-blackoil ad-props deckformat mrst-gui upr
+mrstModule add ad-core ad-blackoil ad-props deckformat mrst-gui
 
 %% Define the case name and read the Eclipse deck file
-name = 'H2_STORAGE_RS_CASE';
-deck = readEclipseDeck('./data/Illustrative_example/H2STORAGE_RS.DATA');
+name = 'H2_STORAGE_RS';
+%% Use H2STORAGE_RS_SALT.DATA for brine
+deck = readEclipseDeck('./data/illustrative_example/H2STORAGE_RS.DATA');
 
 %% Set up the simulation parameters and model components
 [~, ~, state0, model, schedule, ~] = H2_illustration_storage_example(deck);
@@ -81,22 +81,22 @@ simulatePackedProblem(problem,'restartStep',90);
 %% Get packed reservoir and well states
 [ws, states] = getPackedSimulatorOutput(problem);
 %% Plot states
-figure; % Create a new figure for plots
-plotToolbar(model.G, states); % Plot the model states
+figure;
+plotToolbar(model.G, states);
 
 %% Plot well output
-figure; % Create a new figure for well outputs
-plotWellSols(ws); % Plot well solutions
+figure;
+plotWellSols(ws);
 
 %% Get last steps of each injection, production, and idle period
 LastSteps = getCyclesLastSteps(schedule);
 
-% Compute gas volumes for different phases
+%% Compute gas volumes for different phases
 [totGV_charge, vH2InW_charge, vH2InG_charge] = computeGasVolumes(model, states, lastSteps.charge);
 [totGV_disc, vH2InW_disc, vH2InG_disc] = computeGasVolumes(model, states, lastSteps.discharge);
 [totGV_cush, vH2InW_cush, vH2InG_cush] = computeGasVolumes(model, states, lastSteps.cushion);
 
-%% Consolidate plots for H2 volume in Water, Gas, and Total Gas Volumes
+%% Add plots for H2 volume in Water, Gas, and Total Gas Volumes
 figure; 
 subplot(2, 2, 1);
 plotCellData(model.G, states{lastSteps.cushion(1)}.s(:, 2));
@@ -141,7 +141,7 @@ rhoGS = model.fluid.rhoGS;  % Density of gas-saturated phase
 StepsOfCycles = sort([lastSteps.cushion, lastSteps.charge, lastSteps.discharge, lastSteps.shut]); % Combine all steps
 for i = 1:length(StepsOfCycles) % Loop through each step of the cycles
     % Calculate xH2 based on the current state's solution ratio (rs)
-    xH2 = rhoOS .* states{i}.rs ./ (rhoOS + rhoGS .* states{i}.rs); 
+    xH2 = rhoGS .* states{i}.rs ./ (rhoOS + rhoGS .* states{i}.rs); 
     plotCellData(model.G, xH2, 'LineStyle', 'none'); 
     time = sum(schedule.step.val(1:i)); 
     title(sprintf('xH2 at Time = %.2f Days', convertTo(time, day)));
@@ -178,3 +178,4 @@ deck_mrst = model2Deck(model, schedule, 'deck', deck);
 % <a href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses</a>.
 % </font></p>
 % </html>
+
