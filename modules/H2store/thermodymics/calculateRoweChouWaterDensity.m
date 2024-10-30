@@ -21,6 +21,25 @@ function rho = calculateRoweChouWaterDensity(T, S)
 %   Leonenko, Yuri, 2023. Hydrogen-brine mixture PVT data for reservoir
 %   simulation of hydrogen storage in deep saline aquifers.
 %   Int. J. Hydrog. Energy (ISSN: 0360-3199) 48 (2), 696–708.
+ 
+%{
+Copyright 2009-2024 SINTEF Digital, Mathematics & Cybernetics.
+
+This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
+
+MRST is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+MRST is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with MRST.  If not, see <http://www.gnu.org/licenses/>.
+%}
 
 % Coefficients
 a1 = 5.916365 - 0.01035794 .* T + 0.9270048e-5 .* T.^2 - 1127.522 ./ T + 100674.1 ./ T.^2;

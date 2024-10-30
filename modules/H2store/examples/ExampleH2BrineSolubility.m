@@ -2,7 +2,7 @@
 %
 % This example demonstrates the setup and computation of solubility tables 
 % for hydrogen (H2) in a brine system using the Redlich-Kwong (RK) Equation 
-% of State, with a comparison to tabulated data from ePC-SAFT, as presented in:
+% of State, with a comparison to tabulated data from ePC-SAFT, and Henry-Setschnow correlation as presented in:
 %
 %   Ahmed, E., et al. (2024). Phase behavior and black-oil simulations of 
 %   hydrogen storage in saline aquifers. Advances in Water Resources, 191, 104772.
@@ -136,7 +136,7 @@ hold off;
 figure;
 contourf(temperature, convertTo(pressure, mega*Pascal), reshape(tab_sol.x_H2___, [], n), 'LineStyle', 'none');
 colorbar; % Add a color bar for reference
-title('H2 Solubility in Water', 'FontSize', 14);
+title('H2 Solubility in Water (RK eos)', 'FontSize', 14);
 xlabel('Temperature (K)', 'FontSize', 14);
 ylabel('Pressure (MPa)', 'FontSize', 14);
 set(gca, 'FontSize', 12); % Set font size for axes
@@ -146,7 +146,18 @@ grid on; % Add grid for better readability
 figure;
 contourf(temperature, convertTo(pressure, mega*Pascal), reshape(tab_sol.y_H2O___, [], n), 'LineStyle', 'none');
 colorbar; % Add a color bar for reference
-title('H2O Vaporization in H2', 'FontSize', 14);
+title('H2O Vaporization in H2 (RK eos)', 'FontSize', 14);
+xlabel('Temperature (K)', 'FontSize', 14);
+ylabel('Pressure (MPa)', 'FontSize', 14);
+set(gca, 'FontSize', 12); % Set font size for axes
+grid on; % Add grid for better readability
+
+%% We can also use Henry-Setschnow correlation
+xH2 = HenrySetschenowH2BrineEos(temperature, 0, pressure);
+figure;
+contourf(temperature, convertTo(pressure, mega*Pascal), xH2, 'LineStyle', 'none');
+colorbar; % Add a color bar for reference
+title('H2 Solubility in Water (HS eos)', 'FontSize', 14);
 xlabel('Temperature (K)', 'FontSize', 14);
 ylabel('Pressure (MPa)', 'FontSize', 14);
 set(gca, 'FontSize', 12); % Set font size for axes
