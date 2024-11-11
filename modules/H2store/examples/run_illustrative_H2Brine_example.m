@@ -35,12 +35,12 @@
 %--------------------------------------------------------------------------
 
 clearvars; 
-mrstModule add ad-core ad-blackoil ad-props deckformat mrst-gui
+mrstModule add ad-core ad-blackoil ad-props deckformat mrst-gui upr
 
 %% Define the case name and read the Eclipse deck file
-name = 'H2_STORAGE_RS';
+name = 'H2_STORAGE_RS_New';
 %% Use H2STORAGE_RS_SALT.DATA for brine
-deck = readEclipseDeck('./data/illustrative_example/H2STORAGE_RS.DATA');
+deck = readEclipseDeck('/home/elyes/Documents/Projects/MRST/modules/H2store/data/Illustrative_example/H2STORAGE_RS.DATA');
 
 %% Set up the simulation parameters and model components
 [~, ~, state0, model, schedule, ~] = H2_illustration_storage_example(deck);
@@ -76,7 +76,7 @@ nls.LinearSolver = lsolve;
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Execute the simulation of the packed problem
-simulatePackedProblem(problem,'restartStep',90);
+simulatePackedProblem(problem);
 
 %% Get packed reservoir and well states
 [ws, states] = getPackedSimulatorOutput(problem);

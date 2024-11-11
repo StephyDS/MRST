@@ -53,6 +53,7 @@ classdef BioChemsitryModel <  GenericOverallCompositionModel
         Db = 10^(-8)*meter/second
         bDiffusionEffect = false;
         moleculardiffusion = false;
+        bacteriamodel = true;
 
     end
     
@@ -60,7 +61,7 @@ classdef BioChemsitryModel <  GenericOverallCompositionModel
         %-----------------------------------------------------------------%
         function model = BioChemsitryModel(G, rock, fluid, compFluid, varargin)
         % Class constructor. Required arguments are G, rock and fluid.
-            model = model@GenericOverallCompositionModel(G, rock, fluid, compFluid, varargin{:});
+            model = model@GenericOverallCompositionModel(G, rock, fluid, compFluid);
             model = merge_options(model, varargin{:});
             % Check if compositional fluid is provided
             if nargin > 3 && isa(varargin{4}, 'CompositionalMixture')
@@ -253,7 +254,7 @@ classdef BioChemsitryModel <  GenericOverallCompositionModel
         %-----------------------------------------------------------------%
  function [fn, index] = getVariableField(model, name, varargin)
         switch(lower(name))
-          case {'nbact', 'bacterialmodel'} %Bacteria model
+          case {'nbact', 'bacteriamodel'} %Bacteria model
                 index = ':';
                 fn = 'nbact';
           %========================================

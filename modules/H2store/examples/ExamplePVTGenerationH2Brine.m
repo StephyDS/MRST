@@ -39,13 +39,13 @@ end
 % Generate H2O Component Table
 comp_name = 'H2O';
 disp(['Generating component table for: ', comp_name]);
-[tab_H2O, status_H2O, file_path_H2O] = generateComponentTable(min_temp, max_temp, min_pressure, max_pressure, nbp, nbt, comp_name, output_dir, 'outputDisplay', false);
+[tab_H2O, status_H2O, file_path_H2O] = generateComponentTable(min_temp, max_temp, min_pressure, max_pressure, nbp, nbt, comp_name, output_dir, 'outputDisplay', true);
 
 % Generate H2 Component Table
 pause(0.5);  % Ensure smooth execution between commands
 comp_name = 'H2';
 disp(['Generating component table for: ', comp_name]);
-[tab_H2, status_H2, file_path_H2] = generateComponentTable(min_temp, max_temp, min_pressure, max_pressure, nbp, nbt, comp_name, output_dir,'outputDisplay', false);
+[tab_H2, status_H2, file_path_H2] = generateComponentTable(min_temp, max_temp, min_pressure, max_pressure, nbp, nbt, comp_name, output_dir,'outputDisplay', true);
 
 % Generate Solubility Table
 disp('Generating solubility table...');

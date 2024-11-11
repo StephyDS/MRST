@@ -59,7 +59,7 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             act = model.getActivePhases();
             ncomp = model.getNumberOfComponents();
             nph = sum(act); 
-            if fd.moleculardiffusion           
+            if model.moleculardiffusion           
                 J = model.getProps(flowState, 'MolecularDiffPhaseFlux');
                 for c = 1:ncomp
                     for ph = 1:nph                   

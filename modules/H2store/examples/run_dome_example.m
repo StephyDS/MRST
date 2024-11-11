@@ -28,8 +28,8 @@
 
 mrstModule add ad-core ad-blackoil ad-props deckformat mrst-gui
 
-name = 'H2_STORAGE_RS_DOME_NoDisGas_HDEPTH_H';
-deck = readEclipseDeck('./data/3d_dome_case/DOME_RSRV.DATA');
+name = 'H2_STORAGE_RSRV_DOME';
+deck = readEclipseDeck('/home/elyes/Documents/Projects/MRST/modules/H2store/data/3d_dome_case/DOME_RSRV.DATA');
 
 %% Initialize the dome case simulation with specified parameters
 [~, options, state0, model, schedule, ~] = dome_case_3d(deck);
