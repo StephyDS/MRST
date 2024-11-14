@@ -249,7 +249,7 @@ rock = makeRock(G, perm, poro);
 
 %% Set up schedule and initiate model from deck
 %schedule = setUpSchedule(G, rock, options);
-[state0, model, schedule, nls] = initEclipseProblemAD(deck,'getSchedule',true,'getInitialState', true);
+[state0, model, schedule, nls] = initEclipseProblemAD(deck,'getSchedule',true,'getInitialState', false);
 deckfluid = model.fluid;
 krpts.o = [0.2000 0.7800 0.7800 0];
 krpts.g = [0 0.8000 1 0];

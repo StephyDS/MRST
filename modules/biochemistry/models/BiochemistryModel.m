@@ -1,4 +1,4 @@
-classdef BioChemsitryModel <  GenericOverallCompositionModel 
+classdef BiochemistryModel <  GenericOverallCompositionModel 
 %Bio-chemical model for compositional mixture with Hydrogen (H2)
 %
 % SYNOPSIS:
@@ -59,7 +59,7 @@ classdef BioChemsitryModel <  GenericOverallCompositionModel
     
     methods
         %-----------------------------------------------------------------%
-        function model = BioChemsitryModel(G, rock, fluid, compFluid, varargin)
+        function model = BiochemistryModel(G, rock, fluid, compFluid, varargin)
         % Class constructor. Required arguments are G, rock and fluid.
             model = model@GenericOverallCompositionModel(G, rock, fluid, compFluid);
             model = merge_options(model, varargin{:});
