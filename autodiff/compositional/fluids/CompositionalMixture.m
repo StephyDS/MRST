@@ -44,7 +44,51 @@ classdef CompositionalMixture
         function bic = getBinaryInteraction(fluid)
             bic = fluid.bic;
         end
-        
+  
+%=============SDS MODIF=================================
+        function bic = getBinaryInteractionGH2H2O(fluid,T)
+            bic = fluid.bic;
+            if isa(T,'ADI')
+                Tmean=mean(T.val);
+            else
+                Tmean=mean(T);
+            end
+            %dans le gaz
+            namecp=fluid.names;
+            indH2=find(strcmp(namecp,'H2'));
+            indH2O=find(strcmp(namecp,'H2O'));
+            TrH2=Tmean/fluid.Tcrit(indH2);
+            [D0,D1] = deal(0.01993,0.042834);
+            bic(indH2,indH2O)=D0+D1*TrH2;
+            bic(indH2O,indH2)=bic(indH2,indH2O);
+            %fluid = fluid.setBinaryInteraction(bic);
+        end
+
+        function bic = getBinaryInteractionLH2H2O(fluid,T,msalt)
+            bic = fluid.bic;
+
+            if isa(T,'ADI')
+                Tmean=mean(T.val);
+            else
+                Tmean=mean(T);
+            end
+            %dans le liquide
+            namecp=fluid.names;
+            indH2=find(strcmp(namecp,'H2'));
+            indH2O=find(strcmp(namecp,'H2O'));
+            TrH2=Tmean/fluid.Tcrit(indH2);
+            [D0,D1,D2,D3] = deal(-2.11917,0.14888,-13.01835,-0.43946);
+            [a0,a1] = deal(-2.26322e-2,-4.4736e-3);
+
+            
+            bic(indH2,indH2O)=D0*(1+a0*msalt)+D1*TrH2*(1+a1*msalt)+D2*exp(D3*TrH2);
+            bic(indH2O,indH2)=bic(indH2,indH2O);
+            %fluid = fluid.setBinaryInteraction(bic);
+        end
+        %===========SDS MODIF====================
+
+
+
         function fluid = setBinaryInteraction(fluid, input)
             % Set BIC via a matrix. Must be symmetric and ncomp by ncomp
             ncomp = fluid.getNumberOfComponents();
