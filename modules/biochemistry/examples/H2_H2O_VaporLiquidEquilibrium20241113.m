@@ -16,7 +16,7 @@ disp (compFluid)
 % system consisting of three named components. These properties are
 % generated from CoolProp and we display them using a custom-made disp
 % function.
-eosname='soreide-whitson'; 
+eosname='soreide-whitson'; %SW model
 %eosname='Peng-Robinson';
 eosmodel = EquationOfStateModel([], compFluid, eosname);
 
