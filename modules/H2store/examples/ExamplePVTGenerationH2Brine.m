@@ -22,15 +22,15 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
 min_temp = 40;                % Minimum temperature in Celsius
 max_temp = 60;                % Maximum temperature in Celsius
 min_pressure = 1 * atm;       % Minimum pressure in Pa
-max_pressure = 20 * atm;      % Maximum pressure in Pa
-nbp = 10;                     % Number of pressure points
-nbt = 10;                     % Number of temperature points
-ms = 2;                       % Scaling factor for solubility
+max_pressure = 45 * barsa();      % Maximum pressure in Pa
+nbp = 20;                     % Number of pressure points
+nbt = 20;                     % Number of temperature points
+ms = 0;                       % Scaling factor for solubility
 % Get the current script's directory
 currentDir = fileparts(mfilename('fullpath'));
 outputDisplay = false;
 % Define the target output directory relative to the current directory
-output_dir = fullfile(currentDir, 'data', 'UHS_BENCHMARK_RSRV');
+output_dir = fullfile(currentDir, 'data', 'H2STORAGE_RS');
 
 % Check if the directory exists; if not, create it
 if ~exist(output_dir, 'dir')
@@ -58,7 +58,7 @@ getFluidH2BrineProps(tab_H2O, tab_H2, tab_sol, ...
     'dir', 'UHS_BENCHMARK_RSRV');
 
 disp('Writing fluid properties for miscible case with digas and evapoil...');
-getFluidH2BrineProps(tab_H2O, tab_H2, tab_sol, 'rs', true, 'rv', true, 'PVTGFile', 'PVTGH2BRINE', 'PVTOFile', 'PVTOH2BRINE','PVDOFile', 'PVDOH2BRINE', 'dir', output_dir)
+getFluidH2BrineProps(tab_H2O, tab_H2, tab_sol, 'rs', true, 'rv', false, 'PVTGFile', 'PVTGH2BRINE', 'PVTOFile', 'PVTOH2BRINE','PVDOFile', 'PVDOH2BRINE', 'dir', output_dir)
 %% This 2ndpar generates gas-oil flow properties specific to a hydrogen-brine system, modeled over
 %% three distinct regions. We exemplify the system with three rock types: caprock, bedrock, and storage rock (aquifer).
 %% The output includes key properties: gas relative permeability (krG), oil relative permeability (krO),
@@ -71,8 +71,8 @@ getFluidH2BrineProps(tab_H2O, tab_H2, tab_sol, 'rs', true, 'rv', true, 'PVTGFile
 disp('Generating gas-oil flow properties for hydrogen-brine system with three regions');
 getFluidH2BrineSGOF('n', 100, 'plot', true, 'dir', output_dir, 'filename', 'SGOF_H2STORAGE.txt', ...
                       'units', 'metric', 'nreg', 3, 'sw_imm', [0.1, 0.1, 0.1], ...
-                      'sg_imm', [0.1, 0.1, 0.1], 'c_a1', 2, 'c_a2', 2, 'c_a3', 1.5, ...
-                      'Pe', [0.4, 0.4, 0.4], 'P_c_max', [9.5e4, 9.5e4, 9.5e4]);
+                      'sg_imm', [0.05, 0.1, 0.1], 'c_a1', 3.5, 'c_a2', 3.5, 'c_a3', 1.5, ...
+                      'Pe', [0.4, 5, 10], 'P_c_max', [9.5e4, 9.5e4, 9.5e4]);
 
 % Display completion message
 disp('H₂-Brine fluid properties setup for black-oil simulation is complete.');

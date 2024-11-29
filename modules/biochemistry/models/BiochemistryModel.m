@@ -91,7 +91,9 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 'BioChemsitryModel supports currently only one micro-organism');
             % Set output state functions
             model.OutputStateFunctions = {'ComponentTotalMass'};
-            model.FlowDiscretization = BiochemicalFlowDiscretization(model);
+            if model.bacteriamodel
+                model.FlowDiscretization = BiochemicalFlowDiscretization(model);
+            end
         end
         
         function containers = getStateFunctionGroupings(model)
@@ -131,11 +133,17 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         function model = validateModel(model, varargin)
             % Validate model to see if it is ready for simulation
             % Check that we have a facility model
-            if isempty(model.FacilityModel) ...
-                    || ~isa(model.FacilityModel, 'BiochemistryGenericFacilityModel')
-                model.FacilityModel = BiochemistryGenericFacilityModel(model);
+            if model.bacteriamodel
+                if isempty(model.FacilityModel) ...
+                        || ~isa(model.FacilityModel, 'BiochemistryGenericFacilityModel')
+                    model.FacilityModel = BiochemistryGenericFacilityModel(model);
+                end
+            else
+                if isempty(model.FacilityModel) ...
+                        || ~isa(model.FacilityModel, 'GenericFacilityModel')
+                    model.FacilityModel = GenericFacilityModel(model);
+                end
             end
-
             model = validateModel@GenericOverallCompositionModel(model, varargin{:});
         end
 
@@ -150,12 +158,11 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             fluxprops = model.FlowDiscretization;
             pvtprops  = model.PVTPropertyFunctions;
             flowprops = model.FlowPropertyFunctions;
-
-
-            flowprops = flowprops.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
-            flowprops = flowprops.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
-            flowprops = flowprops.setStateFunction('BactConvRate', BactConvertionRate(model));
-
+            if model.bacteriamodel
+                flowprops = flowprops.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
+                flowprops = flowprops.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
+                flowprops = flowprops.setStateFunction('BactConvRate', BactConvertionRate(model));
+            end
             model.PVTPropertyFunctions  = pvtprops;
             model.FlowPropertyFunctions = flowprops;
             model.FlowDiscretization    = fluxprops;
@@ -164,8 +171,8 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         
         %-----------------------------------------------------------------%
         function state = validateState(model, state)
-        % Validate state and check if it is ready for simulation
-    
+            % Validate state and check if it is ready for simulation
+
             % Let parent model do it's thing
             state = validateState@GenericOverallCompositionModel(model, state);
             % Set component overall mass fractions if they are not given
@@ -176,36 +183,54 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 state.components = zeros(model.G.cells.num, ncomp);
                 state.components(:,1) = 1;
             end
-            if ~isfield(state, 'nbact')
-                % Set temperature if it is not given
-                nbact0 = 10^6;
-                state.nbact = repmat(nbact0, model.G.cells.num, 1);
-            end
 
+            if model.bacteriamodel
+
+                if ~isfield(state, 'nbact')
+                    % Set temperature if it is not given
+                    nbact0 = 10^6;
+                    state.nbact = repmat(nbact0, model.G.cells.num, 1);
+                end
+
+            end
         end
 
         function [vars, names, origin] = getPrimaryVariables(model, state)
             [vars, names, origin] = getPrimaryVariables@GenericOverallCompositionModel(model, state);
-            nbact = model.getProps(state, 'bacteriamodel');
-            vars = [vars, {nbact}];
-            names = [names, {'bacteriamodel'}];
-            origin = [origin, {class(model)}];
-            
+
+            if model.bacteriamodel
+                nbact = model.getProps(state, 'bacteriamodel');
+                vars = [vars, {nbact}];
+                names = [names, {'bacteriamodel'}];
+                origin = [origin, {class(model)}];
+            end
         end
 
         function [eqs, names, types, state] = getModelEquations(model, state0, state, dt, drivingForces, varargin)
         % Get equations from AD states
 
             [eqs, flux, names, types] = model.FlowDiscretization.componentConservationEquations(model, state, state0, dt);
+
+             [pressures, sat, mob, rho, X] = model.getProps(state, 'PhasePressures', 's', 'Mobility', 'Density', 'ComponentPhaseMassFractions');
+             comps = cellfun(@(x, y) {x, y}, X(:, model.getLiquidIndex), X(:, model.getVaporIndex), 'UniformOutput', false);
+            
+            
+            
+            % Assemble equations
+            for i = 1:numel(eqs)
+                eqs{i} = model.operators.AccDiv(eqs{i}, flux{i});
+            end
+
+            eqs = model.addBoundaryConditionsAndSources(eqs, names, types, state, ...
+                                                             pressures, sat, mob, rho, ...
+                                                             {}, comps, ...
+                                                             drivingForces);
             if ~isempty(model.FacilityModel)
                 % Add sources
                 src = model.FacilityModel.getComponentSources(state);
                 eqs = model.insertSources(eqs, src);
             end
-            % Assemble equations
-            for i = 1:numel(eqs)
-                eqs{i} = model.operators.AccDiv(eqs{i}, flux{i});
-            end
+            
             if model.bacteriamodel
                 [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);             
                 fd = model.FlowDiscretization;

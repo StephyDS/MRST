@@ -21,7 +21,6 @@ classdef GrowthBactRateSRC <  StateFunction
 
          if model.ReservoirModel.bacteriamodel&& model.ReservoirModel.liquidPhase && (~isempty(idx_H2)) && (~isempty(idx_CO2))
                           
-             pv = model.ReservoirModel.operators.pv;  % Reservoir porosity
              pv = model.ReservoirModel.rock.poro;
              x = model.ReservoirModel.getProps(state, 'x');           
              if iscell(x)                  

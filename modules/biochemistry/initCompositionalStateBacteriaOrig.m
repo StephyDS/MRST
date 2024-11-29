@@ -1,4 +1,4 @@
-function state = initCompositionalStateBacteria(model, p, T, s0, z0,nbact0, eos)
+function state = initCompositionalStateBacteriaOrig(model, p, T, s0, z0,nbact0, eos)
 % Initialize a compositional state given initial composition
 %
 % SYNOPSIS:
@@ -59,10 +59,12 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
         state.components = repmat(z0, G.cells.num, 1);
     end
     %==================bacteria======================
-    if size(nbact0, 1) == G.cells.num
-        state.nbact = nbact0;
-    else
-        state.nbact = repmat(nbact0, G.cells.num, 1);
+    if model.bacteriamodel
+        if size(nbact0, 1) == G.cells.num
+            state.nbact = nbact0;
+        else
+            state.nbact = repmat(nbact0, G.cells.num, 1);
+        end
     end
     %================================================
     nls = getDefaultFlashNonLinearSolver();
@@ -71,7 +73,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     if ~report.StepReports{1}.Converged
         state = eos.updateAfterConvergence(state0, state, dt, struct());
     end
-    [sL, sV] = eos.computeSaturations(state.pressure, state.T,  nan, nan, state.x, state.y, state.L, state.Z_L, state.Z_V);
+    [sL, sV] = eos.computeSaturations(nan, nan, state.x, state.y, state.L, state.Z_L, state.Z_V);
     sz = size(s0, 2);
     if size(s0, 1) == 1
         s0 = repmat(s0, G.cells.num, 1);

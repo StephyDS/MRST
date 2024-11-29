@@ -1,4 +1,185 @@
-function [description, options, state0, model, schedule, plotOptions] = H2_illustration_storage_example(deck,varargin)
+clear all;
+mrstModule add compositional ad-blackoil ad-core ad-props mrst-gui
+gravity reset on
+
+%% Read the Eclipse deck file containing the simulation data
+% Change input fil by UHS_BENCHMARK_RS_SALT.DATA for SALT EFFECTS
+%deck = readEclipseDeck('/home/elyes/Documents/mrst-2023b/spe11-utils/deck_H2/UHS_benchmark/UHSDATA/UHS_BENCHMARK_RS.DATA');
+deck = readEclipseDeck('/home/elyes/Documents/Projects/MRST/modules/H2store/data/Illustrative_example/H2STORAGE_RS.DATA');
+
+%% Set up the simulation parameters and model components
+[~, options, state0, model, schedule, ~] = H2_illustration_storage_example(deck);
+
+
+
+%state0.components= [0.8, 0.0, 0.006, 0.018, 0.176];
+% Define compositional fluid model (with CoolProp library support)
+compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Nitrogen', 'Methane'}, ...
+                                      {'H2O', 'H2', 'CO2', 'N2', 'CH4'});
+
+
+%%=========initialisation proprietes du fluide
+%===Compositional fluid model (initialization with the CoolProp library)=
+
+% %Brine-Gas (H2)
+% [rhow,rhog]=deal(1000* kilogram/meter^3,8.1688* kilogram/meter^3); %density kilogram/meter^3;
+% [viscow,viscog]=deal(1.0*centi*poise,0.0094234*centi*poise);%viscosity
+% [cfw,cfg]=deal(0,8.1533e-3/barsa); %compressibility
+%  
+% [srw,src]=deal(0.0,0.0);
+% Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
+% [Pmaxz,Pref1,Pminz,Pe]=deal(95*barsa,114*barsa,120*barsa,0.1*barsa); %pressions
+% 
+% %initialisation fluides incompressibles, Brooks-Corey relperm krw=(Sw)^nw
+% fluid=initSimpleADIFluid('phases', 'OG', 'mu',[viscow,viscog],...
+%                          'rho',[rhow,rhog],'pRef',Pref1,...
+%                          'c',[cfw,cfg],'n',[2,2],'smin',[srw,src]);
+% 
+% % Pression capillaire
+% pcOG = @(so) Pe * so.^(-1/2);
+% fluid.pcOG = @(sg) pcOG(max((1-sg-srw)./(1-srw), 1e-5)); %@@
+% 
+% Fluid density and viscosity (kg/m^3 and cP)
+[rhow, rhog] = deal(1000 * kilogram / meter^3, 8.1688 * kilogram / meter^3);
+[viscow, viscog] = deal(1.0 * centi * poise, 0.0094234 * centi * poise);
+
+% Compressibility (per bar)
+[cfw, cfg] = deal(0, 8.1533e-3 / barsa);
+
+% Relative permeability and initial saturations
+[srw, src] = deal(0.0, 0.0);
+fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
+                           'rho', [rhow, rhog], 'pRef', 114 * barsa, ...
+                           'c', [cfw, cfg], 'n', [2, 2], 'smin', [srw, src]);
+model.fluid = fluid;
+% T = 100*day;
+% pv=sum(poreVolume(G,rock))/T;
+% rate = 100*pv;
+% niter = 30;
+
+% %%==============Conditions aux limites et puits============
+% bc = [];
+% %puit d'injection
+% W = [];
+% W = verticalWell(W, G, rock,1,1,nz, 'comp_i', [0, 1],'Radius',0.5,...
+%     'name', 'Injector', 'type', 'rate','Val',rate, 'sign', 1);
+% W(1).components = [0.0 0.95 0.05 0.0 0.0];
+% % for i = 1:numel(W)
+% %     W(i).components = info.injection;
+% % end
+%eos = initDeckEOSModel(deck);
+% schedule = convertDeckScheduleToMRST(model, deck);   
+% schedule.step.val = schedule.step.val.*day;
+for i=1:length(schedule.control)
+    schedule.control(i).W.compi=[0, 1];
+    schedule.control(i).W.components  = [0.0, 0.95, 0.05, 0.0, 0.0];
+    schedule.control(i).W.T = options.initTemp+40;
+end
+%%==============model compositionnal================
+arg = {model.G, model.rock, model.fluid, compFluid,...
+    'water', false, 'oil', true, 'gas', true,... % water-oil system
+	'bacteriamodel', true,'diffusioneffect',false,'liquidPhase', 'O',...
+    'vaporPhase', 'G'}; % water=liquid, gas=vapor
+model = BiochemistryModel(arg{:});
+nbact0 = 10^6;
+
+state0 = initCompositionalStateBacteria(model, state0.pressure, options.initTemp+40, [0.8, 0.2], [0.8, 0.0, 0.006, 0.018, 0.176], nbact0);
+model.outputFluxes = false;
+% %===Conditions initiales=====================
+% T0=317.5;
+% s0= [0.8 0.2]; %initial saturations  Sw=1
+% z0 = [0.8,0.0,0.006,0.018,0.176]; %initial composition: H2O,H2,CO2,N2,CH4.
+% 
+% %===Bacteria model===========================
+% if model.bacteriamodel
+%     nbact0=10^6;
+%     state0 = initCompositionalStateBacteria(model,Phydro0,T0,s0,z0,nbact0);
+% else
+%     state0 = initCompositionalState(model, Phydro0, T0, s0, z0);
+% end
+% 
+% 
+% %===Ajout d'un terme source====================
+% src=[];
+
+%===Resolution pression/transport========================
+% deltaT = T/niter;
+% schedule = simpleSchedule(repmat(deltaT,1,niter),'bc', bc,'src', src,'W',W);
+% nls = NonLinearSolver('useRelaxation', true);
+%% Set up the linear and nonlinear solvers
+lsolve = selectLinearSolverAD(model);                          % Select the linear solver for the model
+nls = NonLinearSolver();                                       % Create a nonlinear solver object
+nls.LinearSolver = lsolve;                                     % Assign the linear solver to the nonlinear solver
+
+name = 'UHS_2DCASE_COMPOSITIONAL_BACT';
+%% Pack the simulation problem with the initial state, model, and schedule
+problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
+
+%% Run the simulation
+simulatePackedProblem(problem,'restartStep',71);
+%% gGet reservoir and well states
+[ws,states] = getPackedSimulatorOutput(problem);
+%===Plottings============================================
+time=0;
+figure;
+for i= 1:niter
+    x = G.cells.centroids(:,1);
+    z = G.cells.centroids(:,3);
+    X = reshape(x, [nx,nz]);
+    Z = reshape(z, [nx,nz]);
+    zH2 = reshape(states{i}.components(:,2), [nx,nz]);
+    zH2O = reshape(states{i}.components(:,1), [nx,nz]);
+    zCO2 = reshape(states{i}.components(:,3), [nx,nz]);
+    Sw = reshape(states{i}.s(:,1), [nx,nz]);
+    Sg = reshape(states{i}.s(:,2), [nx,nz]);
+    Pres= reshape(states{i}.pressure, [nx,nz]);
+    nbacteria=reshape(states{i}.nbact, [nx,nz]);
+
+    subplot(2,2,1);   
+    contourf(X,Z,Sw,60,'EdgeColor','auto');
+    clim([0 1])
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('Water saturation','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar 
+
+    subplot(2,2,2);   
+    contourf(X,Z,Sg,60,'EdgeColor','auto');
+    clim([0 1])
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('Gas saturation','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar 
+
+    subplot(2,2,3); 
+    contourf(X,Z,nbacteria,60,'EdgeColor','auto');
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('nbact','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar
+
+    subplot(2,2,4); 
+    contourf(X,Z,zH2,60,'EdgeColor','auto');
+    clim([0 0.8])
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('z_H2','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar
+   
+    time = time + deltaT;
+    title(sprintf('injection duration = %.2f days',convertTo(time,day)))
+    pause(0.001)
+end
+
+    function [description, options, state0, model, schedule, plotOptions] = H2_illustration_storage_example_bacteria(deck,varargin)
 % This example simulates the injection and behavior of hydrogen (H₂) in a 2D saline aquifer 
 % using the black-oil model. The aquifer has a dome-shaped structure defined by the function 
 % F(x) = σ + r*sin(π*x), with parameters σ = 25 and r = 5. 
@@ -148,7 +329,7 @@ deck.REGIONS.SATNUM(bedrock) = 2;  % Bedrock saturation number
 deck.REGIONS.SATNUM(caprock) = 3;  % Caprock saturation number
 rock.regions.saturation = deck.REGIONS.SATNUM;  % Assign saturation regions to rock properties
 % We update indexmap and rock in G
-G.cells.indexMap = [1:G.cells.num]';
+G.cells.indexMap = rock.regions.saturation;
 deck.GRID.PORO=rock.poro;
 deck.GRID.PERMX=rock.perm(:,1);
 deck.GRID.PERMY=rock.perm(:,2);

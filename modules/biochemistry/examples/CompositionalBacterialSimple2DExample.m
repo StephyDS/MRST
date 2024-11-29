@@ -98,7 +98,8 @@ z0 = [0.8, 0.0, 0.006, 0.018, 0.176];  % Initial composition: H2O, H2, CO2, N2, 
 Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 % Initialize state with bacterial concentration
 nbact0 = 10^6;
-state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0);
+ state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0);
+% state0.s =state0.s.*0+s0;
 
 %% Time Stepping and Schedule
 % Define schedule and solver
@@ -163,6 +164,6 @@ for i = 1:niter
     set(gca, 'Ydir', 'reverse');
 
     time = time + deltaT;
-    sgtitle(sprintf('Injection Duration = %.2f days', convertTo(time, day)));
+%     suptitle(sprintf('Injection Duration = %.2f days', convertTo(time, day)));
     pause(0.001);
 end

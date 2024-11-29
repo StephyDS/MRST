@@ -8,56 +8,60 @@ gravity reset on
 deck = readEclipseDeck('/home/elyes/Documents/mrst-2023b/spe11-utils/TUC_UHS_Benchmark/Simulation Cases/UHS_Benchmark_LowH2.DATA');
 
 %% Prepare simulation parameters and initial state
-[~, options, state0, model, schedule, ~] = modified_uhs_benchmark_compositional(deck);
+%[~, options, state0, model, schedule,compFluid, ~] = modified_uhs_benchmark_compositional(deck, 'bacteriamodel',false);
+bacteriamodel = false;
+require ad-core ad-props ad-blackoil
+deck.PROPS.EOS ='PR';
+deck = convertDeckUnits(deck);
+eos = initDeckEOSModel(deck);
+[~, model, schedule, nls] = initEclipseProblemAD(deck,'getSchedule',true,'getInitialState', false);
+model.water = false;
+T0 = deck.PROPS.TEMPVD{1}(2);
+P0 = 82*barsa();
+s0 = [0.2 0.8];
+z0 = deck.PROPS.ZMFVD{1}(2:end); %initial composition: H2O,H2,CO2,N2,CH4.
+z0(end)= 0.0001;
+z0(end-1)= 0.0001;
+for i=1:length(schedule.control)
+    schedule.control(i).W.compi=[0, 1];
+end
+%===Bacteria model===========================
+G = model.G;
+if bacteriamodel
+    nbact0 = 10^6;
+    state0 = initCompositionalStateBacteria(model,P0.*ones(G.cells.num,1) ,T0,s0,z0,nbact0,eos);
+else
+    state0 = initCompositionalState(model, P0.*ones(G.cells.num,1) , T0, s0, z0);
+end
 
-
-
-
-%%=========initialisation proprietes du fluide
-%===Compositional fluid model (initialization with the CoolProp library)=
-compFluid =TableCompositionalMixture({'Water','Hydrogen','CarbonDioxide',...
-    'Nitrogen','Methane'}, {'H2O','H2','CO2','N2','CH4'});
-
-% %Brine-Gas (H2)
-% [rhow,rhog]=deal(1000* kilogram/meter^3,8.1688* kilogram/meter^3); %density kilogram/meter^3;
-% [viscow,viscog]=deal(1.0*centi*poise,0.0094234*centi*poise);%viscosity
-% [cfw,cfg]=deal(0,8.1533e-3/barsa); %compressibility
-%  
-% [srw,src]=deal(0.0,0.0);
-% Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
-% [Pmaxz,Pref1,Pminz,Pe]=deal(95*barsa,114*barsa,120*barsa,0.1*barsa); %pressions
-% 
-% %initialisation fluides incompressibles, Brooks-Corey relperm krw=(Sw)^nw
-% fluid=initSimpleADIFluid('phases', 'OG', 'mu',[viscow,viscog],...
-%                          'rho',[rhow,rhog],'pRef',Pref1,...
-%                          'c',[cfw,cfg],'n',[2,2],'smin',[srw,src]);
-% 
-% % Pression capillaire
-% pcOG = @(so) Pe * so.^(-1/2);
-% fluid.pcOG = @(sg) pcOG(max((1-sg-srw)./(1-srw), 1e-5)); %@@
-% 
-
-% T = 100*day;
-% pv=sum(poreVolume(G,rock))/T;
-% rate = 100*pv;
-% niter = 30;
-
-% %%==============Conditions aux limites et puits============
-% bc = [];
-% %puit d'injection
-% W = [];
-% W = verticalWell(W, G, rock,1,1,nz, 'comp_i', [0, 1],'Radius',0.5,...
-%     'name', 'Injector', 'type', 'rate','Val',rate, 'sign', 1);
-% W(1).components = [0.0 0.95 0.05 0.0 0.0];
-% % for i = 1:numel(W)
-% %     W(i).components = info.injection;
-% % end
-%%==============model compositionnal================
-% arg = {model.G, model.rock, model.fluid, compFluid,...
-%     'water', false, 'oil', true, 'gas', true,... % water-oil system
-% 	'bacteriamodel', true,'diffusioneffect',false,'liquidPhase', 'O',...
-%     'vaporPhase', 'G'}; % water=liquid, gas=vapor
-% model = BioChemsitryModel(arg{:});
+[rhow,rhog]=deal(model.fluid.rhoWS,8.1688* kilogram/meter^3); %density kilogram/meter^3;
+[viscow,viscog]=deal(model.fluid.muWr,0.0094234*centi*poise);%viscosity
+[cfw,cfg]=deal(model.fluid.cW,8.1533e-3/barsa); %compressibility
+ %initialisation fluides incompressibles, Brooks-Corey relperm krw=(Sw)^nw
+fluid=initSimpleADIFluid('phases', 'OG', 'mu',[viscow,viscog],...
+                         'rho',[rhow,rhog],'pRef',150*barsa(),...
+                         'c',[cfw,cfg],'n',[2,2],'smin',[0,0]);
+% fluid.krG = model.fluid.krG;
+% fluid.krO = model.fluid.krW;
+% fluid.krPts.g = model.fluid.krPts.g;
+% fluid.krPts.o = model.fluid.krPts.w;
+% fluid.rhoOS = model.fluid.rhoWS;
+% fluid.pvMultR = model.fluid.pvMultR;
+% fluid.muO = model.fluid.muW;
+% fluid.bO = model.fluid.bW;
+model.fluid = fluid;
+deck = model.inputdata;
+gravity reset on;
+% compFluid = TableCompositionalMixture(...
+%     {'Water','Methane','Nitrogen','CarbonDioxide','Ethane','Propane','Butane','Hydrogen'}, ...
+%     {'H2O','C1','N2','CO2','C2','C3','NC4','H2'});
+model = OverallCompositionCompositionalModel(G, model.rock,model.fluid,model.EOSModel, 'water', false);
+compFluid = model.EOSModel.CompositionalMixture;
+arg = {model.G, model.rock, model.fluid, compFluid,...
+    'water', false, 'eos',model.EOSModel, 'oil', true, 'gas', true,... % water-oil system
+	'bacteriamodel', bacteriamodel,'diffusioneffect',false,'liquidPhase', 'O',...
+    'vaporPhase', 'G'}; % water=liquid, gas=vapor
+model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
 % %===Conditions initiales=====================
 % T0=317.5;
@@ -85,8 +89,10 @@ lsolve = selectLinearSolverAD(model);                          % Select the line
 nls = NonLinearSolver();                                       % Create a nonlinear solver object
 nls.LinearSolver = lsolve;                                     % Assign the linear solver to the nonlinear solver
 
-name = 'UHS_BENCHMARK_COMPOSITIONAL';
+name = 'UHS_BENCHMARK_COMPOSITIONAL_BACT';
 %% Pack the simulation problem with the initial state, model, and schedule
+% model = OverallCompositionCompositionalModel(G, model.rock,model.fluid,model.EOSModel, 'water', false);
+model.EOSModel.minimumComposition =1.0e-8;
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Run the simulation
@@ -153,7 +159,7 @@ for i= 1:niter
     pause(0.001)
 end
 
-    function [description, options, state0, model, schedule, plotOptions] = modified_uhs_benchmark_compositional(deck,varargin)
+    function [description, options, state0, model, schedule, compFluid, plotOptions] = modified_uhs_benchmark_compositional(deck,varargin)
 % Example modified from:
 % Hogeweg, S., Strobel, G., & Hagemann, B. (2022). Benchmark study for the simulation of underground 
 % hydrogen storage operations. Comput Geosci, 26, 1367–1378. 
@@ -196,9 +202,9 @@ options = struct( ...
     'rateCushion',      6.14062 * 10^5 * meter^3/day/2,   ... % Cushion (H₂) injection rate (m³/day)
     'rateDischarge',    6.14062 * 10^5 * meter^3/day/2,   ... % Discharge rate (m³/day)
     'bhp',              90.0 * barsa,                     ... % Production bottom hole pressure (BHP) in bar
-    'tempCharge',       K0 + 80 * Kelvin,                 ... % Charging temperature (K)
-    'tempDischarge',    K0 + 80 * Kelvin,                 ... % Discharging temperature (K)
-    'tempCushion',      K0 + 80 * Kelvin,                 ... % Cushion temperature (K)
+    'tempCharge',       K0 + 60 * Kelvin,                 ... % Charging temperature (K)
+    'tempDischarge',    K0 + 60 * Kelvin,                 ... % Discharging temperature (K)
+    'tempCushion',      K0 + 60 * Kelvin,                 ... % Cushion temperature (K)
     'timeCushion',      120 * day,                        ... % Duration of cushioning phase (days)
     'timeCharge',       30 * day,                         ... % Duration of charging phase (days)
     'timeIdle',         15 * day,                         ... % Duration of idle phase (days)
@@ -216,14 +222,14 @@ options = struct( ...
     'dischargeOnly',    0,                                ... % Flag to simulate only the discharging phase (0: No, 1: Yes)
     'useGroupCtrl',     false,                            ... % Flag to use group control (true/false)
     'initPres',         81.6 * barsa,                     ... % Initial pressure (bar)
-    'initSat',          [0.1,0.1, 0.7999],                           ... % Initial saturation
-    'initTemp',         273.15 + 80,                      ... % Initial temperature (°C)
+    'initSat',          [0.2, 0.8],                           ... % Initial saturation
+    'initTemp',         273.15 + 60,                      ... % Initial temperature (°C)
     'use_bc',           true,                             ... % Flag to use boundary conditions (true/false)
     'use_cushion',      true,                             ... % Flag to use cushion phase (true/false)
     'nbact0',           10^7, ....
     'use_bhp',          true,                              ... % Flag to use bottom hole pressure (true/false)
-    'initComp',  [0.0045  0.8723 0.0904  0.0250 0.0072 3.9800e-04 1.9900e-04 0]...% [0.8,0.0,0.006,0.018,0.176] ...
-    );
+    'initComp',  [0.004511 0.872256 0.090513 0.024955 0.007168 0.000398 0.000199 0],...% [0.8,0.0,0.006,0.018,0.176] ...
+    'bacteriamodel', false);
 
 %% Process optinal input arguments
 [options, fullSetup, ~] = processTestCaseInput(mfilename, ...
@@ -249,27 +255,17 @@ rock = makeRock(G, perm, poro);
 
 %% Set up schedule and initiate model from deck
 %schedule = setUpSchedule(G, rock, options);
+deck.PROPS.EOS ='PR';
+eos = initDeckEOSModel(deck);
 [state0, model, schedule, nls] = initEclipseProblemAD(deck,'getSchedule',true,'getInitialState', false);
-deckfluid = model.fluid;
+
 krpts.o = [0.2000 0.7800 0.7800 0];
 krpts.g = [0 0.8000 1 0];
-% fluid = struct(...
-%     'krO', fluid.krW, ...              % Water relative permeability
-%     'krG', fluid.krOW, ...                   % Gas relative permeability
-%     'krPts', krpts, ...                                    % Placeholder for additional permeability points if needed
-%     'cW', fluid.cW,                                         % Compressibility of water (example)
-%     'muWr', fluid.muW,                                       % Water viscosity (example)
-%     'bW', fluid.bW,                                          % Water formation volume factor (example)
-%     'muW', fluid.,                   % Water viscosity dependence on pressure
-%     'rhoOS', 0,                                               % Oil density, if relevant (set to zero for gas)
-%     'rhoWS', 1.0203e+03,                                      % Water density (kg/m³)
-%     'rhoGS', 0.8,                                             % Gas density (example value, can vary with pressure/temperature)
-%     'pvMultR', @(p) pvMult(p, cR, pRef)                       % Multiplier function for gas, e.g., pv multiplication with reference
-% );
 deck = model.inputdata;
-% for i=1:length(schedule.control)
-%     schedule.control(i).W.compi=[0, 1];
-% end
+for i=1:length(schedule.control)
+    schedule.control(i).W.compi=[0, 1];
+%         schedule.control(i).W.components      = [0    0.1    0.0818    0.0227    0.0065    0.0004    0.0002    0.7785];
+end
 rock.regions.saturation=deck.REGIONS.SATNUM;
 gravity reset on;
 %% We reset a compositional model and "oil" is the water phase
@@ -290,12 +286,18 @@ compFluid = TableCompositionalMixture(...
 [srw,src]=deal(0.0,0.0);
 Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 [Pmaxz,Pref1,Pminz,Pe]=deal(95*barsa,114*barsa,120*barsa,0.1*barsa); %pressions
-
+model.water = false;
 %initialisation fluides incompressibles, Brooks-Corey relperm krw=(Sw)^nw
-% fluid=initSimpleADIFluid('phases', 'OG', 'mu',[viscow,viscog],...
-%                          'rho',[rhow,rhog],'pRef',options.initPres,...
-%                          'c',[cfw,cfg],'n',[2,2],'smin',[srw,src]);
-
+fluid=initSimpleADIFluid('phases', 'OG', 'mu',[viscow,viscog],...
+                         'rho',[rhow,rhog],'pRef',options.initPres,...
+                         'c',[cfw,cfg],'n',[2,2],'smin',[0,0]);
+model.water = false;
+fluid.krG = model.fluid.krG;
+fluid.krO = model.fluid.krW;
+fluid.krPts.g = model.fluid.krPts.g;
+fluid.krPts.o = model.fluid.krPts.w;
+fluid.rhoOS = model.fluid.rhoWS;
+model.fluid = fluid;
 % 
 % arg = {model.G, rock, fluid, compFluid,...
 %     'water', false, 'oil', true, 'gas', true,... % water-oil system
@@ -309,12 +311,12 @@ s0= options.initSat; %initial saturations  Sw=1
 z0 = options.initComp; %initial composition: H2O,H2,CO2,N2,CH4.
 
 %===Bacteria model===========================
-% if model.bacteriamodel
-%     nbact0=options.nbact0.*0;
-%     state0 = initCompositionalStateBacteria(model,options.initPres.*ones(G.cells.num,1) ,T0,s0,z0,nbact0);
-% else
-    state0 = initCompositionalState(model, options.initPres.*ones(G.cells.num,1) , T0, s0, z0);
-% end
+if options.bacteriamodel
+   nbact0 = options.nbact0;
+     state0 = initCompositionalStateBacteria(model,options.initPres.*ones(G.cells.num,1) ,T0,s0,z0,nbact0,eos);
+ else
+     state0 = initCompositionalState(model, options.initPres.*ones(G.cells.num,1) , T0, s0, z0,eos);
+ end
 %% Plotting
 plotOptions = {'View'              , [0,0]         , ...
     'PlotBoxAspectRatio', [1,1,0.25]    , ...
