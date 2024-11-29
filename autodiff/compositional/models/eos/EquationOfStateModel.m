@@ -15,6 +15,7 @@ classdef EquationOfStateModel < PhysicalModel
         minimumSaturation  = 1e-8; % Minimum total EOS phase saturation 
         equilibriumConstantFunctions = {};
         extraOutput = 0;
+        msalt=0.0; %SDS modif
     end
 
     properties (Access = private)
@@ -107,6 +108,15 @@ classdef EquationOfStateModel < PhysicalModel
                         model.omegaA = 0.4572355;
                         model.omegaB = 0.0779691;
                         model.eosType = 5;
+                         %=================SDS modif===============
+                    case {'sw', 'soreide-whitson'} 
+                        % Peng-Robinson
+                        model.eosA = 1 + sqrt(2);
+                        model.eosB = 1 - sqrt(2);
+                        model.omegaA = 0.4572355;
+                        model.omegaB = 0.0777961;
+                        model.eosType = 6;
+                   %=================SDS modif===============
                     otherwise
                         error('Invalid string ''%s''.\n Valid choices are:\n PR: Peng-Robinson\n', arg);
                 end
@@ -131,6 +141,8 @@ classdef EquationOfStateModel < PhysicalModel
                     t = 'rk';
                 case 5
                     t = 'prcorr';
+                    case 6
+                    t = 'sw'; %SDS
                 otherwise
                     t = model.eosType;
             end
@@ -532,6 +544,7 @@ classdef EquationOfStateModel < PhysicalModel
                         end
                         oA = model.omegaA.*(1 + tmp).^2;
                     end
+                    bic = model.CompositionalMixture.getBinaryInteraction();%SDS
                 case 2
                     % SRK
                     if useCell
@@ -542,6 +555,7 @@ classdef EquationOfStateModel < PhysicalModel
                         tmp = bsxfun(@times, (0.48 + 1.574.*acf - 0.176.*acf.^2), (1-Tr.^(1/2)));
                         oA = model.omegaA.*(1 + tmp).^2;
                     end
+                    bic = model.CompositionalMixture.getBinaryInteraction();%SDS
                 case 3
                     % ZJ
                     error('Not implemented yet.')
@@ -554,10 +568,32 @@ classdef EquationOfStateModel < PhysicalModel
                     else
                         oA = model.omegaA.*Tr.^(-1/2);
                     end
+                    bic = model.CompositionalMixture.getBinaryInteraction();%SDS
+
+                    %===========SDS MODIF======================
+                case {6}
+                    % SW: Soreide Whitson
+                    %Dans le gaz on garde les parametres de Peng Robinson
+                     if useCell
+                        for i = 1:ncomp
+                            ai = acf(i);
+                            if model.eosType == 5 && ai > 0.49
+                                oA{i} = model.omegaA.*(1 + (0.379642 + 1.48503.*ai - 0.164423.*ai.^2 + 0.016666.*ai.^3).*(1-Tr{i}.^(1/2))).^2;
+                            else
+                                oA{i} = model.omegaA.*(1 + (0.37464 + 1.54226.*ai - 0.26992.*ai.^2).*(1-Tr{i}.^(1/2))).^2;
+                            end
+                        end
+                    else
+                        tmp = bsxfun(@times, 0.37464 + 1.54226.*acf - 0.26992.*acf.^2, 1-Tr.^(1/2));
+                        oA = model.omegaA.*(1 + tmp).^2;
+                     end
+                     bic = model.CompositionalMixture.getBinaryInteractionGH2H2O(T);
+                %===========SDS MODIF======================
+                    
                 otherwise
                     error('Unknown eos type: %d', model.eosType);
             end
-            bic = model.CompositionalMixture.getBinaryInteraction();
+            %bic = model.CompositionalMixture.getBinaryInteraction(); %SDS
             if useCell
                 A_ij = cell(ncomp, ncomp);
                 for i = 1:ncomp
@@ -579,13 +615,117 @@ classdef EquationOfStateModel < PhysicalModel
                 end
             end
         end
-        
-        function [Si_L, Si_V, A_L, A_V, B_L, B_V, Bi] = getMixtureFugacityCoefficients(model, P, T, x, y, acf)
-            % Calculate intermediate values for fugacity computation
-            [A_ij, Bi] = model.getMixingParameters(P, T, acf, iscell(x));
-            [Si_L, A_L, B_L] = model.getPhaseMixCoefficients(x, A_ij, Bi);
-            [Si_V, A_V, B_V] = model.getPhaseMixCoefficients(y, A_ij, Bi);
+
+
+               %=============SDS MODIF===========================================
+        function [A_ij, Bi] = getMixingParametersH2O(model, P, T, acf, useCell)
+            if model.eosType==6 %Soreide-Whitson
+                if nargin < 4
+                    useCell = true;
+                end
+                
+                % Calculate intermediate values for fugacity computation
+                ncomp = model.getNumberOfComponents();
+                [Pr, Tr] = model.getReducedPT(P, T, useCell);
+
+               %parameters H2O
+                msalt=model.msalt;%salt molality
+                coef_msalt=msalt^1.1; 
+                namecomp=model.CompositionalMixture.names;%composant names
+                indH2O=find(strcmp(namecomp,'H2O'));
+
+                if useCell
+                    [sAi, Bi] = deal(cell(1, ncomp));
+                    [oA, oB] = deal(cell(1, ncomp));
+                    [oB{:}] = deal(model.omegaB);
+                else
+                    oB = model.omegaB;
+                end
+
+                %Dans la phase liquide, on utilise le alpha de PR sauf pour le
+                %composant H2O: on corrige le PR pour tenir compte des effets du sel
+                % C'est le modèle de Soreide Whitson SW.
+                %Dans le liquide et pour le composant H2O, on construit 1 
+                % fonction qui depend de la molalite de NaCl
+                if useCell
+                    %for components in the liquid phase
+                    for i = 1:ncomp
+                        ai = acf(i);
+                        if ai > 0.49
+                            oA{i} = model.omegaA.*(1 + (0.379642 + 1.48503.*ai - 0.164423.*ai.^2 + 0.016666.*ai.^3).*(1-Tr{i}.^(1/2))).^2;
+                        else
+                            oA{i} = model.omegaA.*(1 + (0.37464 + 1.54226.*ai - 0.26992.*ai.^2).*(1-Tr{i}.^(1/2))).^2;
+                        end
+                    end
+                    %for component H2O
+                    TrH2O=Tr{indH2O};
+                    oA{indH2O} = model.omegaA.*(1 +0.4530.*(1-(1-0.0103*coef_msalt).*TrH2O)+0.0034.*(TrH2O.^(-3)-1).^2);                 
+                else
+                    %for liquid phase:
+                    tmp = bsxfun(@times, 0.37464 + 1.54226.*acf - 0.26992.*acf.^2, 1-Tr.^(1/2));
+                    oA = model.omegaA.*(1 + tmp).^2;
+
+                    %for component H2O in the liquid phase:
+                    %==============ATTENTION IL FAUT LE CODER SEULEMENT
+                    %POUR H2O===========================================
+                    TrH2O=Tr(:,indH2O);
+                    tmp1 = bsxfun(@power,1 +0.4530.*(1-(1-0.0103*coef_msalt).*TrH2O)+0.0034.*(TrH2O.^(-3)-1),2);
+                    oA(:,indH2O) = model.omegaA.*tmp1;
+                    %=======================================================
+                end
+                
+                bic = model.CompositionalMixture.getBinaryInteractionLH2H2O(T,msalt);
+                
+                if useCell
+                    A_ij = cell(ncomp, ncomp);
+                    for i = 1:ncomp
+                        sAi{i} = ((oA{i}.*Pr{i}).^(1/2))./Tr{i};
+                        Bi{i} = oB{i}.*Pr{i}./Tr{i};
+                    end
+                    for i = 1:ncomp
+                        for j = i:ncomp
+                            A_ij{i, j} = (sAi{i}.*sAi{j}).*(1 - bic(i, j));
+                            A_ij{j, i} = A_ij{i, j};
+                        end
+                    end
+                else
+                    Ai = oA.*Pr./Tr.^2;
+                    Bi = oB.*Pr./Tr;
+                    A_ij = cell(ncomp, 1);
+                    for j = 1:ncomp
+                        A_ij{j} = bsxfun(@times, bsxfun(@times, Ai, Ai(:, j)).^(1/2), 1 - bic(j, :));
+                    end
+                end
+            end
         end
+        %=============SDS MODIF : Soreide-Whitson for water===============
+
+         function [Si_L, Si_V, A_L, A_V, B_L, B_V, Bi] = getMixtureFugacityCoefficients(model, P, T, x, y, acf)
+            % Calculate intermediate values for fugacity computation
+            
+            %===========SDS modif soreide whitson=========================
+            
+            if model.eosType==6 %soreide-whitson
+                %For liquid phase
+                [A_ij, Bi] = model.getMixingParametersH2O(P, T, acf, iscell(x));
+                [Si_L, A_L, B_L] = model.getPhaseMixCoefficients(x, A_ij, Bi);
+                %For gaz phase
+                [A_ij, Bi] = model.getMixingParameters(P, T, acf, iscell(y));
+                [Si_V, A_V, B_V] = model.getPhaseMixCoefficients(y, A_ij, Bi);
+            else
+                [A_ij, Bi] = model.getMixingParameters(P, T, acf, iscell(x));
+                [Si_L, A_L, B_L] = model.getPhaseMixCoefficients(x, A_ij, Bi);
+                [Si_V, A_V, B_V] = model.getPhaseMixCoefficients(y, A_ij, Bi);              
+            end     
+          %========================SDS modif=============================
+       end
+
+        % function [Si_L, Si_V, A_L, A_V, B_L, B_V, Bi] = getMixtureFugacityCoefficients(model, P, T, x, y, acf)
+        %     % Calculate intermediate values for fugacity computation
+        %     [A_ij, Bi] = model.getMixingParameters(P, T, acf, iscell(x));
+        %     [Si_L, A_L, B_L] = model.getPhaseMixCoefficients(x, A_ij, Bi);
+        %     [Si_V, A_V, B_V] = model.getPhaseMixCoefficients(y, A_ij, Bi);
+        % end
       
         function [Z_L, Z_V, f_L, f_V] = getCompressibilityAndFugacity(model, P, T, x, y, z, Z_L, Z_V, varargin)
             [Si_L, Si_V, A_L, A_V, B_L, B_V, Bi] = model.getMixtureFugacityCoefficients(P, T, x, y, model.CompositionalMixture.acentricFactors);
