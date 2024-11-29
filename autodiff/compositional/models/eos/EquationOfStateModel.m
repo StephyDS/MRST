@@ -27,12 +27,12 @@ classdef EquationOfStateModel < PhysicalModel
     methods
         function model = EquationOfStateModel(G, fluid, eosname)
             if nargin < 3
-                eosname = 'PR';
+                eosname = 'SW';
             end
             model = model@PhysicalModel(G);
             assert(isa(fluid, 'CompositionalMixture'));
             model.CompositionalMixture = fluid;
-            model.nonlinearTolerance = 1e-4;
+            model.nonlinearTolerance = 1e-7;
             model.PropertyModel = CompositionalPropertyModel(fluid);
             model = model.setType(eosname);
         end
@@ -601,17 +601,34 @@ classdef EquationOfStateModel < PhysicalModel
                     Bi{i} = oB{i}.*Pr{i}./Tr{i};
                 end
                 for i = 1:ncomp
-                    for j = i:ncomp
-                        A_ij{i, j} = (sAi{i}.*sAi{j}).*(1 - bic(i, j));
-                        A_ij{j, i} = A_ij{i, j};
+                    if iscell(bic)
+                        for j = i:ncomp
+                            A_ij{i, j} = (sAi{i}.*sAi{j}).*(1 - bic{i, j});
+                            A_ij{j, i} = A_ij{i, j};
+                        end
+                    else
+                        for j = i:ncomp
+                            A_ij{i, j} = (sAi{i}.*sAi{j}).*(1 - bic(i, j));
+                            A_ij{j, i} = A_ij{i, j};
+                        end
                     end
                 end
             else
                 Ai = oA.*Pr./Tr.^2;
                 Bi = oB.*Pr./Tr;
                 A_ij = cell(ncomp, 1);
-                for j = 1:ncomp
-                    A_ij{j} = bsxfun(@times, bsxfun(@times, Ai, Ai(:, j)).^(1/2), 1 - bic(j, :));
+                if iscell(bic)
+                    for j = 1:ncomp
+                        bicc=[];
+                        for i = ncomp
+                            bicc(:,i) = bic{j,i};
+                        end
+                        A_ij{j} = bsxfun(@times, bsxfun(@times, Ai, Ai(:, j)).^(1/2), 1 - bicc);
+                    end
+                else
+                    for j = 1:ncomp
+                        A_ij{j} = bsxfun(@times, bsxfun(@times, Ai, Ai(:, j)).^(1/2), 1 - bic(j, :));
+                    end
                 end
             end
         end
@@ -682,18 +699,37 @@ classdef EquationOfStateModel < PhysicalModel
                         sAi{i} = ((oA{i}.*Pr{i}).^(1/2))./Tr{i};
                         Bi{i} = oB{i}.*Pr{i}./Tr{i};
                     end
-                    for i = 1:ncomp
-                        for j = i:ncomp
-                            A_ij{i, j} = (sAi{i}.*sAi{j}).*(1 - bic(i, j));
-                            A_ij{j, i} = A_ij{i, j};
+                    if iscell(bic)
+                        for i = 1:ncomp
+                            for j = i:ncomp
+                                A_ij{i, j} = (sAi{i}.*sAi{j}).*(1 - bic{i, j});
+                                A_ij{j, i} = A_ij{i, j};
+                            end
+                        end
+                    else
+                        for i = 1:ncomp
+                            for j = i:ncomp
+                                A_ij{i, j} = (sAi{i}.*sAi{j}).*(1 - bic(i, j));
+                                A_ij{j, i} = A_ij{i, j};
+                            end
                         end
                     end
                 else
                     Ai = oA.*Pr./Tr.^2;
                     Bi = oB.*Pr./Tr;
                     A_ij = cell(ncomp, 1);
-                    for j = 1:ncomp
-                        A_ij{j} = bsxfun(@times, bsxfun(@times, Ai, Ai(:, j)).^(1/2), 1 - bic(j, :));
+                    if iscell(bic)
+                        for j = 1:ncomp
+                            bicc=[];
+                            for i = ncomp
+                                bicc(:,i) = bic{j,i};
+                            end
+                            A_ij{j} = bsxfun(@times, bsxfun(@times, Ai, Ai(:, j)).^(1/2), 1 - bicc);
+                        end
+                    else
+                        for j = 1:ncomp
+                            A_ij{j} = bsxfun(@times, bsxfun(@times, Ai, Ai(:, j)).^(1/2), 1 - bic(j,:));
+                        end
                     end
                 end
             end

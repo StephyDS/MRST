@@ -8,7 +8,7 @@ clearvars;
 mrstModule add ad-core ad-blackoil ad-props deckformat mrst-gui upr
 
 %% Define the case name and read the Eclipse deck file
-name = 'H2_STORAGE_COMPOSITIONAL';
+name = 'H2_STORAGE_COMPOSITIONAL_SOW';
 %% Use H2STORAGE_RS_SALT.DATA for brine
 deck = readEclipseDeck('/home/elyes/Documents/Projects/MRST/modules/H2store/data/Illustrative_example/H2STORAGE_RS.DATA');
 
@@ -20,7 +20,10 @@ model = convertBlackOilModelToCompositionalModel(modelBo);
 
 %% Set up the compositional model with Water and Hydrogen
 compFluid = TableCompositionalMixture({'Water', 'Hydrogen'}, {'H2O', 'H2'});
-model.EOSModel.CompositionalMixture = compFluid;
+
+SOW_EOS = EquationOfStateModel([], compFluid, 'sw');
+
+model.EOSModel = SOW_EOS;
 
 % Set up additional model properties for biochemistry and flow
 arg = {model.G, model.rock, model.fluid, compFluid,...
@@ -47,7 +50,7 @@ composition(model.rock.regions.saturation == 1, :) = composition(model.rock.regi
 % state0.nbact = repmat(nbact0, model.G.cells.num, 1); % Set initial bacteria count
 
 % Initialize compositional state with bacteria model
-state0 = initCompositionalStateBacteria(model, state0Bo.pressure, T0, state0Bo.s, composition, nbact0);
+state0 = initCompositionalStateBacteria(model, state0Bo.pressure, T0, state0Bo.s, composition, nbact0, SOW_EOS);
 
 bc = schedule.control(1).bc; % Get boundary condition from the schedule
 cells_bc = sum(model.G.faces.neighbors(bc.face, :), 2);
@@ -63,8 +66,8 @@ for i = 1:length(schedule.control)
     schedule.control(i).W.T = T0; % Set temperature (not used, but necessary)
 
     % Update boundary conditions for each control
-    schedule.control(i).bc.components = repmat([0.99995, 0.00005], numel(cells_bc), 1); % Set boundary component concentrations
-    schedule.control(i).bc.sat = repmat([1.0, 0.0], numel(cells_bc), 1); % Set boundary saturation
+    schedule.control(i).bc.components = repmat([0.999, 0.001], numel(cells_bc), 1); % Set boundary component concentrations
+    schedule.control(i).bc.sat = repmat([0.999, 0.001], numel(cells_bc), 1); % Set boundary saturation
 end
 model.outputFluxes = false;
 %% Plot Grid with Wells, Permeability, and Porosity
@@ -98,7 +101,7 @@ nls.LinearSolver = lsolve;
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Execute the simulation of the packed problem
-simulatePackedProblem(problem);
+simulatePackedProblem(problem,'restartStep',1);
 
 %% Get packed reservoir and well states
 [ws, states] = getPackedSimulatorOutput(problem);

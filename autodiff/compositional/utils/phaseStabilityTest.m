@@ -112,7 +112,7 @@ function [xy, S, trivialSolution, K] = checkStability(eos, z, K, p, T, insidePha
     nc = numel(p);
     acf = eos.CompositionalMixture.acentricFactors;
     %==============SDS MODIF==============================================
-    if eos.shortname=='sw'
+    if strcmp(eos.shortname,'sw')
         if insidePhaseIsVapor
             [A_ij, Bi] = eos.getMixingParameters(p, T, acf, false);
         else

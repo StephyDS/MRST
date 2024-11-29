@@ -16,15 +16,15 @@ disp (compFluid)
 % system consisting of three named components. These properties are
 % generated from CoolProp and we display them using a custom-made disp
 % function.
-eosname='soreide-whitson'; %SW model
-%eosname='Peng-Robinson';
+eosname = 'SW'; %SW model
+eosname='Peng-Robinson';
 eosmodel = EquationOfStateModel([], compFluid, eosname);
 
 
 % initialisation
 z=[0.8 , 0.2];
 patm=10^5;
-CasTest=2;
+CasTest=1;
 switch CasTest
     case 1
         eosmodel.msalt=0;
@@ -72,10 +72,16 @@ namecp=eosmodel.CompositionalMixture.names; %components name
 nc=size(pres,2);
 indH2=find(strcmp(namecp,'H2'));
 indH2O= find(strcmp(namecp,'H2O'));
-
+pres = pres*2;
 xliqH2=zeros(nc,1);
-for i=1:nc
-    [L, x, y] = standaloneFlash(pres(i), Temp(i), z, eosmodel); 
+pMin = min(pres);
+pMax=max(pres);
+TMin = min(Temp);
+TMax = max(Temp);
+[p,T] = ndgrid(linspace(pMin,pMax,nc), linspace(TMin,TMax,nc));
+[L, x, y, Z_L, Z_V, rhoL, rhoV, reports] = standaloneFlash(p, T, z, eosmodel);
+for i=1:400
+    [L, x, y] = standaloneFlash(pp(i), TT(i), z, eosmodel); 
     xliqH2(i)=x(:,indH2);
 end
 
