@@ -82,6 +82,8 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     {'H2', 'Water', 'N2', 'CO2', 'CH4'});
             end
             model.compFluid = compFluid;
+            SOW_EOS = SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
+            model.EOSModel = SOW_EOS;
             % Set nonlinear tolerance
             model.nonlinearTolerance = 1e-3;
             % Merge in additional optjions

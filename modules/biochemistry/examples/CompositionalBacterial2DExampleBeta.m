@@ -14,21 +14,21 @@ deck = readEclipseDeck('/home/elyes/Documents/Projects/MRST/modules/H2store/data
 
 %% Set up the simulation parameters and model components from the black-oil model
 [~, ~, state0Bo, modelBo, scheduleBo, ~] = H2_illustration_storage_example(deck);
-
+bacteriamodel = false;
 % Convert black-oil model to compositional model
 model = convertBlackOilModelToCompositionalModel(modelBo);
 
 %% Set up the compositional model with Water and Hydrogen
 compFluid = TableCompositionalMixture({'Water', 'Hydrogen'}, {'H2O', 'H2'});
 
-SOW_EOS = EquationOfStateModel([], compFluid, 'sw');
+SOW_EOS = SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
 
 model.EOSModel = SOW_EOS;
 
 % Set up additional model properties for biochemistry and flow
 arg = {model.G, model.rock, model.fluid, compFluid,...
     'water', false, 'oil', true, 'gas', true, ... % Define phases for water-oil system
-    'bacteriamodel', true, 'diffusioneffect', false, 'liquidPhase', 'O', ...
+    'bacteriamodel', bacteriamodel, 'diffusioneffect', false, 'liquidPhase', 'O', ...
     'vaporPhase', 'G', 'eos', model.EOSModel}; % Set phases and EOS model
 model = BiochemistryModel(arg{:});
 model.gravity = modelBo.gravity;
@@ -50,8 +50,11 @@ composition(model.rock.regions.saturation == 1, :) = composition(model.rock.regi
 % state0.nbact = repmat(nbact0, model.G.cells.num, 1); % Set initial bacteria count
 
 % Initialize compositional state with bacteria model
-state0 = initCompositionalStateBacteria(model, state0Bo.pressure, T0, state0Bo.s, composition, nbact0, SOW_EOS);
-
+if bacteriamodel
+    state0 = initCompositionalStateBacteria(model, state0Bo.pressure, T0, state0Bo.s, composition, nbact0, SOW_EOS);
+else
+    state0 = initCompositionalState(model, state0Bo.pressure, T0, state0Bo.s, composition, SOW_EOS);
+end
 bc = schedule.control(1).bc; % Get boundary condition from the schedule
 cells_bc = sum(model.G.faces.neighbors(bc.face, :), 2);
 %% Update schedule controls and boundary conditions
@@ -101,7 +104,7 @@ nls.LinearSolver = lsolve;
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Execute the simulation of the packed problem
-simulatePackedProblem(problem,'restartStep',1);
+simulatePackedProblem(problem,'restartStep',603);
 
 %% Get packed reservoir and well states
 [ws, states] = getPackedSimulatorOutput(problem);
