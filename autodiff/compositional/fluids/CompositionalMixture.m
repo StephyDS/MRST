@@ -44,38 +44,151 @@ classdef CompositionalMixture
         function bic = getBinaryInteraction(fluid)
             bic = fluid.bic;
         end
-  
-%=============SDS MODIF=================================
-        function bic = getBinaryInteractionGH2H2O(fluid,T)
-                       
-            namecp=fluid.names;
-            indH2=find(strcmp(namecp,'H2'));
-            indH2O=find(strcmp(namecp,'H2O'));
-            TrH2=T./fluid.Tcrit(indH2);
-            [D0,D1] = deal(0.01993,0.042834);
-            bic{indH2,indH2O} = D0+D1.*TrH2;
-            bic{indH2O,indH2} = D0+D1.*TrH2;
-            bic{indH2,indH2} = 0.*TrH2 + fluid.bic(indH2,indH2);
-            bic{indH2O,indH2O} = 0.*TrH2 + fluid.bic(indH2O,indH2O);
+
+%         function bic = getBinaryInteractionGH2H2O(fluid, T)
+%             % Calculates gas-phase binary interaction coefficients (BIC)
+%             % between H2 and H2O.
+% 
+%             % Extract component indices
+%             namecp = fluid.names;
+%             indH2 = find(strcmp(namecp, 'H2'));
+%             indH2O = find(strcmp(namecp, 'H2O'));
+% 
+%             % Compute reduced temperature for H2
+%             TrH2 = T ./ fluid.Tcrit(indH2);
+% 
+%             % Gas-phase BIC coefficients for H2-H2O
+%             [D0, D1] = deal(0.01993, 0.042834);
+%             bic{indH2, indH2O} = D0 + D1 .* TrH2;
+%             bic{indH2O, indH2} = bic{indH2, indH2O}; % Symmetry
+% 
+%             % Self-interactions (diagonal terms)
+%             bic{indH2, indH2} = 0 .* TrH2 + fluid.bic(indH2, indH2);
+%             bic{indH2O, indH2O} = 0 .* TrH2 + fluid.bic(indH2O, indH2O);
+%         end
+% 
+%         function bic = getBinaryInteractionLH2H2O(fluid, T, msalt)
+%             % Calculates liquid-phase binary interaction coefficients (BIC)
+%             % between H2 and H2O with salinity effects.
+% 
+%             % Extract component indices
+%             namecp = fluid.names;
+%             indH2 = find(strcmp(namecp, 'H2'));
+%             indH2O = find(strcmp(namecp, 'H2O'));
+% 
+%             % Compute reduced temperature for H2
+%             TrH2 = T ./ fluid.Tcrit(indH2);
+% 
+%             % Liquid-phase BIC coefficients for H2-H2O with salinity influence
+%             [D0, D1, D2, D3] = deal(-2.11917, 0.14888, -13.01835, -0.43946);
+%             [a0, a1] = deal(-2.26322e-2, -4.4736e-3);
+% 
+%             bic{indH2, indH2O} = (D0 .* (1 + a0 .* msalt) + ...
+%                 D1 .* TrH2 .* (1 + a1 .* msalt) + ...
+%                 D2 .* exp(D3 .* TrH2));
+%             bic{indH2O, indH2} = bic{indH2, indH2O}; % Symmetry
+% 
+%             % Self-interactions (diagonal terms)
+%             bic{indH2, indH2} = 0 .* TrH2 + fluid.bic(indH2, indH2);
+%             bic{indH2O, indH2O} = 0 .* TrH2 + fluid.bic(indH2O, indH2O);
+%         end
+
+
+function bic = getBinaryInteractionGasWater(fluid, T)
+    % Generalized gas-phase BIC calculation for components with H2O.
+    %
+    % Inputs:
+    %   - fluid: structure containing component names, critical temperatures, and BICs
+    %   - T: temperature (scalar or vector)
+    %
+    % Outputs:
+    %   - bic: binary interaction coefficients matrix
+
+    % Extract component indices dynamically
+    namecp = fluid.names;
+    indices = struct('H2', find(strcmp(namecp, 'H2')), ...
+                     'CH4', find(strcmp(namecp, 'CH4')), ...
+                     'CO2', find(strcmp(namecp, 'CO2')), ...
+                     'N2', find(strcmp(namecp, 'N2')), ...
+                     'H2O', find(strcmp(namecp, 'H2O')));
+
+    % Initialize BIC matrix
+    nComponents = numel(namecp);
+    bic = cell(nComponents);
+
+    % Define gas-phase BIC coefficients
+    coeffs = struct('H2', [0.01993, 0.042834], ...
+        'CH4', [0.025, 0.035], ...
+        'CO2', [0.018, 0.028], ...
+        'N2', [0.022, 0.032]);
+
+    % Assign BIC values for each component interacting with H2O
+    fields = fieldnames(indices);
+    for i = 1:numel(fields)
+        comp = fields{i};
+        indComp = indices.(comp);
+        indH2O = indices.H2O;
+
+        if ~isempty(indComp) && ~isempty(indH2O) && isfield(coeffs, comp)
+            Tr = T ./ fluid.Tcrit(indComp);
+            bic{indComp, indH2O} = coeffs.(comp)(1) + coeffs.(comp)(2) .* Tr;
+            bic{indH2O, indComp} = bic{indComp, indH2O}; % Symmetry
         end
+    end
+    % Handle self-interactions for H2, CO2, CH4, N2, and H2O
+    for i=1:nComponents
+        bic{i,i} = fluid.bic(i,i)+0.*Tr;
+    end
+end
+function bic = getBinaryInteractionLiquidWater(fluid, T, msalt)
+    % Generalized liquid-phase BIC calculation for components with H2O.
+    %
+    % Inputs:
+    %   - fluid: structure containing component names, critical temperatures, and BICs
+    %   - T: temperature (scalar or vector)
+    %   - msalt: salinity (scalar or vector)
+    %
+    % Outputs:
+    %   - bic: binary interaction coefficients matrix
 
-        function bic = getBinaryInteractionLH2H2O(fluid,T,msalt)
-%             bic =cell(2);
-            namecp=fluid.names;
-            indH2=find(strcmp(namecp,'H2'));
-            indH2O=find(strcmp(namecp,'H2O'));
-            TrH2=T./fluid.Tcrit(indH2);
-            [D0,D1,D2,D3] = deal(-2.11917,0.14888,-13.01835,-0.43946);
-            [a0,a1] = deal(-2.26322e-2,-4.4736e-3);
+    % Extract component indices dynamically
+    namecp = fluid.names;
+    indices = struct('H2', find(strcmp(namecp, 'H2')), ...
+                     'CH4', find(strcmp(namecp, 'CH4')), ...
+                     'CO2', find(strcmp(namecp, 'CO2')), ...
+                     'N2', find(strcmp(namecp, 'N2')), ...
+                     'H2O', find(strcmp(namecp, 'H2O')));
 
-            
-            bic{indH2,indH2O} = D0.*(1+a0.*msalt)+D1.*TrH2*(1+a1*msalt)+D2*exp(D3.*TrH2);
-            bic{indH2O,indH2} = D0.*(1+a0.*msalt)+D1.*TrH2*(1+a1*msalt)+D2*exp(D3.*TrH2);
-            bic{indH2,indH2} = 0.*TrH2 + fluid.bic(indH2,indH2);
-            bic{indH2O,indH2O} = 0.*TrH2 + fluid.bic(indH2O,indH2O);
+    % Initialize BIC matrix
+    nComponents = numel(namecp);
+    bic = cell(nComponents);
+
+    % Define liquid-phase BIC coefficients with salinity influence
+    coeffs = struct('H2', [-2.11917, 0.14888, -13.01835, -0.43946, -2.26322e-2, -4.4736e-3], ...
+                    'CH4', [-1.5, 0.12, -10, -0.35, -0.02, -0.004], ...
+                    'CO2', [-1.8, 0.13, -11.5, -0.4, -0.025, -0.005], ...
+                    'N2', [-2.0, 0.15, -12, -0.45, -0.03, -0.006]);
+
+    % Assign BIC values for each component interacting with H2O
+    fields = fieldnames(indices);
+    for i = 1:numel(fields)
+        comp = fields{i};
+        indComp = indices.(comp);
+        indH2O = indices.H2O;
+
+        if ~isempty(indComp) && ~isempty(indH2O) && isfield(coeffs, comp)
+            Tr = T ./ fluid.Tcrit(indComp);
+            bic{indComp, indH2O} = coeffs.(comp)(1) .* (1 + coeffs.(comp)(5) .* msalt) + ...
+                                   coeffs.(comp)(2) .* Tr .* (1 + coeffs.(comp)(6) .* msalt) + ...
+                                   coeffs.(comp)(3) .* exp(coeffs.(comp)(4) .* Tr);
+            bic{indH2O, indComp} = bic{indComp, indH2O}; % Symmetry
         end
-        %===========SDS MODIF====================
-
+    end
+    % Handle self-interactions for H2, CO2, CH4, N2, and H2O
+    for i=1:nComponents
+        bic{i,i} = fluid.bic(i,i)+0.*Tr;
+    end
+end
 
 
         function fluid = setBinaryInteraction(fluid, input)
