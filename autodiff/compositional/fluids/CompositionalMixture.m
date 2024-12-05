@@ -118,9 +118,9 @@ function bic = getBinaryInteractionGasWater(fluid, T)
 
     % Define gas-phase BIC coefficients
     coeffs = struct('H2', [0.01993, 0.042834], ...
-        'CH4', [0.025, 0.035], ...
-        'CO2', [0.018, 0.028], ...
-        'N2', [0.022, 0.032]);
+        'CH4', [0.494435, 0.0], ...
+        'CO2', [-2.066623464504e-2, 0.2074], ...
+        'N2', [0.385438, 0.0]);
 
     % Assign BIC values for each component interacting with H2O
     fields = fieldnames(indices);
@@ -138,6 +138,13 @@ function bic = getBinaryInteractionGasWater(fluid, T)
     % Handle self-interactions for H2, CO2, CH4, N2, and H2O
     for i=1:nComponents
         bic{i,i} = fluid.bic(i,i)+0.*Tr;
+    end
+    for i =1:nComponents
+        for j=1:nComponents
+            if isempty(bic{i,j})
+                bic{i,j} = 0 .* Tr;
+            end
+        end
     end
 end
 function bic = getBinaryInteractionLiquidWater(fluid, T, msalt)
@@ -164,10 +171,10 @@ function bic = getBinaryInteractionLiquidWater(fluid, T, msalt)
     bic = cell(nComponents);
 
     % Define liquid-phase BIC coefficients with salinity influence
-    coeffs = struct('H2', [-2.11917, 0.14888, -13.01835, -0.43946, -2.26322e-2, -4.4736e-3], ...
-                    'CH4', [-1.5, 0.12, -10, -0.35, -0.02, -0.004], ...
-                    'CO2', [-1.8, 0.13, -11.5, -0.4, -0.025, -0.005], ...
-                    'N2', [-2.0, 0.15, -12, -0.45, -0.03, -0.006]);
+    coeffs = struct('H2', [-2.11917, 0.14888, -13.01835, -0.43946, -2.26322e-2, -4.4736e-3, 0, 0], ...
+                    'CH4', [-1.625685, 1.114873, 0,0, 8.590105e-21, 1.812763e-3, -0.169968, -4.198569e-2], ...
+                    'CO2', [-1.709096, 0.450487, 0, 0,  1.792130e-2,  0.066426, 0,0], ...
+                    'N2', [-1.709096, 0.450487, 0, 0,  1.792130e-2,  0.066426, 0,0]);
 
     % Assign BIC values for each component interacting with H2O
     fields = fieldnames(indices);
@@ -180,13 +187,38 @@ function bic = getBinaryInteractionLiquidWater(fluid, T, msalt)
             Tr = T ./ fluid.Tcrit(indComp);
             bic{indComp, indH2O} = coeffs.(comp)(1) .* (1 + coeffs.(comp)(5) .* msalt) + ...
                                    coeffs.(comp)(2) .* Tr .* (1 + coeffs.(comp)(6) .* msalt) + ...
-                                   coeffs.(comp)(3) .* exp(coeffs.(comp)(4) .* Tr);
+                                   coeffs.(comp)(3) .* exp(coeffs.(comp)(4) .* Tr)+...
+                                   +coeffs.(comp)(7) .* Tr.^2.*(1-coeffs.(comp)(8) .* Tr);
             bic{indH2O, indComp} = bic{indComp, indH2O}; % Symmetry
         end
+    end
+    indCO2 = indices.CO2;
+    indH2O = indices.H2O;
+    if ~isempty(indCO2)&&~isempty(indH2O)
+        a = 0.43575155;
+        b = -5.766906744e-2;
+        c = 8.26464849e-3;
+        d = 1.29539193e-3;
+        e = -1.6698848e-3;
+        f = -0.47866096;
+        Tr_CO2 = T ./fluid.Tcrit(indices.CO2);
+        bic{indH2O, indCO2} = Tr_CO2 .* ...
+            (a + b .* Tr_CO2 + c .* Tr_CO2 .* msalt) + ...
+            msalt^2 .* (d + e .* Tr_CO2) + ...
+            f;
+        bic{indCO2, indH2O} = bic{indH2O, indCO2};
     end
     % Handle self-interactions for H2, CO2, CH4, N2, and H2O
     for i=1:nComponents
         bic{i,i} = fluid.bic(i,i)+0.*Tr;
+    end
+
+    for i =1:nComponents
+        for j=1:nComponents
+            if isempty(bic{i,j})
+                bic{i,j} = 0 .* Tr;
+            end
+        end
     end
 end
 

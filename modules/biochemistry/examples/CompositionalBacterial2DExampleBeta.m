@@ -21,7 +21,7 @@ state0=convertBlackOilStateToCompositional(modelBo,state0Bo);
 state0.components = ensureMinimumFraction(state0.components,6.0e-4);
 
 %% Set up the compositional model with Water and Hydrogen
-compFluid = TableCompositionalMixture({'Water', 'Hydrogen'}, {'H2O', 'H2'});
+compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Methane'}, {'H2O', 'H2', 'CO2', 'CH4'});
 EOS = SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
 T0 = 40 * Kelvin; % Initial temperature in Kelvin
 T0 = 273.15 * Kelvin + T0; % Convert to absolute temperature
@@ -30,7 +30,7 @@ if (compFluid.getNumberOfComponents>2)
     state0.components(:,4) = state0.components(:,3);
     state0.components(:,2) = state0.components(:,3);
     state0.components(:,1) = 1- sum(state0.components(:,2:end),2);
-    state0.components =state0.components.*0+ [0.8000  0.1 0.0240    0.1760-0.1]  ;
+    state0.components =state0.components.*0+ [0.8000  1.0e-5 0.0240    0.1760-1.0e-5]  ;
     EOS = SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
     T0 = 44.35 * Kelvin; % Initial temperature in Kelvin
     T0 = 273.15 * Kelvin + T0; % Convert to absolute temperature
@@ -75,16 +75,16 @@ if (compFluid.getNumberOfComponents>2)
         % Set component mix for each control, adjusting for specific conditions
         schedule.control(i).W.compi = [0, 1]; % Well components
         if (strcmp(schedule.control(i).W.name, 'cushion'))
-            schedule.control(i).W.components = [0.0, 1.0];
+            schedule.control(i).W.components = [0.0, 0.05, 0.95 0.0];
         else
-            schedule.control(i).W.components = [0.0, 1.0];
+            schedule.control(i).W.components = [0.0, 0.95, 0.05, 0.0];
         end
         schedule.control(i).W.T = T0; % Set temperature (not used, but necessary)
 
         % Update boundary conditions for each control
         schedule.control(i).bc.components = repmat(state0.components(1,:), numel(cells_bc), 1); % Set boundary component concentrations
         schedule.control(i).bc.sat = repmat(state0.s(1,:), numel(cells_bc), 1); % Set boundary saturation
-%         schedule.control(i).bc.nbact = repmat(state0.nbact(1,:), numel(cells_bc), 1);
+        schedule.control(i).bc.nbact = repmat(state0.nbact(1,:), numel(cells_bc), 1);
         schedule.control(i).bc = [];
     end
 else
