@@ -81,7 +81,7 @@ arg = {G, rock, fluid, compFluid,'water', true, 'oil', false, ...
     'liquidPhase', 'W','vaporPhase', 'G'}; % water=liquid, gas=vapor
 model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
-eosname='pr'; %'sw';
+eosname='sw'; %'pr';
 model.EOSModel = EquationOfStateModel(G, compFluid,eosname);
 model.EOSModel.msalt=0;
             
