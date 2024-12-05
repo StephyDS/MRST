@@ -49,30 +49,70 @@ classdef CompositionalMixture
         function bic = getBinaryInteractionGH2H2O(fluid,T)
                        
             namecp=fluid.names;
-            indH2=find(strcmp(namecp,'H2'));
             indH2O=find(strcmp(namecp,'H2O'));
-            TrH2=T./fluid.Tcrit(indH2);
-            [D0,D1] = deal(0.01993,0.042834);
-            bic{indH2,indH2O} = D0+D1.*TrH2;
-            bic{indH2O,indH2} = D0+D1.*TrH2;
-            bic{indH2,indH2} = 0.*TrH2 + fluid.bic(indH2,indH2);
-            bic{indH2O,indH2O} = 0.*TrH2 + fluid.bic(indH2O,indH2O);
+            indH2=find(strcmp(namecp,'H2'));
+            indCO2=find(strcmp(namecp,'CO2'));
+            
+            if ~isempty(indH2)
+                TrH2=T./fluid.Tcrit(indH2);
+                [D0,D1] = deal(0.01993,0.042834);
+                bic{indH2,indH2O} = D0+D1.*TrH2;
+                bic{indH2O,indH2} = D0+D1.*TrH2;
+                bic{indH2,indH2} = 0.*TrH2 + fluid.bic(indH2,indH2);
+                bic{indH2O,indH2O} =0.*TrH2 +fluid.bic(indH2O,indH2O);
+            end
+            if ~isempty(indCO2)
+                TrCO2=T./fluid.Tcrit(indCO2);
+                [D0,D1] = deal(0.00068208385571,0.02066623464504);
+                bic{indCO2,indH2O} = D0.*TrCO2-D1;
+                bic{indH2O,indCO2} = D0.*TrCO2-D1;
+                bic{indCO2,indCO2} = 0.*TrCO2 + fluid.bic(indCO2,indCO2);
+                bic{indH2O,indH2O} =0.*TrCO2 +fluid.bic(indH2O,indH2O);
+            end
+
         end
 
-        function bic = getBinaryInteractionLH2H2O(fluid,T,msalt)
-%             bic =cell(2);
-            namecp=fluid.names;
-            indH2=find(strcmp(namecp,'H2'));
-            indH2O=find(strcmp(namecp,'H2O'));
-            TrH2=T./fluid.Tcrit(indH2);
-            [D0,D1,D2,D3] = deal(-2.11917,0.14888,-13.01835,-0.43946);
-            [a0,a1] = deal(-2.26322e-2,-4.4736e-3);
+        % function bic = getBinaryInteractionGH2H2O(fluid,T)
+        % 
+        %     namecp=fluid.names;
+        %     indH2=find(strcmp(namecp,'H2'));
+        %     indH2O=find(strcmp(namecp,'H2O'));
+        %     TrH2=T./fluid.Tcrit(indH2);
+        %     [D0,D1] = deal(0.01993,0.042834);
+        %     bic{indH2,indH2O} = D0+D1.*TrH2;
+        %     bic{indH2O,indH2} = D0+D1.*TrH2;
+        %     bic{indH2,indH2} = 0.*TrH2 + fluid.bic(indH2,indH2);
+        %     bic{indH2O,indH2O} = 0.*TrH2 + fluid.bic(indH2O,indH2O);
+        % end
 
-            
-            bic{indH2,indH2O} = D0.*(1+a0.*msalt)+D1.*TrH2*(1+a1*msalt)+D2*exp(D3.*TrH2);
-            bic{indH2O,indH2} = D0.*(1+a0.*msalt)+D1.*TrH2*(1+a1*msalt)+D2*exp(D3.*TrH2);
-            bic{indH2,indH2} = 0.*TrH2 + fluid.bic(indH2,indH2);
-            bic{indH2O,indH2O} = 0.*TrH2 + fluid.bic(indH2O,indH2O);
+        function bic = getBinaryInteractionLH2H2O(fluid,T,msalt)
+            namecp=fluid.names;            
+            indH2O=find(strcmp(namecp,'H2O'));
+            indH2=find(strcmp(namecp,'H2'));            
+            indCO2=find(strcmp(namecp,'CO2'));
+
+            bic{indH2O,indH2O} = fluid.bic(indH2O,indH2O);
+            if ~isempty(indH2)
+                TrH2=T./fluid.Tcrit(indH2);
+                [D0,D1,D2,D3] = deal(-2.11917,0.14888,-13.01835,-0.43946);
+                [a0,a1] = deal(-2.26322e-2,-4.4736e-3);
+                bic{indH2,indH2O} = D0.*(1+a0.*msalt)+D1.*TrH2*(1+a1*msalt)+D2*exp(D3.*TrH2);
+                bic{indH2O,indH2} = D0.*(1+a0.*msalt)+D1.*TrH2*(1+a1*msalt)+D2*exp(D3.*TrH2);
+                bic{indH2,indH2} = 0.*TrH2 + fluid.bic(indH2,indH2);
+                bic{indH2O,indH2O} =0.*TrH2 +fluid.bic(indH2O,indH2O);
+            end
+            if ~isempty(indCO2)
+                msalt2=msalt*msalt;
+                TrCO2=T./fluid.Tcrit(indCO2);
+                [D0,D1,D2] = deal(0.43575155,-0.05766906744,0.00826464849);
+                [D3,D4,D5] = deal(0.00129539193,-0.0016698848,-0.47866096);
+                bic{indCO2,indH2O} = TrCO2.*(D0+D1.*TrCO2+msalt*D2.*TrCO2)...
+                    +msalt2.*(D3+D4.*TrCO2)+D5;
+                bic{indH2O,indCO2} = TrCO2.*(D0+D1.*TrCO2+msalt*D2.*TrCO2)...
+                    +msalt2.*(D3+D4.*TrCO2)+D5;
+                bic{indCO2,indCO2} = 0.*TrCO2 + fluid.bic(indCO2,indCO2);
+                bic{indH2O,indH2O} =0.*TrCO2 +fluid.bic(indH2O,indH2O);
+            end            
         end
         %===========SDS MODIF====================
 
