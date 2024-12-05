@@ -81,8 +81,8 @@ arg = {G, rock, fluid, compFluid,'water', true, 'oil', false, ...
     'liquidPhase', 'W','vaporPhase', 'G'}; % water=liquid, gas=vapor
 model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
-eosname='sw'; %'pr';
-model.EOSModel = EquationOfStateModel(G, compFluid,eosname);
+eosname='pr'; %'sw';
+model.EOSModel = SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
 model.EOSModel.msalt=0;
             
 %===Conditions initiales=====================
@@ -96,7 +96,7 @@ state0 = initCompositionalStateBacteria(model,Phydro0,T0,s0,z0,nbact0);
 
 %===Resolution pression/transport========================
 deltaT = T/niter;
-schedule = simpleSchedule(repmat(deltaT,1,niter),'bc', bc,'src', src,'W',W);
+schedule = simpleSchedule(repmat(deltaT,1,niter),'bc', bc,'src', [],'W',W);
 nls = NonLinearSolver('useRelaxation', true);
 
 
