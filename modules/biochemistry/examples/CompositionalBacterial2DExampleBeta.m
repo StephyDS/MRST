@@ -30,7 +30,7 @@ if (compFluid.getNumberOfComponents>2)
     state0.components(:,4) = state0.components(:,3);
     state0.components(:,2) = state0.components(:,3);
     state0.components(:,1) = 1- sum(state0.components(:,2:end),2);
-    state0.components =state0.components.*0+ [0.8000  1.0e-5 0.0240    0.1760-1.0e-5]  ;
+    state0.components =state0.components.*0+ [0.8480  1.0e-5  1.0e-5   0.1760-0.0240]  ;
     EOS = SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
     T0 = 44.35 * Kelvin; % Initial temperature in Kelvin
     T0 = 273.15 * Kelvin + T0; % Convert to absolute temperature
@@ -75,9 +75,9 @@ if (compFluid.getNumberOfComponents>2)
         % Set component mix for each control, adjusting for specific conditions
         schedule.control(i).W.compi = [0, 1]; % Well components
         if (strcmp(schedule.control(i).W.name, 'cushion')&&i<10)
-            schedule.control(i).W.components = [0.0, 0.05, 0.95 0.0];
+            schedule.control(i).W.components = [0.0, 0.01, 0.99 0.0];
         else
-            schedule.control(i).W.components = [0.0, 0.95, 0.05, 0.0];
+            schedule.control(i).W.components = [0.0, 0.999, 0.001, 0.0];
         end
         schedule.control(i).W.T = T0; % Set temperature (not used, but necessary)
 
@@ -136,7 +136,7 @@ nls.LinearSolver = lsolve;
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Execute the simulation of the packed problem
-simulatePackedProblem(problem,'restartStep',70);
+simulatePackedProblem(problem,'restartStep',1);
 
 %% Get packed reservoir and well states
 [ws, states] = getPackedSimulatorOutput(problem);
