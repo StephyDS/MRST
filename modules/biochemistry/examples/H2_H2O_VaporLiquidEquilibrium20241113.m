@@ -21,7 +21,7 @@ eosModel = SoreideWhitsonEquationOfStateModel([], compFluid, eosName);
 % Set the test case for different pressures, temperatures, and salinity levels
 z = [0.8, 0.2]; % Initial composition
 patm = 1e5; % Atmospheric pressure in Pa
-caseTest = 3; % Choose the test case here
+caseTest = 4; % Choose the test case here
 
 switch caseTest
     case 1

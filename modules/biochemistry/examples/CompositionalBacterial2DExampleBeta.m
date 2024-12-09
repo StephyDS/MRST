@@ -74,7 +74,7 @@ if (compFluid.getNumberOfComponents>2)
     for i = 1:length(schedule.control)
         % Set component mix for each control, adjusting for specific conditions
         schedule.control(i).W.compi = [0, 1]; % Well components
-        if (strcmp(schedule.control(i).W.name, 'cushion'))
+        if (strcmp(schedule.control(i).W.name, 'cushion')&&i<10)
             schedule.control(i).W.components = [0.0, 0.05, 0.95 0.0];
         else
             schedule.control(i).W.components = [0.0, 0.95, 0.05, 0.0];
@@ -136,7 +136,7 @@ nls.LinearSolver = lsolve;
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Execute the simulation of the packed problem
-simulatePackedProblem(problem,'restartStep',1);
+simulatePackedProblem(problem,'restartStep',70);
 
 %% Get packed reservoir and well states
 [ws, states] = getPackedSimulatorOutput(problem);
