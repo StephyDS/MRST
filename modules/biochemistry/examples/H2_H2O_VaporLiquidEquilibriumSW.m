@@ -24,12 +24,8 @@ patm = 1e5; % Atmospheric pressure in Pa
 caseTest = 4; % Choose the test case here
 
 switch caseTest
-    case 1
-        eosModel.msalt=0;
-        pres=[37.108,79.366,121.706,29.272,60.213,93.426]*barsa;
-        Temp=[323.18,323.18,323.19,372.71,372.73,372.72]*Kelvin;
-        xliqH2Exp=[0.000461,0.001030,0.001544,0.000396,0.000857,0.001368];
-    case 2
+    case 1 %sources: Solubility of H2 in water and NaCl brine under subsurface 
+        % storage conditions (https://hal.science/hal-04623907v1, 2023)
         eosModel.msalt=0;
         pres=[100.01, 150.01, 200.01, 200.01, 101.11, 101.31, 130.01,...
             165.01, 199.91, 200.11, 100.01, 100.01, 100.01, 175.11]*barsa;     
@@ -39,7 +35,7 @@ switch caseTest
             0.00123925,0.00159253,0.00201117,0.00244186,0.00245479,...
             0.00142471,0.00140332,0.00140893,0.00243347];
 
-    case 3
+    case 2
         eosModel.msalt=1;
         Temp=[298.20,298.30,298.15,298.30,323.20,323.40,323.35,323.20,...
             323.30,323.30,323.20,373.25,373.40,373.10,373.15,373.45,373.15,373.00];
@@ -49,13 +45,13 @@ switch caseTest
             0.00102078,0.00102426,0.00151377,0.00176728,0.00202590,...
             0.00204487,0.00119671,0.00148492,0.00175595,0.00179573,...
             0.00177350,0.00204000,0.00234604];
-    case 4
+    case 3
         eosModel.msalt=2;
         Temp=[298.15,298.05,298.05,323.20,323.40,323.35,323.40,373.05,373.20,373.40];
         pres=[100.01,150.01,200.01,100.01,150.01,150.01,200.01,100.01,150.01,200.51]*barsa;
         xliqH2Exp=[0.00088640,0.00132235,0.00171848,0.00088260,0.00131242,...
             0.00128912,0.00172402, 0.00099379, 0.00151866, 0.00205031 ];
-    case 5
+    case 4
         eosModel.msalt=4;
         Temp=[298.20, 298.20, 298.15, 323.30, 323.40, 323.40, 373.25, 373.35, 373.15];
         pres=[100.01, 150.01, 200.01, 100.01, 150.01, 200.01, 100.01, 150.01, 200.01]*barsa;
@@ -66,14 +62,11 @@ end
 %% Perform Flash Calculations
 % Determine the liquid-phase hydrogen fraction (xliqH2) for each condition
 nc = numel(pres);
-xliqH2 = zeros(nc, 1);
 namecp = eosModel.getComponentNames();
 indH2=find(strcmp(namecp,'H2'));
 indH2O= find(strcmp(namecp,'H2O'));
-for i = 1:nc
-    [L, x, ~] = standaloneFlash(pres(i), Temp(i), z, eosModel); 
-    xliqH2(i) = x(:, indH2);
-end
+[L, x, ~] = standaloneFlash(pres, Temp, z, eosModel); 
+xliqH2=x(:,indH2);
 
 %% Write Results to File
 % Save the results (temperature, pressure, hydrogen mole fraction) to a file
