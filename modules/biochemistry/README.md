@@ -18,7 +18,7 @@ Key features include:
 To use this module, ensure you have:
 - **MATLAB**: Version R2021a or newer.
 - **MRST**: MATLAB Reservoir Simulation Toolbox with the compositional module installed.
-- **HSTORE**: [Accessible module for hydrogen storage simulation](https://github.com/ElyesAhmed/MRST/tree/hydrogen/modules/H2store).
+- **H2STORE**: [Accessible module for hydrogen storage simulation](https://github.com/ElyesAhmed/MRST/tree/hydrogen/modules/H2store).
 
 ## Installation
 
