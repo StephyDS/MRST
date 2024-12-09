@@ -28,3 +28,5 @@ This module is developed to simulate the phase behavior and thermodynamic proper
 2. Add the directory to your MATLAB path:
    ```matlab
    addpath('path/to/H2STORE-module');
+## Funding
+- This module is funded by HYDROGENi FEM and HYSTORM RCN projects
