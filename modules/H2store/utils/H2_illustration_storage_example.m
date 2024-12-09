@@ -51,7 +51,7 @@ options = struct( ...
     'tempCharge'   , K0 + 40 * Kelvin    , ... % Injection temperature during charging
     'tempDischarge', K0 + 40 * Kelvin    , ... % Production temperature during discharge
     'tempCushion'  , K0 + 40 * Kelvin    , ... % Temperature for cushion gas phase
-    'timeCushion'  , 90 * day            , ... % Duration of cushion gas phase
+    'timeCushion'  , 120 * day            , ... % Duration of cushion gas phase
     'timeCharge'   , 30 * day            , ... % Duration of hydrogen charging
     'timeIdle'     , 10 * day            , ... % Idle period between charge/discharge cycles
     'timeShut'     , 30 * day            , ... % Shut-in period (no activity)

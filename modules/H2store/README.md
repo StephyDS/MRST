@@ -29,4 +29,5 @@ This module is developed to simulate the phase behavior and thermodynamic proper
    ```matlab
    addpath('path/to/H2STORE-module');
 ## Funding
-- This module is funded by HYDROGENi FEM and HYSTORM RCN projects
+- This work was funded by Norwegian Research and Innovation Centre for Hydrogen and Ammonia HYDROGENi (Grant No. 333118) and
+the Research Council of Norway HYSTORM project (Grant No. 315804)
