@@ -454,6 +454,16 @@ classdef EquationOfStateModel < PhysicalModel
                     K = state.y./state.x;
                 else
                     K = estimateEquilibriumWilson(model, state.pressure, state.T);
+                    %====================SDS MODIF=======================
+                    if strcmp(model.shortname,'sw') && model.msalt>0
+                        ncomp=model.getNumberOfComponents;
+                        K = zeros(n_cell,ncomp);
+                        K(:,1)=0.001;
+                        K(:,2)=5.0;
+                    end
+
+
+                    %==================SDS MODIF=========================
                 end
                 state.K = K;
             end
