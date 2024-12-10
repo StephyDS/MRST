@@ -51,7 +51,7 @@ title('Porosity Distribution');
 %% Fluid Properties Initialization
 % Define compositional fluid model (with CoolProp library support)
 compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Nitrogen', 'Methane'}, ...
-                                      {'H2O', 'H2', 'CO2', 'N2', 'CH4'});
+                                      {'H2O', 'H2', 'CO2', 'N2', 'C1'});
 
 % Fluid density and viscosity (kg/m^3 and cP)
 [rhow, rhog] = deal(1000 * kilogram / meter^3, 8.1688 * kilogram / meter^3);
