@@ -9,19 +9,21 @@ deck = readEclipseDeck('/home/elyes/Documents/mrst-2023b/spe11-utils/TUC_UHS_Ben
 
 %% Prepare simulation parameters and initial state
 %[~, options, state0, model, schedule,compFluid, ~] = modified_uhs_benchmark_compositional(deck, 'bacteriamodel',false);
-bacteriamodel = false;
+bacteriamodel = true;
 require ad-core ad-props ad-blackoil
 deck.PROPS.EOS ='PR';
 deck = convertDeckUnits(deck);
-eos = initDeckEOSModel(deck);
+compFluid = TableCompositionalMixture({'water', 'Methane','Nitrogen','CarbonDioxide','Ethane','Propane','n-butane','Hydrogen'}, ...
+{'H2O', 'C1', 'N2', 'CO2', 'C2','C3','NC4','H2'});
+eos =SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
 [~, model, schedule, nls] = initEclipseProblemAD(deck,'getSchedule',true,'getInitialState', false);
 model.water = false;
 T0 = deck.PROPS.TEMPVD{1}(2);
 P0 = 82*barsa();
 s0 = [0.2 0.8];
 z0 = deck.PROPS.ZMFVD{1}(2:end); %initial composition: H2O,H2,CO2,N2,CH4.
-z0(end)= 0.0001;
-z0(end-1)= 0.0001;
+z0(1)= z0(1)+0.2;
+z0(2)= z0(2)-0.2;
 for i=1:length(schedule.control)
     schedule.control(i).W.compi=[0, 1];
 end
@@ -39,16 +41,16 @@ end
 [cfw,cfg]=deal(model.fluid.cW,8.1533e-3/barsa); %compressibility
  %initialisation fluides incompressibles, Brooks-Corey relperm krw=(Sw)^nw
 fluid=initSimpleADIFluid('phases', 'OG', 'mu',[viscow,viscog],...
-                         'rho',[rhow,rhog],'pRef',150*barsa(),...
-                         'c',[cfw,cfg],'n',[2,2],'smin',[0,0]);
-% fluid.krG = model.fluid.krG;
-% fluid.krO = model.fluid.krW;
+                         'rho',[rhow,rhog],'pRef',0*barsa(),...
+                         'c',[cfw,cfg],'n',[2,2],'smin',[0.05,0.05]);
+fluid.krG = model.fluid.krG;
+fluid.krO = model.fluid.krW;
 % fluid.krPts.g = model.fluid.krPts.g;
 % fluid.krPts.o = model.fluid.krPts.w;
-% fluid.rhoOS = model.fluid.rhoWS;
-% fluid.pvMultR = model.fluid.pvMultR;
-% fluid.muO = model.fluid.muW;
-% fluid.bO = model.fluid.bW;
+fluid.rhoOS = model.fluid.rhoWS;
+fluid.pvMultR = model.fluid.pvMultR;
+fluid.muO = model.fluid.muW;
+fluid.bO = model.fluid.bW;
 model.fluid = fluid;
 deck = model.inputdata;
 gravity reset on;
@@ -92,7 +94,7 @@ nls.LinearSolver = lsolve;                                     % Assign the line
 name = 'UHS_BENCHMARK_COMPOSITIONAL_BACT';
 %% Pack the simulation problem with the initial state, model, and schedule
 % model = OverallCompositionCompositionalModel(G, model.rock,model.fluid,model.EOSModel, 'water', false);
-model.EOSModel.minimumComposition =1.0e-8;
+% model.EOSModel.minimumComposition =1.0e-8;
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Run the simulation
