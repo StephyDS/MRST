@@ -41,12 +41,12 @@ end
 [cfw,cfg]=deal(model.fluid.cW,8.1533e-3/barsa); %compressibility
  %initialisation fluides incompressibles, Brooks-Corey relperm krw=(Sw)^nw
 fluid=initSimpleADIFluid('phases', 'OG', 'mu',[viscow,viscog],...
-                         'rho',[rhow,rhog],'pRef',150*barsa(),...
-                         'c',[cfw,cfg],'n',[2,2],'smin',[0,0]);
+                         'rho',[rhow,rhog],'pRef',0*barsa(),...
+                         'c',[cfw,cfg],'n',[2,2],'smin',[0.05,0.05]);
 fluid.krG = model.fluid.krG;
 fluid.krO = model.fluid.krW;
-fluid.krPts.g = model.fluid.krPts.g;
-fluid.krPts.o = model.fluid.krPts.w;
+% fluid.krPts.g = model.fluid.krPts.g;
+% fluid.krPts.o = model.fluid.krPts.w;
 fluid.rhoOS = model.fluid.rhoWS;
 fluid.pvMultR = model.fluid.pvMultR;
 fluid.muO = model.fluid.muW;
@@ -94,7 +94,7 @@ nls.LinearSolver = lsolve;                                     % Assign the line
 name = 'UHS_BENCHMARK_COMPOSITIONAL_BACT';
 %% Pack the simulation problem with the initial state, model, and schedule
 % model = OverallCompositionCompositionalModel(G, model.rock,model.fluid,model.EOSModel, 'water', false);
-model.EOSModel.minimumComposition =1.0e-8;
+% model.EOSModel.minimumComposition =1.0e-8;
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Run the simulation

@@ -83,9 +83,9 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             end
             model.compFluid = compFluid;
                 
-%             eos = SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
-%               
-%             model.EOSModel = eos;
+            eos = SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
+              
+            model.EOSModel = eos;
             % Set nonlinear tolerance
             model.nonlinearTolerance = 1e-3;
             % Merge in additional optjions
