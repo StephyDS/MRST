@@ -9,7 +9,7 @@ deck = readEclipseDeck('/home/elyes/Documents/mrst-2023b/spe11-utils/TUC_UHS_Ben
 
 %% Prepare simulation parameters and initial state
 %[~, options, state0, model, schedule,compFluid, ~] = modified_uhs_benchmark_compositional(deck, 'bacteriamodel',false);
-bacteriamodel = true;
+bacteriamodel = false;
 require ad-core ad-props ad-blackoil
 deck.PROPS.EOS ='PR';
 deck = convertDeckUnits(deck);
@@ -22,8 +22,8 @@ T0 = deck.PROPS.TEMPVD{1}(2);
 P0 = 82*barsa();
 s0 = [0.2 0.8];
 z0 = deck.PROPS.ZMFVD{1}(2:end); %initial composition: H2O,H2,CO2,N2,CH4.
-z0(1)= z0(1)+0.2;
-z0(2)= z0(2)-0.2;
+% z0(1)= z0(1)+0.6;
+% z0(2)= z0(2)-0.6;
 for i=1:length(schedule.control)
     schedule.control(i).W.compi=[0, 1];
 end
@@ -45,8 +45,8 @@ fluid=initSimpleADIFluid('phases', 'OG', 'mu',[viscow,viscog],...
                          'c',[cfw,cfg],'n',[2,2],'smin',[0.05,0.05]);
 fluid.krG = model.fluid.krG;
 fluid.krO = model.fluid.krW;
-% fluid.krPts.g = model.fluid.krPts.g;
-% fluid.krPts.o = model.fluid.krPts.w;
+fluid.krPts.g = model.fluid.krPts.g;
+fluid.krPts.o = model.fluid.krPts.w;
 fluid.rhoOS = model.fluid.rhoWS;
 fluid.pvMultR = model.fluid.pvMultR;
 fluid.muO = model.fluid.muW;
@@ -57,13 +57,14 @@ gravity reset on;
 % compFluid = TableCompositionalMixture(...
 %     {'Water','Methane','Nitrogen','CarbonDioxide','Ethane','Propane','Butane','Hydrogen'}, ...
 %     {'H2O','C1','N2','CO2','C2','C3','NC4','H2'});
-model = OverallCompositionCompositionalModel(G, model.rock,model.fluid,model.EOSModel, 'water', false);
+model = OverallCompositionCompositionalModel(G, model.rock,model.fluid,compFluid, 'water', false);
+model.EOSModel =eos;
 compFluid = model.EOSModel.CompositionalMixture;
 arg = {model.G, model.rock, model.fluid, compFluid,...
     'water', false, 'eos',model.EOSModel, 'oil', true, 'gas', true,... % water-oil system
 	'bacteriamodel', bacteriamodel,'diffusioneffect',false,'liquidPhase', 'O',...
     'vaporPhase', 'G'}; % water=liquid, gas=vapor
-model = BiochemistryModel(arg{:});
+% model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
 % %===Conditions initiales=====================
 % T0=317.5;
@@ -95,12 +96,12 @@ name = 'UHS_BENCHMARK_COMPOSITIONAL_BACT';
 %% Pack the simulation problem with the initial state, model, and schedule
 % model = OverallCompositionCompositionalModel(G, model.rock,model.fluid,model.EOSModel, 'water', false);
 % model.EOSModel.minimumComposition =1.0e-8;
-problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
-
+ problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
+%[ws, states, reports] = simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
 %% Run the simulation
 simulatePackedProblem(problem,'restartStep',1);
 %% gGet reservoir and well states
-[ws,states] = getPackedSimulatorOutput(problem);
+%[ws,states] = getPackedSimulatorOutput(problem);
 %===Plottings============================================
 time=0;
 figure;
