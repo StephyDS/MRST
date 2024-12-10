@@ -269,9 +269,9 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             forces = validateCompositionalForces(model, forces, varargin{:});
         end 
 
-        function state = initStateAD(model, state, vars, names, origin)        
-            state = initStateAD@GenericOverallCompositionModel(model, state, vars, names, origin);
-        end
+%         function state = initStateAD(model, state, vars, names, origin)        
+%             state = initStateAD@GenericOverallCompositionModel(model, state, vars, names, origin);
+%         end
         %-----------------------------------------------------------------%
         function [v_eqs, tolerances, names] = getConvergenceValues(model, problem, varargin)
         % Get values for convergence check

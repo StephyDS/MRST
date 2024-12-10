@@ -912,6 +912,13 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
             if isfield(state, 'FractionalDerivatives')
                 fd = state.FractionalDerivatives;
                 [dLdpTz, dxdpTz, dydpTz] = deal(fd.dL, fd.dx, fd.dy);
+                dLdpTz = dLdpTz(twoPhase,:);
+                for i = 1:length(dydpTz)
+                  dxdpTz{i} = dxdpTz{i}(twoPhase,:);
+                  dydpTz{i} = dydpTz{i}(twoPhase,:);
+                end
+
+
             else
                 [dLdpTz, dxdpTz, dydpTz] = model.getPhaseFractionDerivativesPTZ(state, twoPhase);
             end
