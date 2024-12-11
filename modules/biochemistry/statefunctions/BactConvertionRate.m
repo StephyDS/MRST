@@ -16,7 +16,7 @@ classdef BactConvertionRate <  StateFunction
              
              ncomp = model.getNumberOfComponents;
 
-             Psigrowth = prop.getEvaluatedDependencies(state, 'PsiGrowthRate'); 
+             Psigrowth = model.getProps(state, 'PsiGrowthRate'); 
              Y_H2 = model.ReservoirModel.Y_H2;
              gammak =model.ReservoirModel.gammak;
              qbiot_temp =  Psigrowth./Y_H2;

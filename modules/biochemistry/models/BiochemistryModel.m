@@ -46,13 +46,24 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         % Physical quantities and bounds
         Y_H2 = 3.9e11;  % Conversion factor for hydrogen consumption (moles/volume)
         gammak = [2.0, 1.0, 0.0, -1.0, 0.0, 0.0,0.0, -4];  % Stoichiometric coefficients: {'H2O'}    {'C1'}    {'N2'}    {'CO2'}    {'C2'}    {'C3'}    {'NC4'}    {'H2'}
+        mol_diff = [ ...
+                      2.3e-9, 1.5e-5;  % Water (H2O)  
+                      2.6e-9, 1.6e-5;  % Methane (C1)
+                      2.1e-9, 1.8e-5;  % Nitrogen (N2)
+                      1.9e-9, 1.4e-5;  % Carbon Dioxide (CO2)                      
+                      3.2e-9, 2.5e-5;  % Ethane (C2)
+                      2.8e-9, 2.2e-5;  % Propane (C3)
+                      2.4e-9, 1.9e-5;  % Normal Butane (NC4)                      
+                      4.5e-9, 6.1e-5;  % Hydrogen (H2)
+                      ];
+
         alphaH2 = 3.6e-7;
         alphaCO2 = 1.98e-6;
         Psigrowthmax = 1.338e-4;
         b_bact =2.3E-6;
         Db = 10^(-8)*meter/second
         bDiffusionEffect = false;
-        moleculardiffusion = false;
+        moleculardiffusion = true;
         bacteriamodel = true;
 
     end
@@ -239,7 +250,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 src_rate = model.FacilityModel.getProps(state, 'BactConvRate');
                 for i = length(eqs)
                     if ~isempty(src_rate{i})                    
-                        eqs = eqs{i} -src_rate{i};
+                        eqs{i} = eqs{i} -src_rate{i};
                     end
                 end
 
@@ -255,9 +266,10 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 [beqs, bnames, btypes] = deal([]);
             end
             % Concatenate
-            eqs   = [eqs  , beqs  ];
+            eqs   = [eqs, beqs];
             names = [names, bnames];
             types = [types, btypes];
+
             if ~isempty(model.FacilityModel)
                 % Get facility equations
                 [weqs, wnames, wtypes, state] = model.FacilityModel.getModelEquations(state0, state, dt, drivingForces);

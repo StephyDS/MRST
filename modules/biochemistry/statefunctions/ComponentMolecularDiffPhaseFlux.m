@@ -1,6 +1,6 @@
 classdef ComponentMolecularDiffPhaseFlux < StateFunction
     % Flux of each component, in each phase
-    properties 
+    properties
     end
 
     methods
@@ -29,17 +29,10 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                % Define diffusion coefficients in m²/s for liquid and gas phases
                % These are example values, please replace them with actual data as needed
                % Format: [liquid_diff gas_diff] for each component
-               mol_diff = [ ...
-                      2.3e-9, 1.5e-5;  % Water (H2O)    
-                      4.5e-9, 6.1e-5;  % Hydrogen (H2)
-                      1.9e-9, 1.4e-5;  % Carbon Dioxide (CO2)
-                      2.1e-9, 1.8e-5;  % Nitrogen (N2)
-                      2.6e-9, 1.6e-5;  % Methane (CH4)
-                      ];
                for c = 1:ncomp
                    for ph = 1:nph
                        s = model.getProp(state, ['s', nm(ph)]);
-                       D_diff = avg(s.*rho{ph}.*mol_diff(c,ph).*tau(ph).*poro);
+                       D_diff = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau(ph).*poro);
                        if (ph==L_ix)                    
                            J{c, ph} = - D_diff.*model.operators.Grad(state.x{c});
                        elseif (ph==V_ix)                                              
