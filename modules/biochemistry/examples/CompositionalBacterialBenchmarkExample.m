@@ -9,7 +9,7 @@ deck = readEclipseDeck('/home/elyes/Documents/mrst-2023b/spe11-utils/TUC_UHS_Ben
 
 %% Prepare simulation parameters and initial state
 %[~, options, state0, model, schedule,compFluid, ~] = modified_uhs_benchmark_compositional(deck, 'bacteriamodel',false);
-bacteriamodel = false;
+bacteriamodel = true;
 require ad-core ad-props ad-blackoil
 deck.PROPS.EOS ='PR';
 deck = convertDeckUnits(deck);
@@ -21,9 +21,11 @@ model.water = false;
 T0 = deck.PROPS.TEMPVD{1}(2);
 P0 = 82*barsa();
 s0 = [0.2 0.8];
-z0 = deck.PROPS.ZMFVD{1}(2:end); %initial composition: H2O,H2,CO2,N2,CH4.
-% z0(1)= z0(1)+0.6;
-% z0(2)= z0(2)-0.6;
+z0 = deck.PROPS.ZMFVD{1}(2:end); 
+if bacteriamodel 
+    z0(1)= z0(1)+0.6;
+    z0(2)= z0(2)-0.6;
+end
 for i=1:length(schedule.control)
     schedule.control(i).W.compi=[0, 1];
 end
@@ -64,7 +66,7 @@ arg = {model.G, model.rock, model.fluid, compFluid,...
     'water', false, 'eos',model.EOSModel, 'oil', true, 'gas', true,... % water-oil system
 	'bacteriamodel', bacteriamodel,'diffusioneffect',false,'liquidPhase', 'O',...
     'vaporPhase', 'G'}; % water=liquid, gas=vapor
-% model = BiochemistryModel(arg{:});
+model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
 % %===Conditions initiales=====================
 % T0=317.5;
@@ -92,7 +94,7 @@ lsolve = selectLinearSolverAD(model);                          % Select the line
 nls = NonLinearSolver();                                       % Create a nonlinear solver object
 nls.LinearSolver = lsolve;                                     % Assign the linear solver to the nonlinear solver
 
-name = 'UHS_BENCHMARK_COMPOSITIONAL_BACT';
+name = 'UHS_BENCHMARK_COMPOSITIONAL_BACT_TRUE';
 %% Pack the simulation problem with the initial state, model, and schedule
 % model = OverallCompositionCompositionalModel(G, model.rock,model.fluid,model.EOSModel, 'water', false);
 % model.EOSModel.minimumComposition =1.0e-8;
