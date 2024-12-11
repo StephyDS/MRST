@@ -1,6 +1,6 @@
 # Simulation tools for H2 storage in aquifers (H2-brine mixture) using Blackoil MRST-Simulator and tabulated PVT data
 This module provides simulation tools for modeling a hydrogen (H₂) and brine mixture within the **Blackoil** simulator in **MATLAB Reservoir Simulation Toolbox (MRST)**. 
-Our module includes tools for implementing the Redlich-Kwong (RK) equation of state (EoS) and generating tabulated PVT data for H₂-brine systems. 
+Our module includes tools for implementing the **Redlich-Kwong* (**RK**) equation of state (EoS) and generating tabulated PVT data for H₂-brine systems. 
 Additionally, it provides solubility tables derived from **ePC-Saft** and **Henry’s law** EoS for precise phase behavior calculations in hydrogen 
 storage simulations.
 
