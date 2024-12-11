@@ -45,7 +45,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         compFluid 
         % Physical quantities and bounds
         Y_H2 = 3.9e11;  % Conversion factor for hydrogen consumption (moles/volume)
-        gammak = [2.0, -4.0, -1.0, 0.0, 1.0];  % Stoichiometric coefficients: [H2O, H2, CO2, N2, CH4]
+        gammak = [];  %SDS MODIF % Stoichiometric coefficients: [H2O, H2, CO2, N2, CH4]
         alphaH2 = 3.6e-7;
         alphaCO2 = 1.98e-6;
         Psigrowthmax = 1.338e-4;
@@ -54,6 +54,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         bDiffusionEffect = false;
         moleculardiffusion = false;
         bacteriamodel = true;
+        metabolicReaction='MethanogenicArchae' %SDS modif
 
     end
     
@@ -75,14 +76,34 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             if isfield(model.fluid, 'rhoO')
                 model.oil = true;
             end
-            % Set compositinal fluid
+            % Set compositinal fluid============== SDS MODIF============
             if isempty(compFluid)
-                % Default is Methanogenesis
-                compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
-                    {'H2', 'Water', 'N2', 'CO2', 'CH4'});
+                if strcmp(model.metabolicReaction,'MethanogenicArchae')
+                    % Default is Methanogenesis
+                    compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
+                    {'H2', 'Water', 'N2', 'CO2', 'C1'});
+                    model.gammak = [-1.0, 0.5, 0.0, -0.25, 0.25];  %SDS MODIF 
+                else
+                    %send an error message: TO DO
+                end
+            else
+                namecp = compFluid.names();
+                ncomp=compFluid.getNumberOfComponents();
+                model.gammak=zeros(1,ncomp);
+                if strcmp(model.metabolicReaction,'MethanogenicArchae')
+                    indH2=find(strcmp(namecp,'H2'));
+                    indH2O= find(strcmp(namecp,'H2O'));
+                    indCO2=find(strcmp(namecp,'CO2'));
+                    indC1= find(strcmp(namecp,'C1'));
+                    model.gammak(indH2)=-1.0;
+                    model.gammak(indH2O)=0.5;
+                    model.gammak(indCO2)=-0.25;
+                    model.gammak(indC1)=0.25;
+                end
+
             end
             model.compFluid = compFluid;
-                
+            %=================SDS MODIF========================    
             eos = SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
               
             model.EOSModel = eos;
