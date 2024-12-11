@@ -12,18 +12,18 @@ classdef BactConvertionRate <  StateFunction
 
         function qbiot = evaluateOnDomain(prop, model, state)
             qbiot = 0;
-         if model.bacteriamodel && model.liquidPhase
+         if model.ReservoirModel.bacteriamodel && model.ReservoirModel.liquidPhase
              
              ncomp = model.getNumberOfComponents;
 
              Psigrowth = prop.getEvaluatedDependencies(state, 'PsiGrowthRate'); 
-             Y_H2 = model.Y_H2;
-             gammak =model.gammak;
+             Y_H2 = model.ReservoirModel.Y_H2;
+             gammak =model.ReservoirModel.gammak;
              qbiot_temp =  Psigrowth./Y_H2;
              qbiot =cell(ncomp,1);
              
              for c = 1:ncomp            
-                qbiot{c} = gammak(c).*qbiot_temp;
+                qbiot{c} = gammak(c).*qbiot_temp +0;
             end
          end         
         end

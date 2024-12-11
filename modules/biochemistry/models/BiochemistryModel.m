@@ -45,7 +45,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         compFluid 
         % Physical quantities and bounds
         Y_H2 = 3.9e11;  % Conversion factor for hydrogen consumption (moles/volume)
-        gammak = [2.0, -4.0, -1.0, 0.0, 1.0];  % Stoichiometric coefficients: [H2O, H2, CO2, N2, CH4]
+        gammak = [2.0, 1.0, 0.0, -1.0, 0.0, 0.0,0.0, -4];  % Stoichiometric coefficients: {'H2O'}    {'C1'}    {'N2'}    {'CO2'}    {'C2'}    {'C3'}    {'NC4'}    {'H2'}
         alphaH2 = 3.6e-7;
         alphaCO2 = 1.98e-6;
         Psigrowthmax = 1.338e-4;
@@ -234,8 +234,15 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 src = model.FacilityModel.getComponentSources(state);
                 eqs = model.insertSources(eqs, src);
             end
-            
             if model.bacteriamodel
+
+                src_rate = model.FacilityModel.getProps(state, 'BactConvRate');
+                for i = length(eqs)
+                    if ~isempty(src_rate{i})                    
+                        eqs = eqs{i} -src_rate{i};
+                    end
+                end
+
                 [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);             
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
