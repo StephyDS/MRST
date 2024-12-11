@@ -15,7 +15,7 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
         minimumSaturation  = 1e-8; % Minimum total EOS phase saturation 
         equilibriumConstantFunctions = {};
         extraOutput = 0;
-        msalt=0.0; %SDS modif
+        msalt=0.0; %Salt molality
     end
 
     properties (Access = private)
@@ -115,7 +115,6 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                         model.omegaA = 0.4572355;
                         model.omegaB = 0.0777961;
                         model.eosType = 6;
-                   %=================SDS modif===============
                     otherwise
                         error('Invalid string ''%s''.\n Valid choices are:\n PR: Soreide-Whitson\n', arg);
                 end
@@ -141,7 +140,7 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                 case 5
                     t = 'prcorr';
                     case 6
-                    t = 'sw'; %SDS
+                    t = 'sw'; %Soreide Whitson
                 otherwise
                     t = model.eosType;
             end
@@ -549,7 +548,7 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                         end
                         oA = model.omegaA.*(1 + tmp).^2;
                     end
-                    bic = model.CompositionalMixture.getBinaryInteraction();%SDS
+                    bic = model.CompositionalMixture.getBinaryInteraction();
                 case 2
                     % SRK
                     if useCell
@@ -560,7 +559,7 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                         tmp = bsxfun(@times, (0.48 + 1.574.*acf - 0.176.*acf.^2), (1-Tr.^(1/2)));
                         oA = model.omegaA.*(1 + tmp).^2;
                     end
-                    bic = model.CompositionalMixture.getBinaryInteraction();%SDS
+                    bic = model.CompositionalMixture.getBinaryInteraction();
                 case 3
                     % ZJ
                     error('Not implemented yet.')
@@ -573,7 +572,7 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                     else
                         oA = model.omegaA.*Tr.^(-1/2);
                     end
-                    bic = model.CompositionalMixture.getBinaryInteraction();%SDS
+                    bic = model.CompositionalMixture.getBinaryInteraction();
 
                 case {6}
                     % SW (only for the liquid phase)
@@ -677,7 +676,7 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                             oA{i} = model.omegaA.*(1 + (0.37464 + 1.54226.*ai - 0.26992.*ai.^2).*(1-Tr{i}.^(1/2))).^2;
                         end
                     end
-                    %for component H2O
+                    %Only for component H2O in the liquid phase
                     TrH2O=Tr{indH2O};
                     oA{indH2O} = model.omegaA.*(1 +0.4530.*(1-(1-0.0103*coef_msalt).*TrH2O)+0.0034.*(TrH2O.^(-3)-1).^2);                 
                 else
@@ -685,13 +684,10 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                     tmp = bsxfun(@times, 0.37464 + 1.54226.*acf - 0.26992.*acf.^2, 1-Tr.^(1/2));
                     oA = model.omegaA.*(1 + tmp).^2;
 
-                    %for component H2O in the liquid phase:
-                    %==============ATTENTION IL FAUT LE CODER SEULEMENT
-                    %POUR H2O===========================================
+                    %Only for component H2O in the liquid phase:
                     TrH2O=Tr(:,indH2O);
                     tmp1 = bsxfun(@power,1 +0.4530.*(1-(1-0.0103*coef_msalt).*TrH2O)+0.0034.*(TrH2O.^(-3)-1),2);
                     oA(:,indH2O) = model.omegaA.*tmp1;
-                    %=======================================================
                 end
                 
                 bic = model.CompositionalMixture.getBinaryInteractionLiquidWater(T,mSalt);
@@ -737,13 +733,9 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                 end
             end
         end
-        %=============SDS MODIF : Soreide-Whitson for water===============
-
-         function [Si_L, Si_V, A_L, A_V, B_L, B_V, Bi] = getMixtureFugacityCoefficients(model, P, T, x, y, acf)
+    
+        function [Si_L, Si_V, A_L, A_V, B_L, B_V, Bi] = getMixtureFugacityCoefficients(model, P, T, x, y, acf)
             % Calculate intermediate values for fugacity computation
-            
-            %===========SDS modif soreide whitson=========================
-            
             if model.eosType==6 %soreide-whitson
                 %For liquid phase
                 [A_ij, Bi] = model.getMixingParametersH2O(P, T, acf, iscell(x));
@@ -756,17 +748,10 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                 [Si_L, A_L, B_L] = model.getPhaseMixCoefficients(x, A_ij, Bi);
                 [Si_V, A_V, B_V] = model.getPhaseMixCoefficients(y, A_ij, Bi);              
             end     
-          %========================SDS modif=============================
-       end
+         end
 
-        % function [Si_L, Si_V, A_L, A_V, B_L, B_V, Bi] = getMixtureFugacityCoefficients(model, P, T, x, y, acf)
-        %     % Calculate intermediate values for fugacity computation
-        %     [A_ij, Bi] = model.getMixingParameters(P, T, acf, iscell(x));
-        %     [Si_L, A_L, B_L] = model.getPhaseMixCoefficients(x, A_ij, Bi);
-        %     [Si_V, A_V, B_V] = model.getPhaseMixCoefficients(y, A_ij, Bi);
-        % end
-      
-        function [Z_L, Z_V, f_L, f_V] = getCompressibilityAndFugacity(model, P, T, x, y, z, Z_L, Z_V, varargin)
+         
+         function [Z_L, Z_V, f_L, f_V] = getCompressibilityAndFugacity(model, P, T, x, y, z, Z_L, Z_V, varargin)
             [Si_L, Si_V, A_L, A_V, B_L, B_V, Bi] = model.getMixtureFugacityCoefficients(P, T, x, y, model.CompositionalMixture.acentricFactors);
             if isempty(Z_L)
                 Z_L = model.computeCompressibilityZ(P, x, A_L, B_L, Si_L, Bi, true);

@@ -1,13 +1,15 @@
 %% MRST Simulation for Hydrogen Storage with Bacterial Growth Model
-% Description: This script uses MRST to model gas injection into a porous medium,
+% Description: This script uses MRST to model gas injection into a 2D porous medium,
 % incorporating compositional fluid properties, bacterial mono modal.
+% We consider a liquid phase (W) and a gas (G) phase, 5 components 
+% ('H2O','H2','CO2','N2','CH4') and The microbial activity of methanogenic archaea .
 
 % Clear workspace and initialize MRST modules
 clear; clc;
-mrstModule add compositional ad-blackoil ad-core ad-props mrst-gui
+mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on
 
-%% Grid and Rock Properties
+%% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
 [nx, ny, nz] = deal(20, 1, 20);  % Grid cells in x, y, z directions
 [Lx, H] = deal(200, 100);         % Physical dimensions in meters
@@ -49,7 +51,7 @@ title('Porosity Distribution');
 %% Fluid Properties Initialization
 % Define compositional fluid model (with CoolProp library support)
 compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Nitrogen', 'Methane'}, ...
-                                      {'H2O', 'H2', 'CO2', 'N2', 'CH4'});
+                                      {'H2O', 'H2', 'CO2', 'N2', 'C1'});
 
 % Fluid density and viscosity (kg/m^3 and cP)
 [rhow, rhog] = deal(1000 * kilogram / meter^3, 8.1688 * kilogram / meter^3);
@@ -60,21 +62,21 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Ni
 
 % Relative permeability and initial saturations
 [srw, src] = deal(0.0, 0.0);
-fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
+fluid = initSimpleADIFluid('phases', 'WG', 'mu', [viscow, viscog], ...
                            'rho', [rhow, rhog], 'pRef', 114 * barsa, ...
                            'c', [cfw, cfg], 'n', [2, 2], 'smin', [srw, src]);
 
 % Capillary pressure function
 Pe = 0.1 * barsa;
-pcOG = @(so) Pe * so.^(-1/2);
-fluid.pcOG = @(sg) pcOG(max((1 - sg - srw) / (1 - srw), 1e-5));
+pcWG = @(sw) Pe * sw.^(-1/2);
+fluid.pcWG = @(sg) pcWG(max((1 - sg - srw) / (1 - srw), 1e-5));
 
 %% Simulation Parameters
 % Set total time, pore volume, and injection rate
 T = 100 * day;
 pv = sum(poreVolume(G, rock)) / T;
 rate = 100 * pv;
-niter = 30;
+niter = 100; %30;
 
 %% Wells and Boundary Conditions
 % Initialize wells
@@ -85,10 +87,13 @@ W = verticalWell(W, G, rock, 1, 1, nz, 'comp_i', [0, 1], 'Radius', 0.5, ...
 W(1).components = [0.0, 0.95, 0.05, 0.0, 0.0];  % H2-rich injection
 
 %% Model Setup: Compositional Model with Bacterial Growth
-arg = {G, rock, fluid, compFluid, 'water', false, 'oil', true, 'gas', true, ...
-       'bacteriamodel', true, 'diffusioneffect', false, 'liquidPhase', 'O', 'vaporPhase', 'G'};
+arg = {G, rock, fluid, compFluid, 'water', true, 'oil', false, 'gas', true, ...
+       'bacteriamodel', true, 'bDiffusionEffect', false, 'liquidPhase', 'W', 'vaporPhase', 'G'};
 model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
+eosname='sw'; %'pr';
+model.EOSModel = SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
+model.EOSModel.msalt=0;
 
 %% Initial Conditions
 % Temperature and initial saturations
@@ -98,7 +103,7 @@ z0 = [0.8, 0.0, 0.006, 0.018, 0.176];  % Initial composition: H2O, H2, CO2, N2, 
 Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 % Initialize state with bacterial concentration
 nbact0 = 10^6;
- state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0);
+state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0);
 % state0.s =state0.s.*0+s0;
 
 %% Time Stepping and Schedule
@@ -108,62 +113,88 @@ schedule = simpleSchedule(repmat(deltaT, 1, niter), 'bc', [], 'src', [], 'W', W)
 nls = NonLinearSolver('useRelaxation', true);
 
 % Run simulation
-[~, states, report] = simulateScheduleAD(state0, model, schedule);
+[~, states, report] = simulateScheduleAD(state0, model, schedule,'nonlinearsolver', nls);
 
 %% Plotting Results
-time = 0;
+time=0;
 figure;
-for i = 1:niter
+namecp = model.EOSModel.getComponentNames();
+indH2=find(strcmp(namecp,'H2'));
+indCO2= find(strcmp(namecp,'CO2'));
+for i= 1:niter
     % Reshape spatial data for plotting
-    x = G.cells.centroids(:, 1);
-    z = G.cells.centroids(:, 3);
-    X = reshape(x, [nx, nz]);
-    Z = reshape(z, [nx, nz]);
-    zH2 = reshape(states{i}.components(:, 2), [nx, nz]);
-    zH2O = reshape(states{i}.components(:, 1), [nx, nz]);
-    zCO2 = reshape(states{i}.components(:, 3), [nx, nz]);
-    Sw = reshape(states{i}.s(:, 1), [nx, nz]);
-    Sg = reshape(states{i}.s(:, 2), [nx, nz]);
-    Pres = reshape(states{i}.pressure, [nx, nz]);
-    nbacteria = reshape(states{i}.nbact, [nx, nz]);
-
+    x = G.cells.centroids(:,1);
+    z = G.cells.centroids(:,3);
+    X = reshape(x, [nx,nz]);
+    Z = reshape(z, [nx,nz]);
+    Pres= reshape(states{i}.pressure, [nx,nz]);
+    nbacteria=reshape(states{i}.nbact, [nx,nz]);
+    Sw = reshape(states{i}.s(:,1), [nx,nz]);
+    xH2 = reshape(states{i}.x(:,indH2), [nx,nz]); %in liquid phase
+    yH2 = reshape(states{i}.y(:,indH2), [nx,nz]); 
+    xCO2 = reshape(states{i}.x(:,indCO2), [nx,nz]); %in liquid phase
+    
     % Plot saturation, gas fraction, bacterial concentration, and H2 mole fraction
-    subplot(2, 2, 1);
-    contourf(X, Z, Sw, 60, 'EdgeColor', 'auto');
-    colorbar; colormap('jet');
-    clim([0 1]);
-    title('Water Saturation');
-    ylabel('Depth (m)');
-    axis equal; axis([0 Lx depth_res depth_res + H]);
-    set(gca, 'Ydir', 'reverse');
+    subplot(2,3,1);   
+    contourf(X,Z,Sw,60,'EdgeColor','auto');
+    clim([0 0.8])
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('Water saturation','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar 
+    
+    subplot(2,3,2);   
+    contourf(X,Z,Pres,60,'EdgeColor','auto');
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('Pressure','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar 
+    
+    subplot(2,3,3); 
+    contourf(X,Z,nbacteria,60,'EdgeColor','auto');
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('microbial density','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar
 
-    subplot(2, 2, 2);
-    contourf(X, Z, Sg, 60, 'EdgeColor', 'auto');
-    colorbar; colormap('jet');
-    clim([0 1]);
-    title('Gas Saturation');
-    ylabel('Depth (m)');
-    axis equal; axis([0 Lx depth_res depth_res + H]);
-    set(gca, 'Ydir', 'reverse');
+    subplot(2,3,4);   
+    contourf(X,Z,xCO2,60,'EdgeColor','auto');
+    %clim([0 1.e-3])
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('CO2 solubility','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar 
+    
 
-    subplot(2, 2, 3);
-    contourf(X, Z, nbacteria, 60, 'EdgeColor', 'auto');
-    colorbar; colormap('jet');
-    title('Bacterial Concentration');
-    ylabel('Depth (m)');
-    axis equal; axis([0 Lx depth_res depth_res + H]);
-    set(gca, 'Ydir', 'reverse');
-
-    subplot(2, 2, 4);
-    contourf(X, Z, zH2, 60, 'EdgeColor', 'auto');
-    colorbar; colormap('jet');
-    clim([0 0.8]);
-    title('H2 Mole Fraction');
-    ylabel('Depth (m)');
-    axis equal; axis([0 Lx depth_res depth_res + H]);
-    set(gca, 'Ydir', 'reverse');
-
+    subplot(2,3,5); 
+    contourf(X,Z,xH2,60,'EdgeColor','auto');
+    %clim([0 1.e-3])
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('H2 solubility','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar
+   
+    subplot(2,3,6); 
+    contourf(X,Z,yH2,60,'EdgeColor','auto');
+    clim([0 1])
+    axis equal
+    axis ([0 Lx  depth_res depth_res+H])
+    ylabel('H2 molar fraction in gaz','FontSize',15)
+    set(gca,'Ydir','reverse')
+    colormap('jet')
+    colorbar
+  
     time = time + deltaT;
-%     suptitle(sprintf('Injection Duration = %.2f days', convertTo(time, day)));
-    pause(0.001);
+    %title(sprintf('injection duration = %.2f days',convertTo(time,day)))
+    pause(0.001)
 end
