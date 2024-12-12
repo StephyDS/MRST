@@ -45,7 +45,12 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         compFluid 
         % Physical quantities and bounds
         Y_H2 = 3.9e11;  % Conversion factor for hydrogen consumption (moles/volume)
-        gammak = [2.0, 1.0, 0.0, -1.0, 0.0, 0.0,0.0, -4];  % Stoichiometric coefficients: {'H2O'}    {'C1'}    {'N2'}    {'CO2'}    {'C2'}    {'C3'}    {'NC4'}    {'H2'}
+        
+        %===========SDS MODIF===============================================
+        %gammak = [2.0, 1.0, 0.0, -1.0, 0.0, 0.0,0.0, -4];  % Stoichiometric coefficients: {'H2O'}    {'C1'}    {'N2'}    {'CO2'}    {'C2'}    {'C3'}    {'NC4'}    {'H2'}
+        gammak = [];  %SDS MODIF 
+        %===========SDS MODIF===============================================
+       
         mol_diff = [ ...
                       2.3e-9, 1.5e-5;  % Water (H2O)  
                       2.6e-9, 1.6e-5;  % Methane (C1)
@@ -65,6 +70,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         bDiffusionEffect = false;
         moleculardiffusion = true;
         bacteriamodel = true;
+        metabolicReaction='MethanogenicArchae' %SDS modif
 
     end
     
@@ -88,9 +94,36 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             end
             % Set compositinal fluid
             if isempty(compFluid)
+            %==================SDS MODIF=============================================
                 % Default is Methanogenesis
-                compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
-                    {'H2', 'Water', 'N2', 'CO2', 'CH4'});
+                %compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
+                %   {'H2', 'Water', 'N2', 'CO2', 'CH4'});
+                if strcmp(model.metabolicReaction,'MethanogenicArchae')
+                    % Default is Methanogenesis
+                    compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
+                    {'H2', 'Water', 'N2', 'CO2', 'C1'});
+                    model.gammak = [-1.0, 0.5, 0.0, -0.25, 0.25];  %SDS MODIF 
+               else
+                    %send an error message: TO DO
+               end
+                %==================SDS MODIF=========================
+                 %==================SDS MODIF=========================
+            else
+                namecp = compFluid.names();
+                ncomp=compFluid.getNumberOfComponents();
+                model.gammak=zeros(1,ncomp);
+                if strcmp(model.metabolicReaction,'MethanogenicArchae')
+                    indH2=find(strcmp(namecp,'H2'));
+                    indH2O= find(strcmp(namecp,'H2O'));
+                    indCO2=find(strcmp(namecp,'CO2'));
+                    indC1= find(strcmp(namecp,'C1'));
+                    model.gammak(indH2)=-1.0;
+                    model.gammak(indH2O)=0.5;
+                    model.gammak(indCO2)=-0.25;
+                    model.gammak(indC1)=0.25;
+                end
+              %==================SDS MODIF=========================
+                 
             end
             model.compFluid = compFluid;
                 
