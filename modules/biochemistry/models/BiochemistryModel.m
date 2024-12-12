@@ -49,19 +49,20 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         %===========SDS MODIF===============================================
         %gammak = [2.0, 1.0, 0.0, -1.0, 0.0, 0.0,0.0, -4];  % Stoichiometric coefficients: {'H2O'}    {'C1'}    {'N2'}    {'CO2'}    {'C2'}    {'C3'}    {'NC4'}    {'H2'}
         gammak = [];  %SDS MODIF 
-        %===========SDS MODIF===============================================
-       
-        mol_diff = [ ...
-                      2.3e-9, 1.5e-5;  % Water (H2O)  
-                      2.6e-9, 1.6e-5;  % Methane (C1)
-                      2.1e-9, 1.8e-5;  % Nitrogen (N2)
-                      1.9e-9, 1.4e-5;  % Carbon Dioxide (CO2)                      
-                      3.2e-9, 2.5e-5;  % Ethane (C2)
-                      2.8e-9, 2.2e-5;  % Propane (C3)
-                      2.4e-9, 1.9e-5;  % Normal Butane (NC4)                      
-                      4.5e-9, 6.1e-5;  % Hydrogen (H2)
-                      ];
-
+        mol_diff = zeros(8,2);
+        
+        % mol_diff = [ ...
+        %               2.3e-9, 1.5e-5;  % Water (H2O)  
+        %               2.6e-9, 1.6e-5;  % Methane (C1)
+        %               2.1e-9, 1.8e-5;  % Nitrogen (N2)
+        %               1.9e-9, 1.4e-5;  % Carbon Dioxide (CO2)                      
+        %               3.2e-9, 2.5e-5;  % Ethane (C2)
+        %               2.8e-9, 2.2e-5;  % Propane (C3)
+        %               2.4e-9, 1.9e-5;  % Normal Butane (NC4)                      
+        %               4.5e-9, 6.1e-5;  % Hydrogen (H2)
+        %               ];
+%===========SDS MODIF===============================================
+        
         alphaH2 = 3.6e-7;
         alphaCO2 = 1.98e-6;
         Psigrowthmax = 1.338e-4;
@@ -92,9 +93,32 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             if isfield(model.fluid, 'rhoO')
                 model.oil = true;
             end
+
+            %==================SDS MODIF=============================================
+            namecp = compFluid.names();
+
+            if model.moleculardiffusion
+                indH2O=find(strcmp(namecp,'H2O'));
+                indC1= find(strcmp(namecp,'C1'));
+                indN2= find(strcmp(namecp,'N2'));
+                indCO2=find(strcmp(namecp,'CO2'));
+                indC2= find(strcmp(namecp,'C2'));
+                indC3= find(strcmp(namecp,'C3'));
+                indNC4= find(strcmp(namecp,'NC4'));
+                indH2= find(strcmp(namecp,'H2'));
+                mol_diff(indH2O,:)=[2.3e-9, 1.5e-5];
+                mol_diff(indC1,:)=[2.6e-9, 1.6e-5];
+                mol_diff(indN2,:)=[2.1e-9, 1.8e-5];
+                mol_diff(indCO2,:)=[1.9e-9, 1.4e-5];
+                mol_diff(indC2,:)=[3.2e-9, 2.5e-5];
+                mol_diff(indC3,:)=[2.8e-9, 2.2e-5];
+                mol_diff(indNC4,:)=[2.4e-9, 1.9e-5];
+                mol_diff(indH2,:)=[4.5e-9, 6.1e-5];               
+            end
+
             % Set compositinal fluid
             if isempty(compFluid)
-            %==================SDS MODIF=============================================
+            
                 % Default is Methanogenesis
                 %compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
                 %   {'H2', 'Water', 'N2', 'CO2', 'CH4'});
@@ -109,7 +133,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 %==================SDS MODIF=========================
                  %==================SDS MODIF=========================
             else
-                namecp = compFluid.names();
+                %namecp = compFluid.names();
                 ncomp=compFluid.getNumberOfComponents();
                 model.gammak=zeros(1,ncomp);
                 if strcmp(model.metabolicReaction,'MethanogenicArchae')

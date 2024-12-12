@@ -75,8 +75,8 @@ fluid.pcWG = @(sg) pcWG(max((1 - sg - srw) / (1 - srw), 1e-5));
 % Set total time, pore volume, and injection rate
 T = 100 * day;
 pv = sum(poreVolume(G, rock)) / T;
-rate = 100 * pv;
-niter = 100; %30;
+rate = 50*pv; %100 * pv;
+niter = 100; %100;
 
 %% Wells and Boundary Conditions
 % Initialize wells
@@ -84,11 +84,12 @@ W = [];
 % Injection well parameters
 W = verticalWell(W, G, rock, 1, 1, nz, 'comp_i', [0, 1], 'Radius', 0.5, ...
                  'name', 'Injector', 'type', 'rate', 'Val', rate, 'sign', 1);
-W(1).components = [0.0, 0.95, 0.05, 0.0, 0.0];  % H2-rich injection
+W(1).components = [0.0, 0.95,  0.05, 0.0, 0.0];  % H2-rich injection
 
 %% Model Setup: Compositional Model with Bacterial Growth
 arg = {G, rock, fluid, compFluid, 'water', true, 'oil', false, 'gas', true, ...
-       'bacteriamodel', true, 'bDiffusionEffect', false, 'liquidPhase', 'W', 'vaporPhase', 'G'};
+       'bacteriamodel', true, 'bDiffusionEffect', false, ...
+       'moleculardiffusion',false,'liquidPhase', 'W', 'vaporPhase', 'G'};
 model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
 eosname='sw'; %'pr';
