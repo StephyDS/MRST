@@ -73,9 +73,9 @@ fluid.pcWG = @(sg) pcWG(max((1 - sg - srw) / (1 - srw), 1e-5));
 
 %% Simulation Parameters
 % Set total time, pore volume, and injection rate
-T = 100 * day;
+T = 100*day; %100 * day;
 pv = sum(poreVolume(G, rock)) / T;
-rate = 50*pv; %100 * pv;
+rate = 100*pv; %100 * pv;
 niter = 100; %100;
 
 %% Wells and Boundary Conditions

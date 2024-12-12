@@ -49,7 +49,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         %===========SDS MODIF===============================================
         %gammak = [2.0, 1.0, 0.0, -1.0, 0.0, 0.0,0.0, -4];  % Stoichiometric coefficients: {'H2O'}    {'C1'}    {'N2'}    {'CO2'}    {'C2'}    {'C3'}    {'NC4'}    {'H2'}
         gammak = [];  %SDS MODIF 
-        mol_diff = zeros(8,2);
+        mol_diff = []; %zeros(8,2);
         
         % mol_diff = [ ...
         %               2.3e-9, 1.5e-5;  % Water (H2O)  
@@ -98,22 +98,37 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             namecp = compFluid.names();
 
             if model.moleculardiffusion
-                indH2O=find(strcmp(namecp,'H2O'));
-                indC1= find(strcmp(namecp,'C1'));
-                indN2= find(strcmp(namecp,'N2'));
-                indCO2=find(strcmp(namecp,'CO2'));
-                indC2= find(strcmp(namecp,'C2'));
-                indC3= find(strcmp(namecp,'C3'));
-                indNC4= find(strcmp(namecp,'NC4'));
-                indH2= find(strcmp(namecp,'H2'));
-                mol_diff(indH2O,:)=[2.3e-9, 1.5e-5];
-                mol_diff(indC1,:)=[2.6e-9, 1.6e-5];
-                mol_diff(indN2,:)=[2.1e-9, 1.8e-5];
-                mol_diff(indCO2,:)=[1.9e-9, 1.4e-5];
-                mol_diff(indC2,:)=[3.2e-9, 2.5e-5];
-                mol_diff(indC3,:)=[2.8e-9, 2.2e-5];
-                mol_diff(indNC4,:)=[2.4e-9, 1.9e-5];
-                mol_diff(indH2,:)=[4.5e-9, 6.1e-5];               
+                indices = struct('H2', find(strcmp(namecp, 'H2')), ... 
+                    'C1', find(strcmp(namecp, 'C1')), ... 
+                    'CO2', find(strcmp(namecp, 'CO2')), ...
+                    'H2O', find(strcmp(namecp, 'H2O')), ...
+                    'N2', find(strcmp(namecp, 'N2')), ...
+                    'C2', find(strcmp(namecp, 'C2')), ...
+                    'C3', find(strcmp(namecp, 'C3')), ...
+                    'NC4', find(strcmp(namecp, 'NC4')));
+                
+                fields = fieldnames(indices);
+                nfields=numel(fields);
+                model.mol_diff=zeros(nfields,2);
+
+                coeffs = struct(...
+                    'H2',  [4.5e-9, 6.1e-5], ...
+                    'C1', [2.6e-9, 1.6e-5], ...
+                    'H2O', [2.3e-9, 1.5e-5], ...
+                    'CO2', [1.9e-9, 1.4e-5], ... 
+                    'N2',  [2.1e-9, 1.8e-5], ... 
+                    'C2',  [3.2e-9, 2.5e-5], ... 
+                    'C3',  [2.8e-9, 2.2e-5], ... 
+                    'NC4', [2.4e-9, 1.9e-5]);
+                
+                for i = 1:nfields
+                    comp = fields{i};
+                    indComp = indices.(comp);
+                    
+                    if ~isempty(indComp) && isfield(coeffs, comp)
+                      model.mol_diff(indices.(comp),:)= coeffs.(comp);
+                    end
+                 end
             end
 
             % Set compositinal fluid
