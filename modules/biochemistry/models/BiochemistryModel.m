@@ -272,13 +272,11 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             end
 
             if model.bacteriamodel
-
                 if ~isfield(state, 'nbact')
                     % Set temperature if it is not given
                     nbact0 = 10^6;
                     state.nbact = repmat(nbact0, model.G.cells.num, 1);
                 end
-
             end
         end
 
