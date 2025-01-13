@@ -11,7 +11,7 @@ clear; clc;
 %mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on
-biochemistrymodel=false;
+biochemistrymodel=true;
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
 %[nx, ny, nz] = deal(61,61,10);  % Grid cells in x, y, z directions
@@ -58,8 +58,8 @@ fluid.pcWG = @(sg) pcWG(max((1 - sg - srw) / (1 - srw), 1e-5));
 
 %% Simulation Parameters
 % Set total time, pore volume, and injection rate
-niter=105;
-TotalTime = niter*day;% 105*day; 
+niter=105;% 22;
+TotalTime = niter*day;
 rate = 1e6*meter^3/day; 
 
 
@@ -70,6 +70,7 @@ nls = NonLinearSolver('useRelaxation', true);
 deltaT =rampupTimesteps(TotalTime, 1*day, 0);
 schedule = simpleSchedule(deltaT);
 nj1=30;nj2=60;nj3=90;
+%nj1=5;nj2=10;nj3=15;
 schedule.step.control(1:nj1)=1;
 schedule.step.control(nj1+1:nj2)=2;
 schedule.step.control(nj2+1:nj3)=3;
@@ -138,9 +139,15 @@ s0 = [0.2, 0.8];           % Initial saturations (Sw,Sg)
 z0 = [0.2, 0.0, 0.0, 0.8];  % Initial composition: H2O, H2, CO2, CH4
 Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 % Initialize state with bacterial concentration
-nbact0 = 10^6;
+
 if biochemistrymodel
-    state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0);
+    if model.bacteriamodel
+        nbact0 = 10^6;
+        state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0);
+    else
+        state0 = initCompositionalState(model, Phydro0, T0, s0, z0);
+    end
+
 else
     state0 = initCompositionalState(model, Phydro0, T0, s0, z0);
 end
