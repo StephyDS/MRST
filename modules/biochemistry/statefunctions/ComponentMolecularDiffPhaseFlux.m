@@ -32,7 +32,7 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                for c = 1:ncomp
                    for ph = 1:nph
                        s = model.getProp(state, ['s', nm(ph)]);
-                       D_diff = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau(ph).*poro);
+                       D_diff = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau(ph).*poro);%Millington and Quirk model
                        if (ph==L_ix)                    
                            J{c, ph} = - D_diff.*model.operators.Grad(state.x{c});
                        elseif (ph==V_ix)                                              

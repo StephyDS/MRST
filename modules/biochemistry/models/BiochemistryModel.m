@@ -45,18 +45,24 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         compFluid 
         % Physical quantities and bounds
         Y_H2 = 3.9e11;  % Conversion factor for hydrogen consumption (moles/volume)
-        gammak = [2.0, 1.0, 0.0, -1.0, 0.0, 0.0,0.0, -4];  % Stoichiometric coefficients: {'H2O'}    {'C1'}    {'N2'}    {'CO2'}    {'C2'}    {'C3'}    {'NC4'}    {'H2'}
-        mol_diff = [ ...
-                      2.3e-9, 1.5e-5;  % Water (H2O)  
-                      2.6e-9, 1.6e-5;  % Methane (C1)
-                      2.1e-9, 1.8e-5;  % Nitrogen (N2)
-                      1.9e-9, 1.4e-5;  % Carbon Dioxide (CO2)                      
-                      3.2e-9, 2.5e-5;  % Ethane (C2)
-                      2.8e-9, 2.2e-5;  % Propane (C3)
-                      2.4e-9, 1.9e-5;  % Normal Butane (NC4)                      
-                      4.5e-9, 6.1e-5;  % Hydrogen (H2)
-                      ];
-
+        
+        %===========SDS MODIF===============================================
+        %gammak = [2.0, 1.0, 0.0, -1.0, 0.0, 0.0,0.0, -4];  % Stoichiometric coefficients: {'H2O'}    {'C1'}    {'N2'}    {'CO2'}    {'C2'}    {'C3'}    {'NC4'}    {'H2'}
+        gammak = [];  %SDS MODIF 
+        mol_diff = []; %zeros(8,2);
+        
+        % mol_diff = [ ...
+        %               2.3e-9, 1.5e-5;  % Water (H2O)  
+        %               2.6e-9, 1.6e-5;  % Methane (C1)
+        %               2.1e-9, 1.8e-5;  % Nitrogen (N2)
+        %               1.9e-9, 1.4e-5;  % Carbon Dioxide (CO2)                      
+        %               3.2e-9, 2.5e-5;  % Ethane (C2)
+        %               2.8e-9, 2.2e-5;  % Propane (C3)
+        %               2.4e-9, 1.9e-5;  % Normal Butane (NC4)                      
+        %               4.5e-9, 6.1e-5;  % Hydrogen (H2)
+        %               ];
+%===========SDS MODIF===============================================
+        
         alphaH2 = 3.6e-7;
         alphaCO2 = 1.98e-6;
         Psigrowthmax = 1.338e-4;
@@ -65,6 +71,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         bDiffusionEffect = false;
         moleculardiffusion = true;
         bacteriamodel = true;
+        metabolicReaction='MethanogenicArchae' %SDS modif
 
     end
     
@@ -86,11 +93,76 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             if isfield(model.fluid, 'rhoO')
                 model.oil = true;
             end
+
+            %==================SDS MODIF=============================================
+            namecp = compFluid.names();
+
+            if model.moleculardiffusion
+                indices = struct('H2', find(strcmp(namecp, 'H2')), ... 
+                    'C1', find(strcmp(namecp, 'C1')), ... 
+                    'CO2', find(strcmp(namecp, 'CO2')), ...
+                    'H2O', find(strcmp(namecp, 'H2O')), ...
+                    'N2', find(strcmp(namecp, 'N2')), ...
+                    'C2', find(strcmp(namecp, 'C2')), ...
+                    'C3', find(strcmp(namecp, 'C3')), ...
+                    'NC4', find(strcmp(namecp, 'NC4')));
+                
+                fields = fieldnames(indices);
+                nfields=numel(fields);
+                model.mol_diff=zeros(nfields,2);
+
+                coeffs = struct(...
+                    'H2',  [4.5e-9, 6.1e-5], ...
+                    'C1', [2.6e-9, 1.6e-5], ...
+                    'H2O', [2.3e-9, 1.5e-5], ...
+                    'CO2', [1.9e-9, 1.4e-5], ... 
+                    'N2',  [2.1e-9, 1.8e-5], ... 
+                    'C2',  [3.2e-9, 2.5e-5], ... 
+                    'C3',  [2.8e-9, 2.2e-5], ... 
+                    'NC4', [2.4e-9, 1.9e-5]);
+                
+                for i = 1:nfields
+                    comp = fields{i};
+                    indComp = indices.(comp);
+                    
+                    if ~isempty(indComp) && isfield(coeffs, comp)
+                      model.mol_diff(indices.(comp),:)= coeffs.(comp);
+                    end
+                 end
+            end
+
             % Set compositinal fluid
             if isempty(compFluid)
+            
                 % Default is Methanogenesis
-                compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
-                    {'H2', 'Water', 'N2', 'CO2', 'CH4'});
+                %compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
+                %   {'H2', 'Water', 'N2', 'CO2', 'CH4'});
+                if strcmp(model.metabolicReaction,'MethanogenicArchae')
+                    % Default is Methanogenesis
+                    compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
+                    {'H2', 'Water', 'N2', 'CO2', 'C1'});
+                    model.gammak = [-1.0, 0.5, 0.0, -0.25, 0.25];  %SDS MODIF 
+               else
+                    %send an error message: TO DO
+               end
+                %==================SDS MODIF=========================
+                 %==================SDS MODIF=========================
+            else
+                %namecp = compFluid.names();
+                ncomp=compFluid.getNumberOfComponents();
+                model.gammak=zeros(1,ncomp);
+                if strcmp(model.metabolicReaction,'MethanogenicArchae')
+                    indH2=find(strcmp(namecp,'H2'));
+                    indH2O= find(strcmp(namecp,'H2O'));
+                    indCO2=find(strcmp(namecp,'CO2'));
+                    indC1= find(strcmp(namecp,'C1'));
+                    model.gammak(indH2)=-1.0;
+                    model.gammak(indH2O)=0.5;
+                    model.gammak(indCO2)=-0.25;
+                    model.gammak(indC1)=0.25;
+                end
+              %==================SDS MODIF=========================
+                 
             end
             model.compFluid = compFluid;
                 
@@ -200,13 +272,11 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             end
 
             if model.bacteriamodel
-
                 if ~isfield(state, 'nbact')
                     % Set temperature if it is not given
                     nbact0 = 10^6;
                     state.nbact = repmat(nbact0, model.G.cells.num, 1);
                 end
-
             end
         end
 

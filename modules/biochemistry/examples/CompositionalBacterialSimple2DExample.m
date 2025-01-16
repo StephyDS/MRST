@@ -73,10 +73,10 @@ fluid.pcWG = @(sg) pcWG(max((1 - sg - srw) / (1 - srw), 1e-5));
 
 %% Simulation Parameters
 % Set total time, pore volume, and injection rate
-T = 100 * day;
+T = 30*day; %100 * day;
 pv = sum(poreVolume(G, rock)) / T;
-rate = 100 * pv;
-niter = 100; %30;
+rate = 30*pv; %100 * pv;
+niter = 100; %100;
 
 %% Wells and Boundary Conditions
 % Initialize wells
@@ -84,11 +84,12 @@ W = [];
 % Injection well parameters
 W = verticalWell(W, G, rock, 1, 1, nz, 'comp_i', [0, 1], 'Radius', 0.5, ...
                  'name', 'Injector', 'type', 'rate', 'Val', rate, 'sign', 1);
-W(1).components = [0.0, 0.95, 0.05, 0.0, 0.0];  % H2-rich injection
+W(1).components = [0.0, 0.95,  0.05, 0.0, 0.0];  % H2-rich injection
 
 %% Model Setup: Compositional Model with Bacterial Growth
 arg = {G, rock, fluid, compFluid, 'water', true, 'oil', false, 'gas', true, ...
-       'bacteriamodel', true, 'bDiffusionEffect', false, 'liquidPhase', 'W', 'vaporPhase', 'G'};
+       'bacteriamodel', true, 'bDiffusionEffect', false, ...
+       'moleculardiffusion',false,'liquidPhase', 'W', 'vaporPhase', 'G'};
 model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
 eosname='sw'; %'pr';
@@ -104,7 +105,6 @@ Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 % Initialize state with bacterial concentration
 nbact0 = 10^6;
 state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0);
-% state0.s =state0.s.*0+s0;
 
 %% Time Stepping and Schedule
 % Define schedule and solver
@@ -128,7 +128,9 @@ for i= 1:niter
     X = reshape(x, [nx,nz]);
     Z = reshape(z, [nx,nz]);
     Pres= reshape(states{i}.pressure, [nx,nz]);
-    nbacteria=reshape(states{i}.nbact, [nx,nz]);
+    if model.bacteriamodel
+        nbacteria=reshape(states{i}.nbact, [nx,nz]);
+    end
     Sw = reshape(states{i}.s(:,1), [nx,nz]);
     xH2 = reshape(states{i}.x(:,indH2), [nx,nz]); %in liquid phase
     yH2 = reshape(states{i}.y(:,indH2), [nx,nz]); 
@@ -154,14 +156,16 @@ for i= 1:niter
     colormap('jet')
     colorbar 
     
-    subplot(2,3,3); 
-    contourf(X,Z,nbacteria,60,'EdgeColor','auto');
-    axis equal
-    axis ([0 Lx  depth_res depth_res+H])
-    ylabel('microbial density','FontSize',15)
-    set(gca,'Ydir','reverse')
-    colormap('jet')
-    colorbar
+    if model.bacteriamodel
+        subplot(2,3,3); 
+        contourf(X,Z,nbacteria,60,'EdgeColor','auto');
+        axis equal
+        axis ([0 Lx  depth_res depth_res+H])
+        ylabel('microbial density','FontSize',15)
+        set(gca,'Ydir','reverse')
+        colormap('jet')
+        colorbar
+    end
 
     subplot(2,3,4);   
     contourf(X,Z,xCO2,60,'EdgeColor','auto');
