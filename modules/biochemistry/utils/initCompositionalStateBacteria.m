@@ -58,11 +58,13 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     else
         state.components = repmat(z0, G.cells.num, 1);
     end
-    %==================bacteria======================
-    if size(nbact0, 1) == G.cells.num
-        state.nbact = nbact0;
-    else
-        state.nbact = repmat(nbact0, G.cells.num, 1);
+    %==================bacteria model===============
+    if model.bacteriamodel
+        if size(nbact0, 1) == G.cells.num
+            state.nbact = nbact0;
+        else
+            state.nbact = repmat(nbact0, G.cells.num, 1);
+        end
     end
     %================================================
     nls = getDefaultFlashNonLinearSolver();
