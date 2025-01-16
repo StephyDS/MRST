@@ -16,7 +16,10 @@ classdef BacterialMass < StateFunction & ComponentProperty
             s = model.getProps(state, 's');
             nbact = model.getProps(state, 'nbact');
 
-            pv = model.rock.poro;
+%            pv = model.rock.poro;
+            pv = model.PVTPropertyFunctions.get(model, state, 'PoreVolume');
+ %           pv = model.ReservoirModel.operators.pv;  % Reservoir porosity
+
             L_ix = model.getLiquidIndex();
 
             if iscell(s)
@@ -25,8 +28,7 @@ classdef BacterialMass < StateFunction & ComponentProperty
                 sL = s(:, L_ix);
             end
             mb = pv.*nbact.*sL;
-
-%             mb = prop.ensureMinimumDerivatives(mb);
+            mb = prop.ensureMinimumDerivatives(mb);
 
         end
 

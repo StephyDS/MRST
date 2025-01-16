@@ -32,7 +32,7 @@ end
 %===Bacteria model===========================
 G = model.G;
 if bacteriamodel
-    nbact0 = 10^6;
+    nbact0 = 10^8;
     state0 = initCompositionalStateBacteria(model,P0.*ones(G.cells.num,1) ,T0,s0,z0,nbact0,eos);
 else
     state0 = initCompositionalState(model, P0.*ones(G.cells.num,1) , T0, s0, z0);

@@ -60,10 +60,10 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         alphaH2 = 3.6e-7;
         alphaCO2 = 1.98e-6;
         Psigrowthmax = 1.338e-4;
-        b_bact =2.3E-6;
+        b_bact = 6.87E-10;
         Db = 10^(-8)*meter/second
         bDiffusionEffect = false;
-        moleculardiffusion = true;
+        moleculardiffusion = false;
         bacteriamodel = true;
 
     end

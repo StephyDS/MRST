@@ -15,8 +15,8 @@ classdef DecayBactRateSRC <  StateFunction
             Psidecay = 0;
             bbact = model.ReservoirModel.b_bact;
             namecp = model.ReservoirModel.getComponentNames();
-%             pv = model.ReservoirModel.operators.pv;  % Reservoir porosity
-            pv = model.ReservoirModel.rock.poro;
+            pv = model.ReservoirModel.operators.pv;  % Reservoir porosity
+            %pv = model.ReservoirModel.rock.poro;
             % Find indices for 'H2'
             idx_H2 = find(strcmp(namecp, 'H2'), 1);     % Locate 'H2'
             if model.ReservoirModel.bacteriamodel && model.ReservoirModel.liquidPhase && (~isempty(idx_H2))                                    
