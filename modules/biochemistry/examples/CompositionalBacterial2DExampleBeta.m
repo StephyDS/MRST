@@ -37,10 +37,11 @@ if (compFluid.getNumberOfComponents>2)
 end
 
 model.EOSModel = EOS;
+diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
 
 % Set up additional model properties for biochemistry and flow
 arg = {model.G, model.rock, model.fluid, compFluid,...
-    'water', false, 'oil', true, 'gas', true, ... % Define phases for water-oil system
+       false, diagonal_backend, 'oil', true, 'gas', true, ... % Define phases for water-oil system
     'bacteriamodel', bacteriamodel, 'diffusioneffect', false, 'liquidPhase', 'O', ...
     'vaporPhase', 'G', 'eos', model.EOSModel}; % Set phases and EOS model
 model = BiochemistryModel(arg{:});

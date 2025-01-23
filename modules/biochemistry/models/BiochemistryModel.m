@@ -44,7 +44,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         % with H2-CO2-H2O-CH4
         compFluid 
         % Physical quantities and bounds
-        Y_H2 = 3.9e11;  % Conversion factor for hydrogen consumption (moles/volume)
+        Y_H2 = 4.1e12;  % Conversion factor for hydrogen consumption (moles/volume)
         
         %===========SDS MODIF===============================================
         %gammak = [2.0, 1.0, 0.0, -1.0, 0.0, 0.0,0.0, -4];  % Stoichiometric coefficients: {'H2O'}    {'C1'}    {'N2'}    {'CO2'}    {'C2'}    {'C3'}    {'NC4'}    {'H2'}
@@ -63,13 +63,15 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         %               ];
 %===========SDS MODIF===============================================
         
-        alphaH2 = 3.6e-7;
-        alphaCO2 = 1.98e-6;
-        Psigrowthmax = 1.338e-4;
+        alphaH2 = 1.0946e-6;
+        alphaCO2 = 3.188e-5;
+        Psigrowthmax = 1.7e-4;
         b_bact = 6.87E-10;
         Db = 10^(-8)*meter/second
         bDiffusionEffect = false;
         moleculardiffusion = false;
+        nbactMax = 6.88e11;
+        m_rate = 4.3e-10;
         bacteriamodel = true;
         metabolicReaction='MethanogenicArchae' %SDS modif
 
@@ -77,9 +79,9 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
     
     methods
         %-----------------------------------------------------------------%
-        function model = BiochemistryModel(G, rock, fluid, compFluid, varargin)
+        function model = BiochemistryModel(G, rock, fluid, compFluid, includeWater, backend, varargin)
         % Class constructor. Required arguments are G, rock and fluid.
-            model = model@GenericOverallCompositionModel(G, rock, fluid, compFluid);
+            model = model@GenericOverallCompositionModel(G, rock, fluid, compFluid, 'water', includeWater, 'AutoDiffBackend', backend);
             model = merge_options(model, varargin{:});
             % Check if compositional fluid is provided
             if nargin > 3 && isa(varargin{4}, 'CompositionalMixture')
@@ -141,7 +143,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     % Default is Methanogenesis
                     compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
                     {'H2', 'Water', 'N2', 'CO2', 'C1'});
-                    model.gammak = [-1.0, 0.5, 0.0, -0.25, 0.25];  %SDS MODIF 
+                    model.gammak = [-4.0, 2.0, 0.0, -1.0, 1.0]/4;  %SDS MODIF 
                else
                     %send an error message: TO DO
                end
@@ -156,10 +158,11 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     indH2O= find(strcmp(namecp,'H2O'));
                     indCO2=find(strcmp(namecp,'CO2'));
                     indC1= find(strcmp(namecp,'C1'));
-                    model.gammak(indH2)=-1.0;
-                    model.gammak(indH2O)=0.5;
-                    model.gammak(indCO2)=-0.25;
-                    model.gammak(indC1)=0.25;
+                    model.gammak(indH2)=-4.0;
+                    model.gammak(indH2O)=2.0;
+                    model.gammak(indCO2)=-1.0;
+                    model.gammak(indC1)=1.0;
+                    model.gammak = model.gammak./4;
                 end
               %==================SDS MODIF=========================
                  
@@ -170,14 +173,14 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
               
             model.EOSModel = eos;
             % Set nonlinear tolerance
-            model.nonlinearTolerance = 1e-3;
+%             model.nonlinearTolerance = 1e-3;
             % Merge in additional optjions
 %             model = merge_options(model, varargin{:});
             % Check that we have a valid thermal formulation
             assert(any(strcmpi(model.bacterialFormulation, {'bacterialmodel'})), ...
                 'BioChemsitryModel supports currently only one micro-organism');
             % Set output state functions
-            model.OutputStateFunctions = {'ComponentTotalMass'};
+            model.OutputStateFunctions = {'ComponentTotalMass', 'Density'};
             if model.bacteriamodel
                 model.FlowDiscretization = BiochemicalFlowDiscretization(model);
             end
@@ -261,15 +264,15 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             % Validate state and check if it is ready for simulation
 
             % Let parent model do it's thing
-            state = validateState@GenericOverallCompositionModel(model, state);
+            state = validateState@ThreePhaseCompositionalModel(model, state);
             % Set component overall mass fractions if they are not given
-            ncomp = length(model.EOSModel.getComponentNames());
-            if isfield(state, 'components')
-                assert(all(size(state.components) == [model.G.cells.num, ncomp]));
-            else
-                state.components = zeros(model.G.cells.num, ncomp);
-                state.components(:,1) = 1;
-            end
+%             ncomp = length(model.EOSModel.getComponentNames());
+%             if isfield(state, 'components')
+%                 assert(all(size(state.components) == [model.G.cells.num, ncomp]));
+%             else
+%                 state.components = zeros(model.G.cells.num, ncomp);
+%                 state.components(:,1) = 1;
+%             end
 
             if model.bacteriamodel
                 if ~isfield(state, 'nbact')
@@ -292,39 +295,39 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         end
 
         function [eqs, names, types, state] = getModelEquations(model, state0, state, dt, drivingForces, varargin)
-        % Get equations from AD states
-
+            % Discretize
             [eqs, flux, names, types] = model.FlowDiscretization.componentConservationEquations(model, state, state0, dt);
+            src = model.FacilityModel.getComponentSources(state);
+            % Assemble equations and add in sources
+            [pressures, sat, mob, rho, X] = model.getProps(state, 'PhasePressures', 's', 'Mobility', 'Density', 'ComponentPhaseMassFractions');
+            comps = cellfun(@(x, y) {x, y}, X(:, model.getLiquidIndex), X(:, model.getVaporIndex), 'UniformOutput', false);
 
-             [pressures, sat, mob, rho, X] = model.getProps(state, 'PhasePressures', 's', 'Mobility', 'Density', 'ComponentPhaseMassFractions');
-             comps = cellfun(@(x, y) {x, y}, X(:, model.getLiquidIndex), X(:, model.getVaporIndex), 'UniformOutput', false);
-            
-            
-            
-            % Assemble equations
-            for i = 1:numel(eqs)
-                eqs{i} = model.operators.AccDiv(eqs{i}, flux{i});
-            end
 
             eqs = model.addBoundaryConditionsAndSources(eqs, names, types, state, ...
-                                                             pressures, sat, mob, rho, ...
-                                                             {}, comps, ...
-                                                             drivingForces);
-            if ~isempty(model.FacilityModel)
-                % Add sources
-                src = model.FacilityModel.getComponentSources(state);
-                eqs = model.insertSources(eqs, src);
-            end
-            if model.bacteriamodel
+                pressures, sat, mob, rho, ...
+                {}, comps, ...
+                drivingForces);
 
+            % Add sources
+            eqs = model.insertSources(eqs, src);
+            % Assemble equations
+
+            if model.bacteriamodel
+                cnames = model.EOSModel.getComponentNames();
+                ncomp = numel(cnames);
                 src_rate = model.FacilityModel.getProps(state, 'BactConvRate');
-                for i = length(eqs)
-                    if ~isempty(src_rate{i})                    
+                for i = 1:ncomp
+                    if ~isempty(src_rate{i})
                         eqs{i} = eqs{i} -src_rate{i};
                     end
                 end
+            end
 
-                [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);             
+            for i = 1:numel(eqs)
+                eqs{i} = model.operators.AccDiv(eqs{i}, flux{i});
+            end
+            if model.bacteriamodel
+                [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
                 beqs{1} = beqs{1} - src_growthdecay;
@@ -340,35 +343,71 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             names = [names, bnames];
             types = [types, btypes];
 
-            if ~isempty(model.FacilityModel)
+%             if ~isempty(model.FacilityModel)
                 % Get facility equations
                 [weqs, wnames, wtypes, state] = model.FacilityModel.getModelEquations(state0, state, dt, drivingForces);
                 % Concatenate
                 eqs   = [eqs  , weqs  ];
                 names = [names, wnames];
                 types = [types, wtypes];
-            end
+%             end
             % Add in boundary conditions
-%             eqs = model.addBoundaryConditionsAndSources(eqs, names, types, state, drivingForces);
-            
+            %             eqs = model.addBoundaryConditionsAndSources(eqs, names, types, state, drivingForces);
+
         end
        
         function forces = validateDrivingForces(model, forces, varargin)
-            forces = validateDrivingForces@OverallCompositionCompositionalModel(model, forces, varargin{:});
-            forces = validateCompositionalForces(model, forces, varargin{:});
+            forces = validateDrivingForces@GenericOverallCompositionModel(model, forces, varargin{:});
         end 
 
-%         function state = initStateAD(model, state, vars, names, origin)        
-%             state = initStateAD@GenericOverallCompositionModel(model, state, vars, names, origin);
-%         end
+        function state = initStateAD(model, state, vars, names, origin)        
+            state = initStateAD@GenericOverallCompositionModel(model, state, vars, names, origin);
+            if model.bacteriamodel            
+                state = computeBactPopulation(model, state);
+            end
+        end
         %-----------------------------------------------------------------%
         function [v_eqs, tolerances, names] = getConvergenceValues(model, problem, varargin)
-        % Get values for convergence check
-        
-            [v_eqs, tolerances, names] = getConvergenceValues@ReservoirModel(model, problem, varargin{:});            
+            % Get values for convergence check
+
+            [v_eqs, tolerances, names] = getConvergenceValues@ReservoirModel(model, problem, varargin{:});
+            if model.bacteriamodel
+                scale = model.getEquationScaling(problem.equations, problem.equationNames, problem.state, problem.dt);
+                ix    = ~cellfun(@isempty, scale);
+                v_eqs(ix) = cellfun(@(scale, x) norm(scale.*value(x), inf), scale(ix), problem.equations(ix));
+            end
         end
         
-       
+        function scale = getEquationScaling(model, eqs, names, state0, dt)
+            % Get scaling for the residual equations to determine convergence
+
+            scale = cell(1, numel(eqs));
+
+            cnames = model.getComponentNames();
+            [cmass, chemistry] = model.getProps(state0, 'ComponentTotalMass', ...
+                'BacterialMass');
+            cmass = value(cmass); chemistry = value(chemistry);
+
+            if ~iscell(cmass), cmass = {cmass}; end
+            ncomp = model.getNumberOfComponents();
+            mass = 0;
+            for i = 1:ncomp
+                mass = mass + cmass{i};
+            end
+
+            scaleMass = dt./mass;
+            for n = cnames
+                ix = strcmpi(n{1}, names);
+                if ~any(ix), continue; end
+                scale{ix} = scaleMass;
+            end
+            ix = strcmpi(names, 'bacteria');
+            if any(ix)
+                scaleChemistry = dt./chemistry;
+                scale{ix} = scaleChemistry.*0.1;
+            end
+
+        end
         %-----------------------------------------------------------------%
  function [fn, index] = getVariableField(model, name, varargin)
         switch(lower(name))
@@ -385,12 +424,14 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         %-----------------------------------------------------------------%
         function names = getComponentNames(model)
         % Get names of the fluid components
-        
-            names  = getComponentNames@ReservoirModel(model);
-            names  = horzcat(names,  model.compFluid.names);
+            names  = getComponentNames@GenericOverallCompositionModel(model);
             
         end
         
+
+        function  [state, report] = updateAfterConvergence(model, state0, state, dt, drivingForces)
+             [state, report] = updateAfterConvergence@GenericOverallCompositionModel(model, state0, state, dt, drivingForces);
+        end
         %-----------------------------------------------------------------%
         function [state, report] = updateState(model, state, problem, dz, drivingForces)
             % Update the state based on increments of the primary values
@@ -404,7 +445,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 % 
 % %             [state, report] = updateState@ReservoirModel(model, state, problem, dz, drivingForces);
                         
-            [state, report] = updateState@OverallCompositionCompositionalModel(model, state, problem, dz, drivingForces);
+            [state, report] = updateState@GenericOverallCompositionModel(model, state, problem, dz, drivingForces);
 
 
         end
@@ -427,9 +468,27 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
            isDynamic = isa(model.rock.poro, 'function_handle');
            
         end
-        
-    end
+
+        function state = computeBactPopulation(model, state)
+            % Coefficients of the quadratic equation: A*n^2 + B*n + C = 0
+            s = model.getProps(state, 's');
+            if ~isa(s, 'ADI'), return; end
+            if iscell(s)
+                sW = s{model.getLiquidIndex};
+            else
+                sW = s(:, model.getLiquidIndex);
+            end
+            Psigrowth = model.Psigrowthmax;
+            dt_init = schedule.step.val(1);
+            bbact = model.b_bact;
+            A = Psigrowth .* sW .* dt_init; 
+            B = -(sW - bbact .* sW .* dt_init); 
+            nbact  =-B./A;
+            nbact = max(nbact,0);            
+            state = model.setProp(state, 'nbact', nbact);
+        end
     
+    end
 end
 
 %{

@@ -9,6 +9,7 @@ classdef BacterialMass < StateFunction & ComponentProperty
             gp@StateFunction(model, varargin{:});
             gp = gp.dependsOn({'nbact'}, 'state');
             gp = gp.dependsOn({'s'}, 'state');
+            gp = gp.dependsOn({'PoreVolume', 'Density'}, 'PVTPropertyFunctions');
             gp.label = 'M_{bio}';
         end
         function mb = evaluateOnDomain(prop, model, state)
@@ -16,19 +17,22 @@ classdef BacterialMass < StateFunction & ComponentProperty
             s = model.getProps(state, 's');
             nbact = model.getProps(state, 'nbact');
 
-%            pv = model.rock.poro;
             pv = model.PVTPropertyFunctions.get(model, state, 'PoreVolume');
- %           pv = model.ReservoirModel.operators.pv;  % Reservoir porosity
+            rho = model.PVTPropertyFunctions.get(model, state, 'Density');
+            
+            if ~iscell(rho)
+                rho = {rho};
+            end
 
             L_ix = model.getLiquidIndex();
 
             if iscell(s)
-                sL = s{L_ix};
+                Voln = s{L_ix}.*rho{L_ix};
             else
-                sL = s(:, L_ix);
+                Voln = s(:, L_ix).*rho{L_ix};
             end
-            mb = pv.*nbact.*sL;
-            mb = prop.ensureMinimumDerivatives(mb);
+            mb = pv.*nbact.*Voln;
+%             mb = prop.ensureMinimumDerivatives(mb);
 
         end
 

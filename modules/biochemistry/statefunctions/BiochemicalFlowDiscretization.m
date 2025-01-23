@@ -88,6 +88,20 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             name = 'bacteria';
             type = 'cell';
         end
+
+        function c = getPopulationMass(model, state, extra)
+            c = component.getPhaseComposition(model, state);
+            if nargin < 4
+                rho = model.getProps(state, 'Density');
+            else
+                rho = extra.rho;
+            end
+            for ph = 1:numel(c)
+                if ~isempty(c{ph})
+                    c{ph} = rho{ph}.*c{ph};
+                end
+            end
+        end
     end
     
 end
