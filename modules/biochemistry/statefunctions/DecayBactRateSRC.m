@@ -8,23 +8,38 @@ classdef DecayBactRateSRC <  StateFunction
             gp@StateFunction(model, varargin{:});
             gp = gp.dependsOn({'nbact'}, 'state');
             gp = gp.dependsOn({'s'}, 'state');
+            gp = gp.dependsOn({'PoreVolume', 'Density'}, 'PVTPropertyFunctions');
             gp.label = 'Psi_decay';
         end
 
         function Psidecay = evaluateOnDomain(prop, model, state)
             Psidecay = 0;
             bbact = model.ReservoirModel.b_bact;
+            nMax = model.ReservoirModel.nbactMax;
             namecp = model.ReservoirModel.getComponentNames();
-%             pv = model.ReservoirModel.operators.pv;  % Reservoir porosity
-            pv = model.ReservoirModel.rock.poro;
-            % Find indices for 'H2'
+            pv = model.ReservoirModel.PVTPropertyFunctions.get(model.ReservoirModel, state, 'PoreVolume');
+            s = model.ReservoirModel.getProps(state, 's');
+            nbact = model.ReservoirModel.getProps(state, 'nbact');
+            rho = model.ReservoirModel.PVTPropertyFunctions.get(model.ReservoirModel, state, 'Density');
+            L_ix = model.ReservoirModel.getLiquidIndex();
+            if ~iscell(rho)
+                rho = {rho};
+            end
             idx_H2 = find(strcmp(namecp, 'H2'), 1);     % Locate 'H2'
-            if model.ReservoirModel.bacteriamodel && model.ReservoirModel.liquidPhase && (~isempty(idx_H2))                                    
-                s = model.ReservoirModel.getProps(state, 's');                        
-                nbact = model.ReservoirModel.getProps(state, 'nbact');
-                L_ix = model.ReservoirModel.getLiquidIndex();
+            if iscell(s)
                 sL = s{L_ix};
-                Psidecay = pv.*bbact.*nbact.*(nbact.*sL);           
+                rhoL = rho{L_ix};
+            else
+                sL = s(:,L_ix);
+                rhoL = rho(:,L_ix);
+            end
+            if model.ReservoirModel.bacteriamodel && model.ReservoirModel.liquidPhase && (~isempty(idx_H2))
+                if iscell(rhoL)
+                    Voln = sL.*rhoL{1};
+                else
+                    Voln = sL.*rhoL;
+                end
+                Psidecay = pv.*bbact.*nbact.*(nbact.*Voln);
             end
         end
     end
