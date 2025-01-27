@@ -9,6 +9,7 @@ classdef GrowthBactRateSRC <  StateFunction
             gp = gp.dependsOn({'x'}, 'state');
             gp = gp.dependsOn({'s'}, 'state');
             gp = gp.dependsOn({'nbact'}, 'state');
+            gp = gp.dependsOn({'PoreVolume', 'Density'}, 'PVTPropertyFunctions');
             gp.label = 'Psi_growth';
         end
 
@@ -19,30 +20,45 @@ classdef GrowthBactRateSRC <  StateFunction
             idx_H2 = find(strcmp(namecp, 'H2'));     % Locate 'H2'
             idx_CO2 = find(strcmp(namecp, 'CO2'));   % Locate 'CO2'
 
-         if model.ReservoirModel.bacteriamodel&& model.ReservoirModel.liquidPhase && (~isempty(idx_H2)) && (~isempty(idx_CO2))
-                          
-             pv = model.ReservoirModel.rock.poro;
-             x = model.ReservoirModel.getProps(state, 'x');           
-             if iscell(x)                  
-                 xH2 = x{idx_H2};     % Mole fraction of H2
-                 xCO2 = x{idx_CO2};
-             else
-                 xH2 = x(:, idx_H2);  % Column corresponding to H2 in matrix
-                 xCO2 = x(:, idx_CO2);  % Column corresponding to CO2 in matrix
-             end
+            if model.ReservoirModel.bacteriamodel&& model.ReservoirModel.liquidPhase && (~isempty(idx_H2)) && (~isempty(idx_CO2))
 
-             s = model.ReservoirModel.getProps(state, 's');            
-             nbact = model.ReservoirModel.getProps(state, 'nbact');
+                pv = model.ReservoirModel.PVTPropertyFunctions.get(model.ReservoirModel, state, 'PoreVolume');
+                rho = model.ReservoirModel.PVTPropertyFunctions.get(model.ReservoirModel, state, 'Density');
+                s = model.ReservoirModel.getProps(state, 's');
+                nbact = model.ReservoirModel.getProps(state, 'nbact');
 
-             L_ix = model.ReservoirModel.getLiquidIndex();
-             sL = s{L_ix};
-             alphaH2 = model.ReservoirModel.alphaH2;
-             alphaCO2 = model.ReservoirModel.alphaCO2;
-             Psigrowthmax = model.ReservoirModel.Psigrowthmax;
-             % Calculate Psigrowth using H2 and CO2 mole fractions
-             Psigrowth = pv.*Psigrowthmax .* (xH2 ./ (alphaH2 + xCO2)) ...
-                        .* (xCO2 ./ (alphaCO2 + xH2)).*nbact.*sL;         
-         end
+
+                L_ix = model.ReservoirModel.getLiquidIndex();
+
+                if ~iscell(rho)
+                    rho = {rho};
+                end
+                x = model.ReservoirModel.getProps(state, 'x');
+                if iscell(x)
+                    xH2 = x{idx_H2};     % Mole fraction of H2
+                    xCO2 = x{idx_CO2};
+                    sL = s{L_ix};
+                    rhoL = rho{L_ix};
+                else
+                    xH2 = x(:, idx_H2);  % Column corresponding to H2 in matrix
+                    xCO2 = x(:, idx_CO2);  % Column corresponding to CO2 in matrix
+                    sL = s(:,L_ix);
+                    rhoL = rho(:,L_ix);
+                end
+                if iscell(rhoL)
+                    Voln = sL.*rhoL{1};
+                else
+                    Voln = sL.*rhoL;
+                end
+                alphaH2 = model.ReservoirModel.alphaH2;
+                alphaCO2 = model.ReservoirModel.alphaCO2;
+                Psigrowthmax = model.ReservoirModel.Psigrowthmax;
+                nbactMax = model.ReservoirModel.nbactMax;
+                bact_limit = 1 - (nbact./nbactMax).^0.5;
+                % Calculate Psigrowth using H2 and CO2 mole fractions
+                Psigrowth = pv.*Psigrowthmax.* (xH2 ./ (alphaH2 + xCO2)) ...
+                    .* (xCO2 ./ (alphaCO2 + xH2)).*nbact.*Voln;
+            end
         end
     end
 end

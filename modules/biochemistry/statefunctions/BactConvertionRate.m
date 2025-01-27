@@ -7,6 +7,7 @@ classdef BactConvertionRate <  StateFunction
         function gp = BactConvertionRate(model, varargin)
             gp@StateFunction(model, varargin{:});
             gp = gp.dependsOn({'PsiGrowthRate'}, 'FlowDiscretization');
+            gp = gp.dependsOn({'nbact'}, 'state');
             gp.label = 'Q_biot';
         end
 
@@ -14,12 +15,17 @@ classdef BactConvertionRate <  StateFunction
             qbiot = 0;
          if model.ReservoirModel.bacteriamodel && model.ReservoirModel.liquidPhase
              
-             ncomp = model.getNumberOfComponents;
+             ncomp = model.ReservoirModel.EOSModel.getNumberOfComponents;
 
              Psigrowth = model.getProps(state, 'PsiGrowthRate'); 
+
+             nbact = model.ReservoirModel.getProps(state, 'nbact');
              Y_H2 = model.ReservoirModel.Y_H2;
              gammak =model.ReservoirModel.gammak;
-             qbiot_temp =  Psigrowth./Y_H2;
+             m_rate =model.ReservoirModel.m_rate;
+             nbactMax = model.ReservoirModel.nbactMax;
+             bact_limit = 1 - (nbact./nbactMax).^0.5;
+             qbiot_temp =  (Psigrowth)./Y_H2;
              qbiot =cell(ncomp,1);
              
              for c = 1:ncomp            
