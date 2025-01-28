@@ -46,7 +46,7 @@ classdef GrowthBactRateSRC <  StateFunction
                     rhoL = rho(:,L_ix);
                 end
                 if iscell(rhoL)
-                    Voln = sL.*rhoL{1};
+                    Voln = sL{1}.*rhoL{1};
                 else
                     Voln = sL.*rhoL;
                 end

@@ -32,7 +32,7 @@ classdef BacterialMass < StateFunction & ComponentProperty
                 Voln = s(:, L_ix).*rho{L_ix};
             end
             mb = pv.*nbact.*Voln;
-%             mb = prop.ensureMinimumDerivatives(mb);
+            mb = ensureMinimumDerivatives(prop,model, mb);
 
         end
 
@@ -49,7 +49,7 @@ classdef BacterialMass < StateFunction & ComponentProperty
         der = prop.minimumDerivatives;
     end
 
-    function mass = ensureMinimumDerivatives(prop, mass)
+    function mass = ensureMinimumDerivatives(prop, model, mass)
         der = prop.minimumDerivatives;
         if isempty(der)
             return;
@@ -58,9 +58,9 @@ classdef BacterialMass < StateFunction & ComponentProperty
         if numel(der) == 1
             der = repmat(der, 1, nc);
         end
-        isDiag = isa(prop.AutoDiffBackend, 'DiagonalAutoDiffBackend');
+        isDiag = isa(model.AutoDiffBackend, 'DiagonalAutoDiffBackend');
         if isDiag
-            rowMajor = prop.AutoDiffBackend.rowMajor;
+            rowMajor = model.AutoDiffBackend.rowMajor;
             for c = 1:nc
                 m = mass;
                 if isnumeric(m) || size(m.jac{1}.diagonal, 2 - rowMajor) < c
