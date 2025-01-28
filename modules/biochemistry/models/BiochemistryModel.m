@@ -44,15 +44,6 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         % with H2-CO2-H2O-CH4
         compFluid 
         % Physical quantities and bounds
-<<<<<<< HEAD
-        Y_H2 = 3.9e11;  % Conversion factor for hydrogen consumption (moles/volume)       
-        gammak = [];  
-        mol_diff = [];        
-        alphaH2 = 3.6e-7;
-        alphaCO2 = 1.98e-6;
-        Psigrowthmax = 1.338e-4;
-        b_bact =2.3E-6;
-=======
         Y_H2 = 4.1e12;  % Conversion factor for hydrogen consumption (moles/volume)
         
         %===========SDS MODIF===============================================
@@ -76,7 +67,6 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         alphaCO2 = 3.188e-5;
         Psigrowthmax = 1.7e-4;
         b_bact = 6.87E-10;
->>>>>>> origin/hydrogen
         Db = 10^(-8)*meter/second
         bDiffusionEffect = false;
         moleculardiffusion = false;
@@ -145,21 +135,22 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
             % Set compositinal fluid
             if isempty(compFluid)
+            
                 % Default is Methanogenesis
+                %compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
+                %   {'H2', 'Water', 'N2', 'CO2', 'CH4'});
                 if strcmp(model.metabolicReaction,'MethanogenicArchae')
                     % Default is Methanogenesis
                     compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
                     {'H2', 'Water', 'N2', 'CO2', 'C1'});
-<<<<<<< HEAD
-                    %model.gammak = [-1.0, 0.5, 0.0, -0.25, 0.25]; 
-                    model.gammak = [-4.0, 2.0, 0.0, -1.0, 1.0]; 
-=======
                     model.gammak = [-4.0, 2.0, 0.0, -1.0, 1.0]/4;  %SDS MODIF 
->>>>>>> origin/hydrogen
                else
-                    error('Invalid metabolic reaction ''%s''.\n Valid choices are:\n MethanogenicArchae\n',model.metabolicReaction );
+                    %send an error message: TO DO
                end
-             else
+                %==================SDS MODIF=========================
+                 %==================SDS MODIF=========================
+            else
+                %namecp = compFluid.names();
                 ncomp=compFluid.getNumberOfComponents();
                 model.gammak=zeros(1,ncomp);
                 if strcmp(model.metabolicReaction,'MethanogenicArchae')
@@ -167,20 +158,14 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     indH2O= find(strcmp(namecp,'H2O'));
                     indCO2=find(strcmp(namecp,'CO2'));
                     indC1= find(strcmp(namecp,'C1'));
-<<<<<<< HEAD
-                    model.gammak(indH2)=-4.0;%-1.0;
-                    model.gammak(indH2O)=2.0;%0.5;
-                    model.gammak(indCO2)=-1.0;%-0.25;
-                    model.gammak(indC1)=1.0;% 0.25;
-=======
                     model.gammak(indH2)=-4.0;
                     model.gammak(indH2O)=2.0;
                     model.gammak(indCO2)=-1.0;
                     model.gammak(indC1)=1.0;
                     model.gammak = model.gammak./4;
->>>>>>> origin/hydrogen
                 end
-                  
+              %==================SDS MODIF=========================
+                 
             end
             model.compFluid = compFluid;
                 
@@ -193,7 +178,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 %             model = merge_options(model, varargin{:});
             % Check that we have a valid thermal formulation
             assert(any(strcmpi(model.bacterialFormulation, {'bacterialmodel'})), ...
-                'BioChemistryModel supports currently only one micro-organism');
+                'BioChemsitryModel supports currently only one micro-organism');
             % Set output state functions
             model.OutputStateFunctions = {'ComponentTotalMass', 'Density'};
             if model.bacteriamodel

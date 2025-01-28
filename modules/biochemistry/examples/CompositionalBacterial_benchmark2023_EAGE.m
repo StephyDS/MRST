@@ -115,13 +115,17 @@ schedule.control(4).W = W4;
 
 %% Model Setup: Compositional Model with Bacterial Growth
 if biochemistrymodel
-    arg = {G, rock, fluid, compFluid, 'water', true, 'oil', false, 'gas', true, ...
-       'bacteriamodel', true, 'bDiffusionEffect', false, ...
-       'moleculardiffusion',false,'liquidPhase', 'W', 'vaporPhase', 'G'};
+    eosname='sw';% 'pr';
+    eosmodel =SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
+    diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
+    mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
+    %includeWater=true
+    arg = {G, rock, fluid, compFluid,true,diagonal_backend,...
+        'water', true, 'oil', false, 'gas', true,'bacteriamodel', true,...
+        'bDiffusionEffect', false,'moleculardiffusion',false,...
+        'liquidPhase', 'W', 'vaporPhase', 'G'};
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
-    eosname='sw';% 'pr';
-    model.EOSModel = SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
     model.EOSModel.msalt=0;
 else
     arg = {G, rock, fluid, compFluid, 'water', true, 'oil', false, 'gas', true, ...
@@ -141,8 +145,9 @@ Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 
 if biochemistrymodel
     if model.bacteriamodel
-        nbact0 = 1e07; %10^6;
-        state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0);
+        nbact0 = 10^6;
+        state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, ...
+            z0, nbact0,eosmodel);
     else
         state0 = initCompositionalState(model, Phydro0, T0, s0, z0);
     end
@@ -189,9 +194,8 @@ legend('yH2','yCO2')
 figure(2),clf
 for i=1:nT
     clf;
-    plotCellData(G,states{i}.nbact);
+    plotCellData(G,states{i}.nbact./nbact0);
     colorbar; 
-    clim([0 60])
     axis equal
     axis ([0 Lx  0 Ly depth_res depth_res+Lz])
     view(0,-90)
