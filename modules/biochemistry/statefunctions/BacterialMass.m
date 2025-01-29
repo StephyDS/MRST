@@ -27,9 +27,9 @@ classdef BacterialMass < StateFunction & ComponentProperty
             L_ix = model.getLiquidIndex();
 
             if iscell(s)
-                Voln = s{L_ix}.*rho{L_ix};
+                Voln = s{L_ix};
             else
-                Voln = s(:, L_ix).*rho{L_ix};
+                Voln = s(:, L_ix);
             end
             mb = pv.*nbact.*Voln;
             mb = ensureMinimumDerivatives(prop,model, mb);

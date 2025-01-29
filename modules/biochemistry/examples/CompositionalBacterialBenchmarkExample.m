@@ -5,7 +5,7 @@ gravity reset on
 %% Read the Eclipse deck file containing the simulation data
 % Change input fil by UHS_BENCHMARK_RS_SALT.DATA for SALT EFFECTS
 %deck = readEclipseDeck('/home/elyes/Documents/mrst-2023b/spe11-utils/deck_H2/UHS_benchmark/UHSDATA/UHS_BENCHMARK_RS.DATA');
-deck = readEclipseDeck('/home/elyes/Documents/mrst-2023b/spe11-utils/TUC_UHS_Benchmark/Simulation Cases/UHS_Benchmark_HighH2.DATA');
+deck = readEclipseDeck('C:\Users\elyesa\OneDrive - SINTEF\Documents\Projects\TUC_UHS_Benchmark\Simulation Cases\UHS_Benchmark_HighH2.DATA');
 
 %% Prepare simulation parameters and initial state
 %[~, options, state0, model, schedule,compFluid, ~] = modified_uhs_benchmark_compositional(deck, 'bacteriamodel',false);
@@ -24,7 +24,7 @@ T0 = deck.PROPS.TEMPVD{1}(2);
 P0 = 82*barsa();
 s0 = [0.2 0.8]; % hack to inforce residual saturation 
 z0 = deck.PROPS.ZMFVD{1}(2:end);
- z0 = [0.9723 0.00015  0.00405 0.020210 0.00272 0.0004 0.0002 0.000];
+z0 = [0.9723 0.00015  0.00405 0.020210 0.00272 0.0004 0.0002 0.000];
 %z0 (end) = 0.0001;
 % z0 (end-1) = 0.0001;
 G = model.G;
@@ -123,7 +123,7 @@ name = 'UHS_BENCHMARK_COMPOSITIONAL_BACT_TRUE';
  problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 %[ws, states, reports] = simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
 %% Run the simulation
-simulatePackedProblem(problem,'restartStep',113);
+simulatePackedProblem(problem,'restartStep',170);
 %% gGet reservoir and well states
 [ws,states] = getPackedSimulatorOutput(problem);
 %===Plottings============================================

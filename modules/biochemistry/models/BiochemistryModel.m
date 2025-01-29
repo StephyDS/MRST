@@ -330,7 +330,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
             [v_eqs, tolerances, names] = getConvergenceValues@ReservoirModel(model, problem, varargin{:});
             bacteriaIndex = strcmp(names, 'bacteria (cell)');
-            tolerances(bacteriaIndex) = 1.0e-1;
+            tolerances(bacteriaIndex) = 1.0e-3;
             if model.bacteriamodel
                 scale = model.getEquationScaling(problem.equations, problem.equationNames, problem.state, problem.dt);
                 ix    = ~cellfun(@isempty, scale);
@@ -396,7 +396,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
             [state, report] = updateState@GenericOverallCompositionModel(model, state, problem, dz, drivingForces);
             if model.bacteriamodel
-                state = model.capProperty(state, 'nbact', 1.0e-8, 1.0e8);
+                 state = model.capProperty(state, 'nbact', 1, 1.0e7);
             end
         end
 
