@@ -46,9 +46,9 @@ classdef GrowthBactRateSRC <  StateFunction
                     rhoL = rho(:,L_ix);
                 end
                 if iscell(rhoL)
-                    Voln = sL.*rhoL{1};
+                    Voln = sL{1};
                 else
-                    Voln = sL.*rhoL;
+                    Voln = sL;
                 end
                 alphaH2 = model.ReservoirModel.alphaH2;
                 alphaCO2 = model.ReservoirModel.alphaCO2;
