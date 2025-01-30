@@ -194,7 +194,7 @@ legend('yH2','yCO2')
 figure(2),clf
 for i=1:nT
     clf;
-    plotCellData(G,states{i}.nbact);
+    plotCellData(G,states{i}.nbact./nbact0);
     colorbar; 
     axis equal
     axis ([0 Lx  0 Ly depth_res depth_res+Lz])
