@@ -1,4 +1,4 @@
-classdef BiochemistryModel <  GenericOverallCompositionModel 
+classdef BiochemistryModelNatural <  GenericNaturalVariablesModel 
 %Bio-chemical model for compositional mixture with Hydrogen (H2)
 %
 % SYNOPSIS:
@@ -63,9 +63,9 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
     
     methods
         %-----------------------------------------------------------------%
-        function model = BiochemistryModel(G, rock, fluid, compFluid, includeWater, backend, varargin)
+        function model = BiochemistryModelNatural(G, rock, fluid, compFluid, includeWater, backend, varargin)
         % Class constructor. Required arguments are G, rock and fluid.
-            model = model@GenericOverallCompositionModel(G, rock, fluid, compFluid, 'water', includeWater, 'AutoDiffBackend', backend);
+            model = model@GenericNaturalVariablesModel(G, rock, fluid, compFluid, 'water', includeWater, 'AutoDiffBackend', backend);
             model = merge_options(model, varargin{:});
             % set up operators later
             model = model.setupOperators();
@@ -157,7 +157,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         end
         
         function containers = getStateFunctionGroupings(model)
-            containers = getStateFunctionGroupings@GenericOverallCompositionModel(model);
+            containers = getStateFunctionGroupings@GenericNaturalVariablesModel(model);
         end
         
         function model = setupOperators(model, G, rock, varargin)
@@ -188,7 +188,6 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             model = setupOperators@ReservoirModel(model, G, drock, varargin{:});
             model.rock = drock;
         end
-
         %-----------------------------------------------------------------%
         function model = validateModel(model, varargin)
             % Validate model to see if it is ready for simulation
@@ -204,7 +203,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     model.FacilityModel = GenericFacilityModel(model);
                 end
             end
-            model = validateModel@GenericOverallCompositionModel(model, varargin{:});
+            model = validateModel@GenericNaturalVariablesModel(model, varargin{:});
         end
 
 
@@ -214,7 +213,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
 
             %model.PVTPropertyFunctions = []; % make sure this ir reset
-            model = setupStateFunctionGroupings@GenericOverallCompositionModel(model, varargin{:});
+            model = setupStateFunctionGroupings@GenericNaturalVariablesModel(model, varargin{:});
             fluxprops = model.FlowDiscretization;
             pvtprops  = model.PVTPropertyFunctions;
             flowprops = model.FlowPropertyFunctions;
@@ -245,7 +244,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         end
 
         function [vars, names, origin] = getPrimaryVariables(model, state)
-            [vars, names, origin] = getPrimaryVariables@GenericOverallCompositionModel(model, state);
+            [vars, names, origin] = getPrimaryVariables@GenericNaturalVariablesModel(model, state);
 
             if model.bacteriamodel
                 nbact = model.getProps(state, 'bacteriamodel');
@@ -254,7 +253,9 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 origin = [origin, {class(model)}];
             end
         end
-
+        function [problem, state] = getEquations(model, state0, state, dt, drivingForces, varargin)
+            [problem, state] = getEquations@ReservoirModel(model, state0, state, dt, drivingForces, varargin{:});
+        end
         function [eqs, names, types, state] = getModelEquations(model, state0, state, dt, drivingForces, varargin)
             % Discretize
             [eqs, flux, names, types] = model.FlowDiscretization.componentConservationEquations(model, state, state0, dt);
@@ -304,22 +305,36 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             names = [names, bnames];
             types = [types, btypes];
 
-
+            % Natural variables part
+            n_hc = model.EOSModel.getNumberOfComponents();
+            twoPhase = model.getTwoPhaseFlag(state);
+            cnames = model.EOSModel.getComponentNames;
+            f = model.getProps(state, 'Fugacity');
+            f_eqs = cell(1, n_hc);
+            f_names = cell(1, n_hc);
+            f_types = cell(1, n_hc);
+            for i = 1:n_hc
+                if any(twoPhase)
+                    f_eqs{i} = (f{i, 1}(twoPhase) - f{i, 2}(twoPhase))/barsa;
+                end
+                f_names{i} = ['f_', cnames{i}];
+                f_types{i} = 'fugacity';
+            end
                 
             [weqs, wnames, wtypes, state] = model.FacilityModel.getModelEquations(state0, state, dt, drivingForces);
-            % Concatenate
-            eqs   = [eqs  , weqs  ];
-            names = [names, wnames];
-            types = [types, wtypes];
+            % Finally assemble
+            eqs = [eqs, weqs, f_eqs];
+            names = [names, wnames, f_names];
+            types = [types, wtypes, f_types];
 
         end
        
         function forces = validateDrivingForces(model, forces, varargin)
-            forces = validateDrivingForces@GenericOverallCompositionModel(model, forces, varargin{:});
+            forces = validateDrivingForces@GenericNaturalVariablesModel(model, forces, varargin{:});
         end 
 
         function state = initStateAD(model, state, vars, names, origin)        
-            state = initStateAD@GenericOverallCompositionModel(model, state, vars, names, origin);
+            state = initStateAD@GenericNaturalVariablesModel(model, state, vars, names, origin);
             if model.bacteriamodel            
                 state = computeBactPopulation(model, state);
             end
@@ -330,7 +345,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
             [v_eqs, tolerances, names] = getConvergenceValues@ReservoirModel(model, problem, varargin{:});
             bacteriaIndex = strcmp(names, 'bacteria (cell)');
-            tolerances(bacteriaIndex) = 1.0e-3;
+            tolerances(bacteriaIndex) = 1.0e-2;
             if model.bacteriamodel
                 scale = model.getEquationScaling(problem.equations, problem.equationNames, problem.state, problem.dt);
                 ix    = ~cellfun(@isempty, scale);
@@ -377,29 +392,49 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     %========================================
                 otherwise
                     % This will throw an error for us
-                    [fn, index] = getVariableField@OverallCompositionCompositionalModel(model, name, varargin{:});
+                    [fn, index] = getVariableField@NaturalVariablesCompositionalModel(model, name, varargin{:});
             end
         end
 
         function names = getComponentNames(model)
             % Get names of the fluid components
-            names  = getComponentNames@GenericOverallCompositionModel(model);
+            names  = getComponentNames@GenericNaturalVariablesModel(model);
 
         end
 
 
         function  [state, report] = updateAfterConvergence(model, state0, state, dt, drivingForces)
-            [state, report] = updateAfterConvergence@GenericOverallCompositionModel(model, state0, state, dt, drivingForces);
+            [state, report] = updateAfterConvergence@GenericNaturalVariablesModel(model, state0, state, dt, drivingForces);
         end
 
         function [state, report] = updateState(model, state, problem, dz, drivingForces)
 
-            [state, report] = updateState@GenericOverallCompositionModel(model, state, problem, dz, drivingForces);
-            if model.bacteriamodel
-                 state = model.capProperty(state, 'nbact', 1, 1.0e7);
+            [state, report] = updateState@GenericNaturalVariablesModel(model, state, problem, dz, drivingForces);
+        end
+        function problem = setupLinearizedProblem(model, eqs, types, names, primaryVars, state, dt)
+            s = eqs{1};
+            if model.reduceLinearSystem && isa(s, 'ADI')
+                problem = ReducedLinearizedSystem(eqs, types, names, primaryVars, state, dt);
+                [~, ~, twoPhase] = model.getFlag(state);
+                % Switch first composition and first saturation in
+                % two-phase region to ensure invertible
+                % Schur-complement
+                twoPhaseIx = find(twoPhase);
+                cn = model.EOSModel.getComponentNames();
+                xInd = strcmpi(primaryVars, ['v_', cn{1}]);
+                sInd = strcmpi(primaryVars, 'sL');
+                offsets = cumsum([0; s.getNumVars()]);
+                reorder = 1:offsets(end);
+                start = offsets(xInd) + twoPhaseIx;
+                stop = offsets(sInd) + (1:sum(twoPhase));
+                reorder(start) = stop;
+                reorder(stop) = start;
+                problem.reorder = reorder;
+                problem.keepNum = offsets(sInd);
+            else
+                problem = LinearizedProblem(eqs, types, names, primaryVars, state, dt);
             end
         end
-
 
         function isDynamic = dynamicFlowTrans(model)
             % Get boolean indicating if the fluid flow transmissibility is
