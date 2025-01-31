@@ -87,13 +87,17 @@ W = verticalWell(W, G, rock, 1, 1, nz, 'comp_i', [0, 1], 'Radius', 0.5, ...
 W(1).components = [0.0, 0.95,  0.05, 0.0, 0.0];  % H2-rich injection
 
 %% Model Setup: Compositional Model with Bacterial Growth
-arg = {G, rock, fluid, compFluid, 'water', true, 'oil', false, 'gas', true, ...
+ eosname='sw';% 'pr';
+    eosmodel =SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
+    diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
+    mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
+
+arg = {G, rock, fluid, compFluid, true,diagonal_backend,...
+    'water', true, 'oil', false, 'gas', true, ...
        'bacteriamodel', true, 'bDiffusionEffect', false, ...
        'moleculardiffusion',false,'liquidPhase', 'W', 'vaporPhase', 'G'};
 model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
-eosname='sw'; %'pr';
-model.EOSModel = SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
 model.EOSModel.msalt=0;
 
 %% Initial Conditions
@@ -104,7 +108,7 @@ z0 = [0.8, 0.0, 0.006, 0.018, 0.176];  % Initial composition: H2O, H2, CO2, N2, 
 Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 % Initialize state with bacterial concentration
 nbact0 = 10^6;
-state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0);
+state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0,eosmodel);
 
 %% Time Stepping and Schedule
 % Define schedule and solver
