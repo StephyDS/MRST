@@ -31,6 +31,7 @@ classdef BacterialMass < StateFunction & ComponentProperty
             else
                 Voln = s(:, L_ix);
             end
+            Voln = max(Voln, 1.0e-8);
             mb = pv.*nbact.*Voln;
             mb = ensureMinimumDerivatives(prop,model, mb);
 

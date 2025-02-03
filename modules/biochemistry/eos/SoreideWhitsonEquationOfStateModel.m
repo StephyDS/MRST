@@ -879,7 +879,7 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
             end
         end
 
-        function [x, y, L, derivatives] = getPhaseFractionAsADI(model, state, p, T, z)
+         function [x, y, L, derivatives] = getPhaseFractionAsADI(model, state, p, T, z)
             % Compute derivatives for values obtained by solving the
             % equilibrium equations (molar fractions in each phase, liquid
             % mole fraction).
@@ -897,13 +897,6 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
             if isfield(state, 'FractionalDerivatives')
                 fd = state.FractionalDerivatives;
                 [dLdpTz, dxdpTz, dydpTz] = deal(fd.dL, fd.dx, fd.dy);
-                dLdpTz = dLdpTz(twoPhase,:);
-                for i = 1:length(dydpTz)
-                  dxdpTz{i} = dxdpTz{i}(twoPhase,:);
-                  dydpTz{i} = dydpTz{i}(twoPhase,:);
-                end
-
-
             else
                 [dLdpTz, dxdpTz, dydpTz] = model.getPhaseFractionDerivativesPTZ(state, twoPhase);
             end

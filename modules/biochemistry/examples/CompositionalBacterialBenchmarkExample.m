@@ -29,6 +29,28 @@ z0 = [0.9723 0.00015  0.00405 0.020210 0.00272 0.0004 0.0002 0.000];
 % z0 (end-1) = 0.0001;
 G = model.G;
 
+%% Extend build up phase
+[~, options, ~, ~, scheduleb, ~] = modified_uhs_benchmark(deck);
+% Copy fields from scheduleb to schedule
+for i = 1:length(scheduleb.control)
+scheduleb.control(i).W.cells = schedule.control(1).W.cells;
+scheduleb.control(i).W.r = schedule.control(2).W.r;
+scheduleb.control(i).W.dir = schedule.control(2).W.dir;
+scheduleb.control(i).W.rR = schedule.control(2).W.rR;
+scheduleb.control(i).W.WI = schedule.control(2).W.WI;
+scheduleb.control(i).W.dZ = schedule.control(2).W.dZ;
+scheduleb.control(i).W.heel = schedule.control(2).W.heel;
+scheduleb.control(i).W.refDepth = schedule.control(1).W.refDepth;
+scheduleb.control(i).W.defaulted = schedule.control(1).W.defaulted;
+%scheduleb.control(i).W.lims = schedule.control(1).W.lims;
+scheduleb.control(i).W.cp = schedule.control(1).W.cp;
+scheduleb.control(i).W.components = schedule.control(1).W.components;
+scheduleb.control(i).W.vfp_index = schedule.control(1).W.vfp_index;
+scheduleb.control(i).W.cstatus = schedule.control(1).W.cstatus;
+scheduleb.control(i).W.cell_origin = schedule.control(1).W.cell_origin;
+end
+schedule = scheduleb;
+%%%
 [rhow,rhog]=deal(model.fluid.rhoWS,8.1688* kilogram/meter^3); %density kilogram/meter^3;
 [viscow,viscog]=deal(model.fluid.muWr,0.0094234*centi*poise);%viscosity
 [cfw,cfg]=deal(model.fluid.cW,8.1533e-3/barsa); %compressibility
@@ -56,7 +78,7 @@ if bacteriamodel
     compFluid = model.EOSModel.CompositionalMixture;
     arg = {model.G, model.rock, model.fluid, compFluid,...
         false, diagonal_backend, 'eos',model.EOSModel, 'oil', true, 'gas', true,... % water-oil system
-    	'bacteriamodel', true,'diffusioneffect',false,'liquidPhase', 'O',...
+    	'bacteriamodel', false,'diffusioneffect',false,'liquidPhase', 'O',...
         'vaporPhase', 'G'}; % water=liquid, gas=vapor
     model = BiochemistryModel(arg{:});
 %     model.EOSModel =eos;
@@ -116,14 +138,14 @@ lsolve = selectLinearSolverAD(model);                          % Select the line
 nls = NonLinearSolver();                                       % Create a nonlinear solver object
 nls.LinearSolver = lsolve;                                     % Assign the linear solver to the nonlinear solver
 
-name = 'UHS_BENCHMARK_COMPOSITIONAL_BACT_TRUE';
+name = 'UHS_BENCHMARK_COMPOSITIONAL_BACT_FALSE_HIGH_H2';
 %% Pack the simulation problem with the initial state, model, and schedule
 % model = OverallCompositionCompositionalModel(G, model.rock,model.fluid,model.EOSModel, 'water', false);
 % model.EOSModel.minimumComposition =1.0e-8;
  problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 %[ws, states, reports] = simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
 %% Run the simulation
-simulatePackedProblem(problem,'restartStep',170);
+simulatePackedProblem(problem,'restartStep',235);
 %% gGet reservoir and well states
 [ws,states] = getPackedSimulatorOutput(problem);
 %===Plottings============================================
