@@ -8,9 +8,9 @@ clearvars;
 mrstModule add ad-core ad-blackoil ad-props deckformat mrst-gui upr
 
 %% Define the case name and read the Eclipse deck file
-name = 'H2_STORAGE_COMPOSITIONAL_SOW_BACT_CO2_CH4';
+name = 'H2_STORAGE_COMPOSITIONAL_2D_TRAP_BACT';
 %% Use H2STORAGE_RS_SALT.DATA for brine
-deck = readEclipseDeck('/home/elyes/Documents/Projects/MRST/modules/H2store/data/Illustrative_example/H2STORAGE_RS.DATA');
+deck = readEclipseDeck('wsl.localhost\Ubuntu\home\elyesa\Projects\MRST\modules\H2store\data\Illustrative_example\H2STORAGE_RS.DATA');
 
 %% Set up the simulation parameters and model components from the black-oil model
 [~, ~, state0Bo, modelBo, scheduleBo, ~] = H2_illustration_storage_example(deck);
