@@ -396,7 +396,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
             [state, report] = updateState@GenericOverallCompositionModel(model, state, problem, dz, drivingForces);
             if model.bacteriamodel
-                 state = model.capProperty(state, 'nbact', 1, 1.0e7);
+                 state = model.capProperty(state, 'nbact', 60, 1.0e7);
             end
         end
 

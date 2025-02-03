@@ -50,6 +50,8 @@ classdef GrowthBactRateSRC <  StateFunction
                 else
                     Voln = sL;
                 end
+                
+                Voln = max(Voln, 1.0e-8);
                 alphaH2 = model.ReservoirModel.alphaH2;
                 alphaCO2 = model.ReservoirModel.alphaCO2;
                 Psigrowthmax = model.ReservoirModel.Psigrowthmax;
