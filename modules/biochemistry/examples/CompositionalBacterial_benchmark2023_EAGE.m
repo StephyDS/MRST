@@ -24,7 +24,7 @@ pdims = [Lx, Ly, Lz];
 
 % Create grid and shift vertically by reservoir depth
 G = cartGrid(dims, pdims);
-depth_res = 1168;                % Reservoir depth in meters
+depth_res = 1026;                % Reservoir depth in meters
 G.nodes.coords(:, 3) = G.nodes.coords(:, 3) + depth_res;
 G = computeGeometry(G);
 
@@ -46,8 +46,8 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
 [cfw, cfg] = deal(4.5157e-5, 1.09e-2 / barsa);
 
 % Relative permeability and initial saturations
-[srw, src] = deal(0.0, 0.0);
-P0=82 * barsa;
+[srw, src] = deal(0.2, 0.05);
+P0=100 * barsa;
 T0 = 313.15;                % Initial temperature (K)
 fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
                            'rho', [rhow, rhog], 'pRef', P0, ...
@@ -117,11 +117,11 @@ W2 = addWell([], G, rock, cellInd, ...
 W2(1).components = [0.0, 0.95,  0.05, 0.0];  % rest period
 W2(1).T = T0;
 %production
-Pwell=40*barsa; 
+Pwell=70*barsa; 
 W3 = addWell([], G, rock, cellInd, ...
     'Name', 'Production', ...                       % Well name
     'Type', 'bhp', ...                      % Well type (rate control)
-    'Val', Pwell, ...           % Production rate
+    'Val', -rate, ...           % Production rate
     'Sign', -1, ...               % Sign
     'Compi', [0, 1]);
 W3(1).components = [0.0, 0.95,  0.05, 0.0];  %production
@@ -142,10 +142,10 @@ W4(1).T = T0;
 % schedule.control(3).W = W3;
 % schedule.control(4).W = W4;
 
-schedule = createCyclicScenario(320*day, 1*day, 4, 180, 5, 15, 15, [W0;W2;W1;W3]);
+schedule = createCyclicScenario( 1*day, 1, 180*day, 30*day, 30*day, 30*day,15*day, [W0;W2;W1;W3]);
 %% Model Setup: Compositional Model with Bacterial Growth
 if biochemistrymodel
-    eosname='PR';% 'pr';
+    eosname='SW';% 'pr';
     eosmodel =SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
     diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
     mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
@@ -169,7 +169,7 @@ end
 % Temperature and initial saturations
 T0 = 313.15;                % Initial temperature (K)
 s0 = [0.2, 0.8];           % Initial saturations (Sw,Sg)
-z0 = [0.2-0.001-0.05, 0.001, 0.05, 0.8];  % Initial composition: H2O, H2, CO2, CH4
+z0 = [0.6890, 0.00, 0.0, 0.311];  % Initial composition: H2O, H2, CO2, CH4 corresponding to 0.2 swc
 Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 % Initialize state with bacterial concentration
 
@@ -193,8 +193,17 @@ end
 %[wellSols, states, report] = simulateScheduleAD(state0, model, schedule,'nonlinearsolver', nls);
 mrstModule add mpfa
 model_mpfa = setMPFADiscretization(model);
-[wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
+%[wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
+%% Define the case name and read the Eclipse deck file
+name = 'H2_STORAGE_EAGE2003_BACT';
+%% Pack the simulation problem with the defined components
+problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
+%% Execute the simulation of the packed problem
+simulatePackedProblem(problem,'restartStep',1);
+
+%% Get packed reservoir and well states
+[ws, states] = getPackedSimulatorOutput(problem);
 
 %% Plotting Results
 namecp = model.EOSModel.getComponentNames();

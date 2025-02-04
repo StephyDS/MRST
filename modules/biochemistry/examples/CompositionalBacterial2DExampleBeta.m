@@ -137,7 +137,7 @@ nls.LinearSolver = lsolve;
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Execute the simulation of the packed problem
-simulatePackedProblem(problem,'restartStep',1);
+simulatePackedProblem(problem,'restartStep',1068);
 
 %% Get packed reservoir and well states
 [ws, states] = getPackedSimulatorOutput(problem);
