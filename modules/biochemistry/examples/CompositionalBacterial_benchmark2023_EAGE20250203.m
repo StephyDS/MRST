@@ -10,7 +10,8 @@ clear; clc;
 %mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
-biochemistrymodel=true;
+biochemistrymodel=true;%false; 
+writedatafile=true;
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
 %[nx, ny, nz] = deal(61,61,10);  % Grid cells in x, y, z directions
@@ -59,7 +60,7 @@ fluid.pcOG = @(sg) pcOG(max((1 - sg - srw) / (1 - srw), 1e-5));
 % Set total time, pore volume, and injection rate
 niter=120;
 TotalTime = niter*day;
-rate = 4e5*meter^3/day; 
+rate = 8e5*meter^3/day; 
 
 
 %% Time Stepping and Schedule
@@ -94,7 +95,7 @@ W2 = verticalWell(W2, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
 W2(1).components = [0.0, 0.95,  0.05, 0.0];  % rest period
 
 %production
-Pwell=92*barsa;% 40*barsa; 
+Pwell=90*barsa;% 92*barsa; 
 W3 = verticalWell(W3, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
                   'name', 'Prod', 'type', 'bhp', 'Val', Pwell, 'sign', -1);
 W3(1).components = [0.0, 0.95,  0.05, 0.0];  %production
@@ -113,7 +114,7 @@ schedule.control(4).W = W4;
 %schedule = createCyclicScenario(320*day, 1*day, 4, 180, 5, 15, 15, [W0;W2;W1;W3]);
 %% Model Setup: Compositional Model with Bacterial Growth
 if biochemistrymodel
-    eosname='sw';% 'pr';
+    eosname='sw';% 'sw';
     eosmodel =SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
     diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
     mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
@@ -126,8 +127,9 @@ if biochemistrymodel
     model.outputFluxes = false;
     model.EOSModel.msalt=0;
 else
-    arg = {G, rock, fluid, compFluid, 'water', true, 'oil', false, 'gas', true, ...
-      'liquidPhase', 'W', 'vaporPhase', 'G'};
+    eosname='pr';
+    arg = {G, rock, fluid, compFluid, 'water', false, 'oil', true, 'gas', true, ...
+      'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = GenericOverallCompositionModel(arg{:});
 end
 
@@ -136,7 +138,7 @@ end
 %% Initial Conditions
 % Temperature and initial saturations
 zH2_init=0.001;
-zCO2_init=0.05;
+zCO2_init=0.01;%0.05;
 T0 = 313.15;                % Initial temperature (K)
 s0 = [0.2, 0.8];           % Initial saturations (Sw,Sg)
 z0 = [0.2-zH2_init-zCO2_init, zH2_init, zCO2_init, 0.8];  % Initial composition: H2O, H2, CO2, CH4
@@ -145,7 +147,7 @@ Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 
 if biochemistrymodel
     if model.bacteriamodel
-        nbact0 = 10^6;
+        nbact0 = 1e6; 
         state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, ...
             z0, nbact0,eosmodel);
     else
@@ -175,6 +177,7 @@ yCO2= zeros(nT,1);
 for i = 1:nT
     xH2(i)=max(states{i}.x(:,indH2));
     yH2(i)=max(states{i}.y(:,indH2));
+    xCO2(i)=max(states{i}.x(:,indCO2));
     yCO2(i)=max(states{i}.y(:,indCO2));
 end
 
@@ -184,19 +187,45 @@ for i = 1:nT
     hold on
     plot(1:nT,yCO2,'k-')
 end
-title('Molar fractions')
+title('Molar fractions in gas')
 xlabel('Time (days)')
 ylabel('molar fraction')
 legend('yH2','yCO2')
 
-figure(2),clf
-for i=1:nT
-    clf;
-    plotCellData(G,states{i}.nbact./nbact0);
-    colorbar; 
-    axis equal
-    axis ([0 Lx  0 Ly depth_res depth_res+Lz])
-    view(0,-90)
-    pause(0.1)   
+for i = 1:nT
+    figure(2); clf; 
+    plot(1:nT,xH2,'b')
+    hold on
+    plot(1:nT,xCO2,'k-')
 end
-title('Archea density')
+title('Molar fractions in Liquid')
+xlabel('Time (days)')
+ylabel('molar fraction')
+legend('xH2','xCO2')
+
+if biochemistrymodel && model.bacteriamodel
+    figure(3),clf
+    for i=1:nT
+        clf;
+        plotCellData(G,states{i}.nbact./nbact0);
+        colorbar; 
+        axis equal
+        axis ([0 Lx  0 Ly depth_res depth_res+Lz])
+        view(0,-90)
+        pause(0.1)   
+    end
+    title('Archea density')
+end
+
+if writedatafile
+    outputFileName = sprintf('H2_CO2_solubility_%s_withnbact.dat',eosname);
+    fileID = fopen(outputFileName, 'wt');
+
+    fprintf(fileID, 'iter H2_molar_fraction  CO2_molar_fraction\n');
+    for i = 1:nT
+       fprintf(fileID, '%d  %12.8f  %12.8f %12.8f  %12.8f\n', i, xH2(i),xCO2(i), yH2(i),yCO2(i));
+    end
+    fclose(fileID);
+
+    disp(['Results written to file: ', outputFileName]);
+end
