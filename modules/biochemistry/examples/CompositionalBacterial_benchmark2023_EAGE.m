@@ -39,7 +39,7 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
                                       {'H2O', 'H2', 'CO2', 'C1'});
 
 % Fluid density and viscosity (kg/m^3 and cP)
-[rhow, rhog] = deal(996.52 * kilogram / meter^3, 69.974 * kilogram / meter^3);
+[rhow, rhog] = deal(996.52 * kilogram / meter^3, 0.69974 * kilogram / meter^3);
 [viscow, viscog] = deal(0.65403 * centi * poise, 0.013933 * centi * poise);
 
 % Compressibility (per bar)
@@ -93,7 +93,7 @@ cellInd =[481;1442;2403;3364;4325;5286;6247;7208];
 W0 = addWell([], G, rock, cellInd, ...
     'Name', 'Build-up', ...                       % Well name
     'Type', 'rate', ...                      % Well type (rate control)
-    'Val', rate, ...           % Production rate
+    'Val', 1.5.*rate, ...           % Production rate
     'Sign', 1, ...               % Sign
     'Compi', [0, 1]);                        % Component indices
 W0(1).components = [0.0, 0.95,  0.05, 0.0];  % H2-rich injection   {'H2O', 'H2', 'CO2', 'C1'});
@@ -103,7 +103,7 @@ W1 = addWell([], G, rock, cellInd, ...
     'Name', 'Injector', ...                       % Well name
     'Type', 'rate', ...                      % Well type (rate control)
     'Sign', 1, ...               % Sign
-    'Val', 0.5*rate, ...           % Production rate
+    'Val', rate, ...           % Production rate
     'Compi', [0, 1]);
 W1(1).components = [0.0, 0.95,  0.05, 0.0];  % H2-rich injection   {'H2O', 'H2', 'CO2', 'C1'});
 W1(1).T = T0;
@@ -120,7 +120,7 @@ W2(1).T = T0;
 Pwell=70*barsa; 
 W3 = addWell([], G, rock, cellInd, ...
     'Name', 'Production', ...                       % Well name
-    'Type', 'bhp', ...                      % Well type (rate control)
+    'Type', 'rate', ...                      % Well type (rate control)
     'Val', -rate, ...           % Production rate
     'Sign', -1, ...               % Sign
     'Compi', [0, 1]);
@@ -142,7 +142,7 @@ W4(1).T = T0;
 % schedule.control(3).W = W3;
 % schedule.control(4).W = W4;
 
-schedule = createCyclicScenario( 1*day, 1, 180*day, 30*day, 30*day, 30*day,15*day, [W0;W2;W1;W3]);
+schedule = createCyclicScenario( 3*day, 5, 180*day, 30*day, 30*day, 30*day,15*day, [W0;W2;W1;W3]);
 %% Model Setup: Compositional Model with Bacterial Growth
 if biochemistrymodel
     eosname='SW';% 'pr';
