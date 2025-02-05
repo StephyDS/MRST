@@ -3,7 +3,7 @@
 % incorporating compositional fluid properties, bacterial mono modal.
 % We consider a liquid phase (W) and a gas (G) phase, 4 components 
 % ('H2O','H2','CO2','CH4') and The microbial activity of 
-a archaea.
+%a archaea.
 %This test case comes from a Benchmark in EAGE 2023
 %TO DO: ERROR BUG WITH BACTERIAL=FALSE AND PRODUCTION WELL. DIVERGES WITH
 %BACTERIA
@@ -24,7 +24,7 @@ pdims = [Lx, Ly, Lz];
 
 % Create grid and shift vertically by reservoir depth
 G = cartGrid(dims, pdims);
-depth_res = 1168;                % Reservoir depth in meters
+depth_res = 1026;                % Reservoir depth in meters
 G.nodes.coords(:, 3) = G.nodes.coords(:, 3) + depth_res;
 G = computeGeometry(G);
 
@@ -39,15 +39,16 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
                                       {'H2O', 'H2', 'CO2', 'C1'});
 
 % Fluid density and viscosity (kg/m^3 and cP)
-[rhow, rhog] = deal(996.52 * kilogram / meter^3, 69.974 * kilogram / meter^3);
+[rhow, rhog] = deal(996.52 * kilogram / meter^3, 0.69974 * kilogram / meter^3);
 [viscow, viscog] = deal(0.65403 * centi * poise, 0.013933 * centi * poise);
 
 % Compressibility (per bar)
 [cfw, cfg] = deal(4.5157e-5, 1.09e-2 / barsa);
 
 % Relative permeability and initial saturations
-[srw, src] = deal(0.0, 0.0);
-P0=82 * barsa;
+[srw, src] = deal(0.2, 0.05);
+P0=100 * barsa;
+T0 = 313.15;                % Initial temperature (K)
 fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
                            'rho', [rhow, rhog], 'pRef', P0, ...
                            'c', [cfw, cfg], 'n', [2, 2], 'smin', [srw, src]);
@@ -61,7 +62,7 @@ fluid.pcOG = @(sg) pcOG(max((1 - sg - srw) / (1 - srw), 1e-5));
 % Set total time, pore volume, and injection rate
 niter=120;
 TotalTime = niter*day;
-rate = 4e5*meter^3/day; 
+rate = 1e6*meter^3/day; 
 
 
 %% Time Stepping and Schedule
@@ -85,42 +86,66 @@ tmp = cell(4,1);
 n1=floor(0.5*nx)+1; n2=floor(0.5*nx)+1;
 schedule.control = struct('W',tmp);
 
-W0 = verticalWell([], G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
-                 'name', 'Injector', 'type', 'rate', 'Val', rate*2, 'sign', 1);
+cellInd =[481;1442;2403;3364;4325;5286;6247;7208];
+
+
+% Add a production well at the identified cells with specified properties
+W0 = addWell([], G, rock, cellInd, ...
+    'Name', 'Build-up', ...                       % Well name
+    'Type', 'rate', ...                      % Well type (rate control)
+    'Val', 1.5.*rate, ...           % Production rate
+    'Sign', 1, ...               % Sign
+    'Compi', [0, 1]);                        % Component indices
 W0(1).components = [0.0, 0.95,  0.05, 0.0];  % H2-rich injection   {'H2O', 'H2', 'CO2', 'C1'});
-
+W0(1).T = T0;
 % Injection well parameters
-W1 = verticalWell(W1, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
-                 'name', 'Injector', 'type', 'rate', 'Val', rate, 'sign', 1);
+W1 = addWell([], G, rock, cellInd, ...
+    'Name', 'Injector', ...                       % Well name
+    'Type', 'rate', ...                      % Well type (rate control)
+    'Sign', 1, ...               % Sign
+    'Val', rate, ...           % Production rate
+    'Compi', [0, 1]);
 W1(1).components = [0.0, 0.95,  0.05, 0.0];  % H2-rich injection   {'H2O', 'H2', 'CO2', 'C1'});
-
+W1(1).T = T0;
 %Idle period
-W2 = verticalWell(W2, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
-                 'name', 'Rest', 'type', 'rate', 'Val', 0.0, 'sign', 1);
+W2 = addWell([], G, rock, cellInd, ...
+    'Name', 'Rest', ...                       % Well name
+    'Type', 'rate', ...                      % Well type (rate control)
+    'Val', 0, ...           % Production rate
+    'Sign', 0, ...               % Sign
+    'Compi', [0, 1]);
 W2(1).components = [0.0, 0.95,  0.05, 0.0];  % rest period
-
+W2(1).T = T0;
 %production
-Pwell=40*barsa; 
-W3 = verticalWell(W3, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
-                  'name', 'Prod', 'type', 'bhp', 'Val', Pwell, 'sign', -1);
+Pwell=70*barsa; 
+W3 = addWell([], G, rock, cellInd, ...
+    'Name', 'Production', ...                       % Well name
+    'Type', 'rate', ...                      % Well type (rate control)
+    'Val', -rate, ...           % Production rate
+    'Sign', -1, ...               % Sign
+    'Compi', [0, 1]);
 W3(1).components = [0.0, 0.95,  0.05, 0.0];  %production
 %W3.lims.bhp= P0;qq
-
+W3(1).T = T0;
 %Idle period
-W4 = verticalWell(W4, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
-                 'name', 'Rest', 'type', 'rate', 'Val', 0.0, 'sign', 1);
+W4 = addWell([], G, rock, cellInd, ...
+    'Name', 'Idle', ...                       % Well name
+    'Type', 'rate', ...                      % Well type (rate control)
+    'Val', 0, ...           % Production rate
+    'Sign', 0, ...               % Sign
+    'Compi', [0, 1]);
 W4(1).components = [0.0, 0.95,  0.05, 0.0];  % rest period
+W4(1).T = T0;
 
+% schedule.control(1).W = W1;
+% schedule.control(2).W = W2;
+% schedule.control(3).W = W3;
+% schedule.control(4).W = W4;
 
-schedule.control(1).W = W1;
-schedule.control(2).W = W2;
-schedule.control(3).W = W3;
-schedule.control(4).W = W4;
-
-schedule = createCyclicScenario(320*day, 1*day, 4, 180, 5, 15, 15, [W0;W2;W1;W3]);
+schedule = createCyclicScenario( 3*day, 5, 180*day, 30*day, 30*day, 30*day,15*day, [W0;W2;W1;W3]);
 %% Model Setup: Compositional Model with Bacterial Growth
 if biochemistrymodel
-    eosname='sw';% 'pr';
+    eosname='SW';% 'pr';
     eosmodel =SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
     diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
     mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
@@ -144,7 +169,7 @@ end
 % Temperature and initial saturations
 T0 = 313.15;                % Initial temperature (K)
 s0 = [0.2, 0.8];           % Initial saturations (Sw,Sg)
-z0 = [0.2-0.001-0.05, 0.001, 0.05, 0.8];  % Initial composition: H2O, H2, CO2, CH4
+z0 = [0.6890, 0.00, 0.0, 0.311];  % Initial composition: H2O, H2, CO2, CH4 corresponding to 0.2 swc
 Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 % Initialize state with bacterial concentration
 
@@ -168,8 +193,17 @@ end
 %[wellSols, states, report] = simulateScheduleAD(state0, model, schedule,'nonlinearsolver', nls);
 mrstModule add mpfa
 model_mpfa = setMPFADiscretization(model);
-[wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
+%[wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
+%% Define the case name and read the Eclipse deck file
+name = 'H2_STORAGE_EAGE2003_BACT';
+%% Pack the simulation problem with the defined components
+problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
+%% Execute the simulation of the packed problem
+simulatePackedProblem(problem,'restartStep',1);
+
+%% Get packed reservoir and well states
+[ws, states] = getPackedSimulatorOutput(problem);
 
 %% Plotting Results
 namecp = model.EOSModel.getComponentNames();

@@ -14,7 +14,7 @@ deck = readEclipseDeck('wsl.localhost\Ubuntu\home\elyesa\Projects\MRST\modules\H
 
 %% Set up the simulation parameters and model components from the black-oil model
 [~, ~, state0Bo, modelBo, scheduleBo, ~] = H2_illustration_storage_example(deck);
-bacteriamodel = true;
+bacteriamodel = false;
 % Convert black-oil model to compositional model
 model = convertBlackOilModelToCompositionalModel(modelBo);
 state0=convertBlackOilStateToCompositional(modelBo,state0Bo);
