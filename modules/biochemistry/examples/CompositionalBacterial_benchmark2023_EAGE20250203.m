@@ -147,7 +147,12 @@ Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 
 if biochemistrymodel
     if model.bacteriamodel
-        nbact0 = 1e6; 
+        nbact0 = 1e6;  
+        %model.Y_H2 = 1.7e12;  % Conversion factor for hydrogen consumption (moles/volume)
+        %model.alphaH2 = 1.1e-7;
+        %model.alphaCO2 = 3.2e-6;
+        model.Psigrowthmax = 1.7e-4;
+        model.b_bact = 2.3e-5/nbact0;
         state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, ...
             z0, nbact0,eosmodel);
     else
@@ -173,6 +178,7 @@ indCO2= find(strcmp(namecp,'CO2'));
 nT=numel(states);
 xH2=zeros(nT,1);
 yH2=zeros(nT,1);
+xCO2= zeros(nT,1);
 yCO2= zeros(nT,1);
 for i = 1:nT
     xH2(i)=max(states{i}.x(:,indH2));
@@ -204,7 +210,16 @@ ylabel('molar fraction')
 legend('xH2','xCO2')
 
 if biochemistrymodel && model.bacteriamodel
-    figure(3),clf
+    nbacteria= zeros(nT,1);
+    for i = 1:nT
+        nbacteria(i)=max(states{i}.nbact);
+    end
+
+    for i = 1:nT
+        figure(3); clf; 
+        plot(1:nT,nbacteria./nbact0,'b')
+    end
+    figure(4),clf
     for i=1:nT
         clf;
         plotCellData(G,states{i}.nbact./nbact0);
