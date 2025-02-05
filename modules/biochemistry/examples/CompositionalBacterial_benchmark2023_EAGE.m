@@ -39,18 +39,18 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
                                       {'H2O', 'H2', 'CO2', 'C1'});
 
 % Fluid density and viscosity (kg/m^3 and cP)
-[rhow, rhog] = deal(996.52 * kilogram / meter^3, 0.69974 * kilogram / meter^3);
-[viscow, viscog] = deal(0.65403 * centi * poise, 0.013933 * centi * poise);
+[rhow, rhog] = deal(999.52 * kilogram / meter^3, 1.0 * kilogram / meter^3);
+[viscow, viscog] = deal(0.3292 * centi * poise, 0.0099 * centi * poise);
 
 % Compressibility (per bar)
-[cfw, cfg] = deal(4.5157e-5, 1.09e-2 / barsa);
+[cfw, cfg] = deal(4.1483e-10, 8.1533e-3 / barsa);
 
 % Relative permeability and initial saturations
 [srw, src] = deal(0.2, 0.05);
 P0=100 * barsa;
 T0 = 313.15;                % Initial temperature (K)
 fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
-                           'rho', [rhow, rhog], 'pRef', P0, ...
+                           'rho', [rhow, rhog], 'pRef', 150, ...
                            'c', [cfw, cfg], 'n', [2, 2], 'smin', [srw, src]);
 
 % Capillary pressure function
@@ -93,9 +93,9 @@ cellInd =[481;1442;2403;3364;4325;5286;6247;7208];
 W0 = addWell([], G, rock, cellInd, ...
     'Name', 'Build-up', ...                       % Well name
     'Type', 'rate', ...                      % Well type (rate control)
-    'Val', 1.5.*rate, ...           % Production rate
+    'Val', rate, ...           % Production rate
     'Sign', 1, ...               % Sign
-    'Compi', [0, 1]);                        % Component indices
+    'comp_i', [0, 1]);                        % Component indices
 W0(1).components = [0.0, 0.95,  0.05, 0.0];  % H2-rich injection   {'H2O', 'H2', 'CO2', 'C1'});
 W0(1).T = T0;
 % Injection well parameters
@@ -104,7 +104,7 @@ W1 = addWell([], G, rock, cellInd, ...
     'Type', 'rate', ...                      % Well type (rate control)
     'Sign', 1, ...               % Sign
     'Val', rate, ...           % Production rate
-    'Compi', [0, 1]);
+    'comp_i', [0, 1]);
 W1(1).components = [0.0, 0.95,  0.05, 0.0];  % H2-rich injection   {'H2O', 'H2', 'CO2', 'C1'});
 W1(1).T = T0;
 %Idle period
