@@ -23,7 +23,7 @@ pdims = [Lx, Ly, Lz];
 
 % Create grid and shift vertically by reservoir depth
 G = cartGrid(dims, pdims);
-depth_res = 1310; %1168;                % Reservoir depth in meters
+depth_res = 1000; %1310;                % Reservoir depth in meters
 G.nodes.coords(:, 3) = G.nodes.coords(:, 3) + depth_res;
 G = computeGeometry(G);
 
@@ -38,15 +38,18 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
                                       {'H2O', 'H2', 'CO2', 'C1'});
 
 % Fluid density and viscosity (kg/m^3 and cP)
-[rhow, rhog] = deal(996.52 * kilogram / meter^3, 69.974 * kilogram / meter^3);
-[viscow, viscog] = deal(0.65403 * centi * poise, 0.013933 * centi * poise);
+%[rhow, rhog] = deal(996.52 * kilogram / meter^3, 69.974 * kilogram / meter^3);
+%[viscow, viscog] = deal(0.65403 * centi * poise, 0.013933 * centi * poise);
+[rhow, rhog] = deal(999.7 * kilogram / meter^3, 1.2243 * kilogram / meter^3);
+[viscow, viscog] = deal(1.3059 * centi * poise, 0.01763 * centi * poise);
 
 % Compressibility (per bar)
-[cfw, cfg] = deal(4.5157e-5, 1.09e-2 / barsa);
+[cfw, cfg] = deal(5.0015e-5, 1.0009 / barsa);
+%[cfw, cfg] = deal(4.5157e-5, 1.09e-2 / barsa);
 
 % Relative permeability and initial saturations
 [srw, src] = deal(0.0, 0.0);
-P0=132 * barsa;%82 * barsa;
+P0=106 * barsa;%132 * barsa;
 fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
                            'rho', [rhow, rhog], 'pRef', P0, ...
                            'c', [cfw, cfg], 'n', [2, 2], 'smin', [srw, src]);
@@ -95,7 +98,7 @@ W2 = verticalWell(W2, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
 W2(1).components = [0.0, 0.95,  0.05, 0.0];  % rest period
 
 %production
-Pwell=90*barsa;% 92*barsa; 
+Pwell=66*barsa;% 92*barsa; 
 W3 = verticalWell(W3, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
                   'name', 'Prod', 'type', 'bhp', 'Val', Pwell, 'sign', -1);
 W3(1).components = [0.0, 0.95,  0.05, 0.0];  %production
@@ -137,8 +140,8 @@ end
 
 %% Initial Conditions
 % Temperature and initial saturations
-zH2_init=0.001;
-zCO2_init=0.01;%0.05;
+zH2_init=0.0; %0.001;
+zCO2_init=0.0; %0.001;
 T0 = 313.15;                % Initial temperature (K)
 s0 = [0.2, 0.8];           % Initial saturations (Sw,Sg)
 z0 = [0.2-zH2_init-zCO2_init, zH2_init, zCO2_init, 0.8];  % Initial composition: H2O, H2, CO2, CH4
@@ -151,8 +154,8 @@ if biochemistrymodel
         %model.Y_H2 = 1.7e12;  % Conversion factor for hydrogen consumption (moles/volume)
         %model.alphaH2 = 1.1e-7;
         %model.alphaCO2 = 3.2e-6;
-        model.Psigrowthmax = 1.7e-4;
-        model.b_bact = 2.3e-5/nbact0;
+        %model.Psigrowthmax = 1.7e-4;
+        %model.b_bact = 2.3e-5/nbact0;
         state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, ...
             z0, nbact0,eosmodel);
     else
@@ -211,13 +214,19 @@ legend('xH2','xCO2')
 
 if biochemistrymodel && model.bacteriamodel
     nbacteria= zeros(nT,1);
+    pv=model.operators.pv;
+    ncells=G.cells.num;
     for i = 1:nT
-        nbacteria(i)=max(states{i}.nbact);
+       Swi = states{i}.s(:,1);
+       Swpvi=Swi.*pv;
+       Swpv=sum(Swpvi);
+       nbacteria(i)=sum(states{i}.nbact.*Swpvi)/Swpv;
+       %nbacteria(i)=max(states{i}.nbact);
     end
 
     for i = 1:nT
         figure(3); clf; 
-        plot(1:nT,nbacteria./nbact0,'b')
+        plot(1:nT,nbacteria,'b')
     end
     figure(4),clf
     for i=1:nT
