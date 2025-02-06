@@ -56,7 +56,7 @@ nls.LinearSolver = lsolve;                                     % Assign the line
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Run the simulation
-simulatePackedProblem(problem);
+simulatePackedProblem(problem,'restartStep',1507);
 %% gGet reservoir and well states
 [ws,states] = getPackedSimulatorOutput(problem);
 %% Plot well states
