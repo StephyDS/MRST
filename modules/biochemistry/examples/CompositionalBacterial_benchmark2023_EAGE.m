@@ -39,19 +39,19 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
                                       {'H2O', 'H2', 'CO2', 'C1'});
 
 % Fluid density and viscosity (kg/m^3 and cP)
-[rhow, rhog] = deal(996.52 * kilogram / meter^3, 69.974 * kilogram / meter^3);
-[viscow, viscog] = deal(0.65403 * centi * poise, 0.013933 * centi * poise);
+[rhow, rhog] = deal(1023.52 * kilogram / meter^3, 0.0817 * kilogram / meter^3);
+[viscow, viscog] = deal(1 * centi * poise, 1 * centi * poise);
 
 % Compressibility (per bar)
-[cfw, cfg] = deal(4.5157e-5, 1.09e-2 / barsa);
+[cfw, cfg] = deal(4.1483e-10, 8.1533e-3 / barsa);
 
 % Relative permeability and initial saturations
 [srw, src] = deal(0.2, 0.05);
 P0=100 * barsa;
 T0 = 313.15;                % Initial temperature (K)
 fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
-                           'rho', [rhow, rhog], 'pRef', P0, ...
-                           'c', [cfw, cfg], 'n', [2, 2], 'smin', [srw, src]);
+                           'rho', [rhow, rhog], 'pRef', 150, ...
+                           'c', [cfw, 0], 'n', [2, 2], 'smin', [srw, src]);
 
 % Capillary pressure function
 Pe = 0.1 * barsa;
@@ -86,7 +86,7 @@ tmp = cell(4,1);
 n1=floor(0.5*nx)+1; n2=floor(0.5*nx)+1;
 schedule.control = struct('W',tmp);
 
-cellInd =[481;1442;2403;3364;4325;5286;6247;7208];
+cellInd =[1442;2403;3364;4325;5286;6247;7208];
 
 
 % Add a production well at the identified cells with specified properties
@@ -95,18 +95,19 @@ W0 = addWell([], G, rock, cellInd, ...
     'Type', 'rate', ...                      % Well type (rate control)
     'Val', rate, ...           % Production rate
     'Sign', 1, ...               % Sign
-    'Compi', [0, 1]);                        % Component indices
+    'comp_i', [0, 1]);                        % Component indices
 W0(1).components = [0.0, 0.95,  0.05, 0.0];  % H2-rich injection   {'H2O', 'H2', 'CO2', 'C1'});
-W0(1).T = T0;
+%W0(1).refDepth = min(G.cells.centroids(:,3));
+%W0(1).T = T0;
 % Injection well parameters
 W1 = addWell([], G, rock, cellInd, ...
     'Name', 'Injector', ...                       % Well name
     'Type', 'rate', ...                      % Well type (rate control)
     'Sign', 1, ...               % Sign
-    'Val', 0.5*rate, ...           % Production rate
-    'Compi', [0, 1]);
+    'Val', rate, ...           % Production rate
+    'comp_i', [0, 1]);
 W1(1).components = [0.0, 0.95,  0.05, 0.0];  % H2-rich injection   {'H2O', 'H2', 'CO2', 'C1'});
-W1(1).T = T0;
+%W1(1).T = T0;
 %Idle period
 W2 = addWell([], G, rock, cellInd, ...
     'Name', 'Rest', ...                       % Well name
@@ -115,18 +116,18 @@ W2 = addWell([], G, rock, cellInd, ...
     'Sign', 0, ...               % Sign
     'Compi', [0, 1]);
 W2(1).components = [0.0, 0.95,  0.05, 0.0];  % rest period
-W2(1).T = T0;
+%W2(1).T = T0;
 %production
 Pwell=70*barsa; 
 W3 = addWell([], G, rock, cellInd, ...
     'Name', 'Production', ...                       % Well name
-    'Type', 'bhp', ...                      % Well type (rate control)
+    'Type', 'rate', ...                      % Well type (rate control)
     'Val', -rate, ...           % Production rate
     'Sign', -1, ...               % Sign
     'Compi', [0, 1]);
 W3(1).components = [0.0, 0.95,  0.05, 0.0];  %production
 %W3.lims.bhp= P0;qq
-W3(1).T = T0;
+%W3(1).T = T0;
 %Idle period
 W4 = addWell([], G, rock, cellInd, ...
     'Name', 'Idle', ...                       % Well name
@@ -135,14 +136,14 @@ W4 = addWell([], G, rock, cellInd, ...
     'Sign', 0, ...               % Sign
     'Compi', [0, 1]);
 W4(1).components = [0.0, 0.95,  0.05, 0.0];  % rest period
-W4(1).T = T0;
+%W4(1).T = T0;
 
 % schedule.control(1).W = W1;
 % schedule.control(2).W = W2;
 % schedule.control(3).W = W3;
 % schedule.control(4).W = W4;
 
-schedule = createCyclicScenario( 1*day, 1, 180*day, 30*day, 30*day, 30*day,15*day, [W0;W2;W1;W3]);
+schedule = createCyclicScenario( 3*day, 5, 180*day, 30*day, 30*day, 30*day,15*day, [W0;W2;W1;W3]);
 %% Model Setup: Compositional Model with Bacterial Growth
 if biochemistrymodel
     eosname='SW';% 'pr';
