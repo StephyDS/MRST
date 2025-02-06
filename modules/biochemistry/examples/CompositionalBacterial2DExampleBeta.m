@@ -8,13 +8,13 @@ clearvars;
 mrstModule add ad-core ad-blackoil ad-props deckformat mrst-gui upr
 
 %% Define the case name and read the Eclipse deck file
-name = 'H2_STORAGE_COMPOSITIONAL_2D_TRAP_BACT';
+name = 'H2_STORAGE_COMPOSITIONAL_2D_TRAP_NOBACT';
 %% Use H2STORAGE_RS_SALT.DATA for brine
 deck = readEclipseDeck('wsl.localhost\Ubuntu\home\elyesa\Projects\MRST\modules\H2store\data\Illustrative_example\H2STORAGE_RS.DATA');
 
 %% Set up the simulation parameters and model components from the black-oil model
 [~, ~, state0Bo, modelBo, scheduleBo, ~] = H2_illustration_storage_example(deck);
-bacteriamodel = true;
+bacteriamodel = false;
 % Convert black-oil model to compositional model
 model = convertBlackOilModelToCompositionalModel(modelBo);
 state0=convertBlackOilStateToCompositional(modelBo,state0Bo);
@@ -85,7 +85,7 @@ if (compFluid.getNumberOfComponents>2)
         % Update boundary conditions for each control
         schedule.control(i).bc.components = repmat(state0.components(1,:), numel(cells_bc), 1); % Set boundary component concentrations
         schedule.control(i).bc.sat = repmat(state0.s(1,:), numel(cells_bc), 1); % Set boundary saturation
-        schedule.control(i).bc.nbact = repmat(state0.nbact(1,:), numel(cells_bc), 1);
+  %      schedule.control(i).bc.nbact = repmat(state0.nbact(1,:), numel(cells_bc), 1);
         schedule.control(i).bc = [];
     end
 else
@@ -140,14 +140,14 @@ problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver'
 simulatePackedProblem(problem,'restartStep',1);
 
 %% Get packed reservoir and well states
-[ws, states] = getPackedSimulatorOutput(problem);
+% [ws, states] = getPackedSimulatorOutput(problem);
 %% Plot states
-figure;
-plotToolbar(model.G, states);
-
-%% Plot well output
-figure;
-plotWellSols(ws);
+% figure;
+% plotToolbar(model.G, states);
+% 
+% %% Plot well output
+% figure;
+% plotWellSols(ws);
 %% Copyright Notice
 %
 % <html>

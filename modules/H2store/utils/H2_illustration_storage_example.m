@@ -56,11 +56,11 @@ options = struct( ...
     'timeIdle'     , 10 * day            , ... % Idle period between charge/discharge cycles
     'timeShut'     , 30 * day            , ... % Shut-in period (no activity)
     'timeDischarge', 30 * day            , ... % Duration of hydrogen production (discharge)
-    'dtCharge'     , 8.4 * hour          , ... % Timestep during charging
-    'dtCushion'    , 8.4 * hour          , ... % Timestep during cushion phase
+    'dtCharge'     , 3*day          , ... % Timestep during charging
+    'dtCushion'    , 3*day          , ... % Timestep during cushion phase
     'dtIdle'       , 8.4 * hour          , ... % Timestep during idle phase
-    'dtShut'       , 8.4 * hour          , ... % Timestep during shut-in phase
-    'dtDischarge'  , 8.4 * hour          , ... % Timestep during discharge
+    'dtShut'       , 3*day          , ... % Timestep during shut-in phase
+    'dtDischarge'  , 3*day          , ... % Timestep during discharge
     'numCycles'    , 10                  , ... % Number of injection/production cycles
     'chargeOnly'   , 0                   , ... % Simulate only charging period
     'cushionOnly'  , 0                   , ... % Simulate only cushion gas phase
