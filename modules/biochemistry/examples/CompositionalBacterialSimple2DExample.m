@@ -1,4 +1,5 @@
 %% MRST Simulation for Hydrogen Storage with Bacterial Growth Model
+<<<<<<< HEAD
 % Description: This script uses MRST to model gas injection into a 2D porous medium,
 % incorporating compositional fluid properties, bacterial mono modal.
 % We consider a liquid phase (W) and a gas (G) phase, 5 components 
@@ -10,6 +11,17 @@ mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on
 
 %% ============Grid and Rock Properties=====================
+=======
+% Description: This script uses MRST to model gas injection into a porous medium,
+% incorporating compositional fluid properties, bacterial mono modal.
+
+% Clear workspace and initialize MRST modules
+clear; clc;
+mrstModule add compositional ad-blackoil ad-core ad-props mrst-gui
+gravity reset on
+
+%% Grid and Rock Properties
+>>>>>>> origin/hydrogen
 % Define grid dimensions and physical dimensions
 [nx, ny, nz] = deal(20, 1, 20);  % Grid cells in x, y, z directions
 [Lx, H] = deal(200, 100);         % Physical dimensions in meters
@@ -62,14 +74,23 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Ni
 
 % Relative permeability and initial saturations
 [srw, src] = deal(0.0, 0.0);
+<<<<<<< HEAD
 fluid = initSimpleADIFluid('phases', 'WG', 'mu', [viscow, viscog], ...
+=======
+fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
+>>>>>>> origin/hydrogen
                            'rho', [rhow, rhog], 'pRef', 114 * barsa, ...
                            'c', [cfw, cfg], 'n', [2, 2], 'smin', [srw, src]);
 
 % Capillary pressure function
 Pe = 0.1 * barsa;
+<<<<<<< HEAD
 pcWG = @(sw) Pe * sw.^(-1/2);
 fluid.pcWG = @(sg) pcWG(max((1 - sg - srw) / (1 - srw), 1e-5));
+=======
+pcOG = @(so) Pe * so.^(-1/2);
+fluid.pcOG = @(sg) pcOG(max((1 - sg - srw) / (1 - srw), 1e-5));
+>>>>>>> origin/hydrogen
 
 %% Simulation Parameters
 % Set total time, pore volume, and injection rate
@@ -117,6 +138,7 @@ schedule = simpleSchedule(repmat(deltaT, 1, niter), 'bc', [], 'src', [], 'W', W)
 nls = NonLinearSolver('useRelaxation', true);
 
 % Run simulation
+<<<<<<< HEAD
 [~, states, report] = simulateScheduleAD(state0, model, schedule,'nonlinearsolver', nls);
 
 %% Plotting Results
@@ -126,6 +148,14 @@ namecp = model.EOSModel.getComponentNames();
 indH2=find(strcmp(namecp,'H2'));
 indCO2= find(strcmp(namecp,'CO2'));
 for i= 1:niter
+=======
+[~, states, report] = simulateScheduleAD(state0, model, schedule);
+
+%% Plotting Results
+time = 0;
+figure;
+for i = 1:niter
+>>>>>>> origin/hydrogen
     % Reshape spatial data for plotting
     x = G.cells.centroids(:,1);
     z = G.cells.centroids(:,3);
@@ -203,6 +233,6 @@ for i= 1:niter
     colorbar
   
     time = time + deltaT;
-    %title(sprintf('injection duration = %.2f days',convertTo(time,day)))
-    pause(0.001)
+%     suptitle(sprintf('Injection Duration = %.2f days', convertTo(time, day)));
+    pause(0.001);
 end

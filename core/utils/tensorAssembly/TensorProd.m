@@ -41,6 +41,10 @@ classdef TensorProd
 % prod.replacefds2. This option is used very often as different names for the
 % same indexing appear naturally.
 %
+% If the pivot space (pivottbl property) is given before the setup, then it is possible to dispatch in a index array
+% tbl3 which does not corresponds to the otherwise detected sparsity of the product. It is implemented for convenience,
+% to avoid to have to create an extra TensorMap to do this this operation.
+%
 % RETURNS:
 %   class instance
 %
@@ -81,7 +85,11 @@ classdef TensorProd
         
         issetup      % Flag is set to true is product has been set up.
         settbl3      % Flag is set to true if the resulting product table is created
-        setpivottbl3 % Flag is set to true if the pivottbl table is created        
+        setpivottbl3 % Flag is set to true if the pivottbl table is created
+
+        chunksize = 100000; % Chunk size for the computation of the product
+        verbose = false;
+        
     end
    
     methods
@@ -95,8 +103,8 @@ classdef TensorProd
                           'replacefds2', [], ...
                           'replacefds3', [], ...
                           'reducefds'  , [], ...
-                          'reducefds1'  , [], ...
-                          'reducefds2'  , [], ...
+                          'reducefds1' , [], ...
+                          'reducefds2' , [], ...
                           'mergefds'   , []);
             
             prod = merge_options(prod, varargin{:}); 
@@ -129,11 +137,14 @@ classdef TensorProd
         end
         
         function prod = setup(prod)
-            reducefds = prod.reducefds;
+            
+            reducefds  = prod.reducefds;
             reducefds1 = prod.reducefds1;
             reducefds2 = prod.reducefds2;
-            mergefds  = prod.mergefds;
+            mergefds   = prod.mergefds;
+
             crossfds  = {reducefds{:}, mergefds{:}};
+            
             tbl1 = prod.tbl1;
             tbl2 = prod.tbl2;
             
@@ -158,10 +169,36 @@ classdef TensorProd
                    ['There exist fields with same name in first and second ' ...
                     'table that are neither merged or reduced.']);
             
-            [pivottbl, indstruct] = crossIndexArray(tbl1, tbl2, crossfds);
-            
-            dispind1 = indstruct{1}.inds;
-            dispind2 = indstruct{2}.inds;
+            if isempty(prod.pivottbl)
+                
+                [pivottbl, indstruct] = crossIndexArray(tbl1, tbl2, crossfds);
+                
+                dispind1 = indstruct{1}.inds;
+                dispind2 = indstruct{2}.inds;
+                
+            else
+
+                pivottbl = prod.pivottbl;
+
+                pivotfds = pivottbl.fdnames;
+                
+                mergefds1 = tbl1.fdnames(ismember(tbl1.fdnames, pivotfds));
+
+                map = TensorMap();
+                map.fromTbl  = tbl1;
+                map.toTbl    = pivottbl;
+                map.mergefds = mergefds1;
+                dispind1 = getDispatchInd(map);
+                
+                mergefds2 = tbl2.fdnames(ismember(tbl2.fdnames, pivotfds));
+
+                map = TensorMap();
+                map.fromTbl  = tbl2;
+                map.toTbl    = pivottbl;
+                map.mergefds = mergefds2;
+                dispind2 = getDispatchInd(map);
+                
+            end
             
             if isempty(prod.tbl3)
                 fds1 = tbl1.fdnames;
@@ -206,23 +243,58 @@ classdef TensorProd
         function prodAB = eval(prod, A, B)
             assert(prod.issetup, ['tensor product is not setup. Use method ' ...
                                 'setup']);
+
+            chunksize = prod.chunksize;
             
             dispind1 = prod.dispind1;
             dispind2 = prod.dispind2;
             dispind3 = prod.dispind3;
             
             n3 = prod.tbl3.num;
-            n = prod.pivottbl.num;
-            
-            A = A(dispind1);
-            B = B(dispind2);
-            prodAB = A.*B;
-            
-            if isa(prodAB, 'double')
-                prodAB = accumarray(dispind3, prodAB, [n3, 1]);
+            n  = prod.pivottbl.num;
+
+            if ~isempty(chunksize) && isa(A, 'double') && isa(B, 'double')
+
+                pivotsize = numel(dispind1);
+                nchunks   = ceil(pivotsize/chunksize);
+
+                if prod.verbose
+                    fprintf('number of chunks %d\n', nchunks);
+                end
+                
+                prodAB = sparse(n3, 1);
+                
+                for ichunk = 1 : nchunks
+
+                    if ichunk < nchunks
+                        ind = (1 + (ichunk - 1)*chunksize) : ichunk*chunksize;
+                    else
+                        ind = (1 + (ichunk - 1)*chunksize) : pivotsize;
+                    end
+                    
+                    Ac = A(dispind1(ind));
+                    Bc = B(dispind2(ind));
+                    prodABc = Ac.*Bc;
+                    
+                    prodAB = prodAB + accumarray(dispind3(ind), prodABc, [n3, 1]);
+
+                end
+                
             else
-                M = sparse(dispind3, (1 : n)', 1, n3, n);
-                prodAB = M*prodAB;
+                
+                prodAB = A(dispind1).*B(dispind2);
+            
+                if isa(prodAB, 'double')
+                    
+                    prodAB = accumarray(dispind3, prodAB, [n3, 1]);
+                    
+                else
+                    
+                    M = sparse(dispind3, (1 : n)', 1, n3, n);
+                    prodAB = M*prodAB;
+                    
+                end
+                
             end
             
         end
