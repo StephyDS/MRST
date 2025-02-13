@@ -208,3 +208,29 @@ yCO2NoBact(i)=sum(statesNoBact{i}.y(:,indCO2).*model.operators.pv);
 xCH4NoBact(i)=sum(statesNoBact{i}.x(:,indCH4).*model.operators.pv);
 yCH4NoBact(i)=sum(statesNoBact{i}.y(:,indCH4).*model.operators.pv);
 end
+
+%% Calculate percentage of H2 loss
+H2_loss_percentage = ((totalH2_noBact - totalH2_bact) ./ totalH2_noBact) * 100;
+%% Calculate percentage of CO2 loss
+CO2_loss_percentage = ((totalCO2_noBact - totalCO2_bact) ./ totalCO2_noBact) * 100;
+%% Calculate percentage of CH4 production
+CH4_loss_percentage = ((totalCH4_bact - totalCH4_noBact) ./ totalCH4_noBact) * 100;
+
+%% Display final H2 loss
+fprintf('Total H2 loss due to bacterial effects: %.2f%%\n', H2_loss_percentage(end));
+for i = 1:nT
+xH2(i)=sum(states{i}.x(:,indH2).*model.operators.pv);
+yH2(i)=sum(states{i}.y(:,indH2).*model.operators.pv);
+yCO2(i)=sum(states{i}.y(:,indCO2).*model.operators.pv);
+xCO2(i)=sum(states{i}.x(:,indCO2).*model.operators.pv);
+xCH4(i)=sum(states{i}.x(:,indCH4).*model.operators.pv);
+yCH4(i)=sum(states{i}.y(:,indCH4).*model.operators.pv);
+end
+for i = 1:nT
+xH2NoBact(i)=sum(statesNoBact{i}.x(:,indH2).*model.operators.pv);
+yH2NoBact(i)=sum(statesNoBact{i}.y(:,indH2).*model.operators.pv);
+xCO2NoBact(i)=sum(statesNoBact{i}.x(:,indCO2).*model.operators.pv);
+yCO2NoBact(i)=sum(statesNoBact{i}.y(:,indCO2).*model.operators.pv);
+xCH4NoBact(i)=sum(statesNoBact{i}.x(:,indCH4).*model.operators.pv);
+yCH4NoBact(i)=sum(statesNoBact{i}.y(:,indCH4).*model.operators.pv);
+end

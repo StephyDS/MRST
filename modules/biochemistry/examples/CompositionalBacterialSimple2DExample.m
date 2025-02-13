@@ -54,22 +54,22 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Ni
                                       {'H2O', 'H2', 'CO2', 'N2', 'C1'});
 
 % Fluid density and viscosity (kg/m^3 and cP)
-[rhow, rhog] = deal(1000 * kilogram / meter^3, 8.1688 * kilogram / meter^3);
-[viscow, viscog] = deal(1.0 * centi * poise, 0.0094234 * centi * poise);
+[rhol, rhog] = deal(1000 * kilogram / meter^3, 8.1688 * kilogram / meter^3);
+[viscol, viscog] = deal(1.0 * centi * poise, 0.0094234 * centi * poise);
 
 % Compressibility (per bar)
-[cfw, cfg] = deal(0, 8.1533e-3 / barsa);
+[cfl, cfg] = deal(0, 8.1533e-3 / barsa);
 
 % Relative permeability and initial saturations
 [srw, src] = deal(0.0, 0.0);
-fluid = initSimpleADIFluid('phases', 'WG', 'mu', [viscow, viscog], ...
-                           'rho', [rhow, rhog], 'pRef', 114 * barsa, ...
-                           'c', [cfw, cfg], 'n', [2, 2], 'smin', [srw, src]);
+fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscol, viscog], ...
+                           'rho', [rhol, rhog], 'pRef', 114 * barsa, ...
+                           'c', [cfl, cfg], 'n', [2, 2], 'smin', [srw, src]);
 
 % Capillary pressure function
 Pe = 0.1 * barsa;
-pcWG = @(sw) Pe * sw.^(-1/2);
-fluid.pcWG = @(sg) pcWG(max((1 - sg - srw) / (1 - srw), 1e-5));
+pcOG = @(so) Pe * so.^(-1/2);
+fluid.pcOG = @(sg) pcOG(max((1 - sg - srw) / (1 - srw), 1e-5));
 
 %% Simulation Parameters
 % Set total time, pore volume, and injection rate
@@ -93,9 +93,9 @@ W(1).components = [0.0, 0.95,  0.05, 0.0, 0.0];  % H2-rich injection
     mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
 
 arg = {G, rock, fluid, compFluid, true,diagonal_backend,...
-    'water', true, 'oil', false, 'gas', true, ...
+    'water', false, 'oil', true, 'gas', true, ...
        'bacteriamodel', true, 'bDiffusionEffect', false, ...
-       'moleculardiffusion',false,'liquidPhase', 'W', 'vaporPhase', 'G'};
+       'moleculardiffusion',false,'liquidPhase', 'O', 'vaporPhase', 'G'};
 model = BiochemistryModel(arg{:});
 model.outputFluxes = false;
 model.EOSModel.msalt=0;
@@ -105,7 +105,7 @@ model.EOSModel.msalt=0;
 T0 = 317.5;                % Initial temperature (K)
 s0 = [0.8, 0.2];           % Initial saturations (Sw = 1)
 z0 = [0.8, 0.0, 0.006, 0.018, 0.176];  % Initial composition: H2O, H2, CO2, N2, CH4
-Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
+Phydro0=rhol*norm(gravity).*G.cells.centroids(:,3);
 % Initialize state with bacterial concentration
 nbact0 = 10^6;
 state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, z0, nbact0,eosmodel);
@@ -118,6 +118,7 @@ nls = NonLinearSolver('useRelaxation', true);
 
 % Run simulation
 [~, states, report] = simulateScheduleAD(state0, model, schedule,'nonlinearsolver', nls);
+%[~, states, report] = simulateScheduleAD(state0, model, schedule);
 
 %% Plotting Results
 time=0;
@@ -203,6 +204,6 @@ for i= 1:niter
     colorbar
   
     time = time + deltaT;
-    %title(sprintf('injection duration = %.2f days',convertTo(time,day)))
-    pause(0.001)
+%     suptitle(sprintf('Injection Duration = %.2f days', convertTo(time, day)));
+    pause(0.001);
 end

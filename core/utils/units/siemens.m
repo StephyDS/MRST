@@ -1,14 +1,18 @@
-% UTILS
+function p = siemens()
+%Compute numerical value, in units of Siemens, of one Siemens.
 %
-% Files
-%   compareIndexArray - SYNOPSIS:
-%   crossindconstruct - SYNOPSIS:
-%   replacefield      - SYNOPSIS:
-%   tbldispatch1      - SYNOPSIS:
-%   tbldispatch2      - SYNOPSIS:
+% SYNOPSIS:
+%   p = siemens()
+%
+% PARAMETERS:
+%   None.
+%
+% RETURNS:
+%   p - Numerical value, in units of Siemens (V), of a pressure of one
+%       Siemens, == 1.
 
 %{
-Copyright 2009-2024 SINTEF Digital, Mathematics & Cybernetics.
+Copyright 2009-2022 SINTEF Digital, Mathematics & Cybernetics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 
@@ -25,3 +29,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with MRST.  If not, see <http://www.gnu.org/licenses/>.
 %}
+
+
+   p = 1 * ampere/volt;
+end

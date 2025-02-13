@@ -25,6 +25,7 @@ classdef PhaseMixingCoefficientsLV < StateFunction
             x = xy(isEoS, L_ix);
             y = xy(isEoS, V_ix);
             acf = eos.CompositionalMixture.acentricFactors;
+
             namecp = eos.getComponentNames();
             if strcmp(eos.shortname, 'sw')
                 indH2O = find(strcmp(namecp, 'Water') | strcmp(namecp, 'H2O'), 1);

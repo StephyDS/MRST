@@ -75,6 +75,9 @@ classdef TensorMap
         dispind2          % from toTbl to pivottbl
         
         issetup           % Flag is set to true is map has been set up.
+
+        chunksize = 100000; % Chunk size for the computation of the product
+        verbose = false;
     end
    
     methods
@@ -146,8 +149,8 @@ classdef TensorMap
             else
                 givenpivottbl = map.pivottbl;
                 [pivottbl, indstruct] = crossIndexArray(fromTbl, toTbl, mergefds);                
-                dispind1 = instruct{1}.inds;
-                dispind2 = instruct{2}.inds;
+                dispind1 = indstruct{1}.inds;
+                dispind2 = indstruct{2}.inds;
                 % pivottbl and givenpivottbl corresponds to the same multi-indices
                 % but not necessarily in the same order. 
                 % We check that they at least have the same field
@@ -156,7 +159,7 @@ classdef TensorMap
                 assert(all(ismember(fds, givenfds)) & all(ismember(givenfds, ...
                                                                   fds)), ...
                        'non matching fields');
-                [~, indstruct] = crossIndexArray(pivotbl, givenpivotbl, givenfds);
+                [~, indstruct] = crossIndexArray(pivottbl, givenpivottbl, givenfds);
                 ind1 = indstruct{1}.inds;
                 ind2 = indstruct{2}.inds;
                 indi2(ind2) = (1 : givenpivottbl.num)';
@@ -177,17 +180,45 @@ classdef TensorMap
             assert(map.issetup, ['tensor map is not setup. Use method ' ...
                                 'setup']);
             
-            dispind1 = map.dispind1;
-            dispind2 = map.dispind2;
-            toTbl    = map.toTbl;
-            fromTbl  = map.fromTbl;
+            dispind1  = map.dispind1;
+            dispind2  = map.dispind2;
+            toTbl     = map.toTbl;
+            fromTbl   = map.fromTbl;
+            chunksize = map.chunksize;
             
             if isa(u, 'ADI')
                 M = sparse(dispind2, dispind1, 1, toTbl.num, fromTbl.num);
                 v = M*u;
             else
-                v = u(dispind1);
-                v = accumarray(dispind2, v, [toTbl.num, 1]);
+                
+                if ~isempty(chunksize)
+
+                    pivotsize = numel(dispind1);
+                    nchunks   = ceil(pivotsize/chunksize);
+                    
+                    if map.verbose
+                        fprintf('number of chunks %d\n', nchunks);
+                    end
+
+                    v = sparse(toTbl.num, 1);
+
+                    for ichunk = 1 : nchunks
+
+                        if ichunk < nchunks
+                            ind = (1 + (ichunk - 1)*chunksize) : ichunk*chunksize;
+                        else
+                            ind = (1 + (ichunk - 1)*chunksize) : pivotsize;
+                        end
+
+                        uc = u(dispind1(ind));
+                        v = v + accumarray(dispind2(ind), uc, [toTbl.num, 1]);
+                        
+                    end
+                    
+                else
+                    v = u(dispind1);
+                    v = accumarray(dispind2, v, [toTbl.num, 1]);
+                end
             end
             
         end
@@ -195,8 +226,10 @@ classdef TensorMap
         function inds = getDispatchInd(map)
         % Compute dispatching indices: For an index i in map.toTbl gives the index number in map.fromTbl that will be sent to i
         % by the mapping map. It requires that the constructed pivottbl coincides with toTbl.
-            
-            map = map.setup();
+
+            if ~map.issetup
+                map = map.setup();
+            end
             
             ind1 = map.dispind1;
             ind2 = map.dispind2;

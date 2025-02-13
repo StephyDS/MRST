@@ -65,7 +65,6 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         %-----------------------------------------------------------------%
         function model = BiochemistryModel(G, rock, fluid, compFluid, includeWater, backend, varargin)
         % Class constructor. Required arguments are G, rock and fluid.
-         % model = model@GenericOverallCompositionModel(G, rock, fluid, compFluid, 'water', includeWater, 'AutoDiffBackend', backend);
 
             model = model@GenericOverallCompositionModel(G, rock, fluid, compFluid, 'water', includeWater, 'AutoDiffBackend', backend);
             model = merge_options(model, varargin{:});
@@ -115,7 +114,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
             % Set compositinal fluid
             if isempty(compFluid)
-                % Default is Methanogenesis
+
                 if strcmp(model.metabolicReaction,'MethanogenicArchae')
                     compFluid = TableCompositionalMixture({'Hydrogen', 'Water','Nitrogen', 'CarbonDioxide', 'Methane'}, ...
                     {'H2', 'Water', 'N2', 'CO2', 'C1'});

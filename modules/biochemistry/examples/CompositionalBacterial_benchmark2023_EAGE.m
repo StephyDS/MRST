@@ -9,7 +9,6 @@
 %BACTERIA
 % Clear workspace and initialize MRST modules
 clear; clc;
-%mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
 biochemistrymodel=true;
@@ -144,6 +143,7 @@ W4(1).components = [0.0, 0.95,  0.05, 0.0];  % rest period
 % schedule.control(4).W = W4;
 
 schedule = createCyclicScenario( 3*day, 10, 180*day, 30*day, 30*day, 30*day,15*day, [W0;W2;W1;W3]);
+
 %% Model Setup: Compositional Model with Bacterial Growth
 if biochemistrymodel
     eosname='SW';% 'pr';
@@ -159,8 +159,8 @@ if biochemistrymodel
     model.outputFluxes = false;
     model.EOSModel.msalt=0;
 else
-    arg = {G, rock, fluid, compFluid, 'water', true, 'oil', false, 'gas', true, ...
-      'liquidPhase', 'W', 'vaporPhase', 'G'};
+    arg = {G, rock, fluid, compFluid, 'water', false, 'oil', true, 'gas', true, ...
+      'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = GenericOverallCompositionModel(arg{:});
 end
 
@@ -232,6 +232,25 @@ for i = 1:numel(states)
     % With bacterial effects
     totalCO2_bact(i) = sum(states{i}.FlowProps.ComponentTotalMass{indCO2});
 
+namecp = model.EOSModel.getComponentNames();
+indH2=find(strcmp(namecp,'H2'));
+indCO2= find(strcmp(namecp,'CO2'));
+indCH4= find(strcmp(namecp,'C1'));
+nT = numel(states);
+% Initialize arrays to store total H2 mass
+totalH2_bact = zeros(numel(states), 1);
+totalH2_noBact = zeros(numel(statesNoBact), 1);
+
+for i = 1:numel(states)
+    % With bacterial effects
+    totalH2_bact(i) = sum(states{i}.FlowProps.ComponentTotalMass{indH2});
+
+    % Without bacterial effects
+    totalH2_noBact(i) = sum(statesNoBact{i}.FlowProps.ComponentTotalMass{indH2});
+
+    % With bacterial effects
+    totalCO2_bact(i) = sum(states{i}.FlowProps.ComponentTotalMass{indCO2});
+
     % Without bacterial effects
     totalCO2_noBact(i) = sum(statesNoBact{i}.FlowProps.ComponentTotalMass{indCO2});
     % With bacterial effects
@@ -254,6 +273,10 @@ fprintf('Total H2 loss due to bacterial effects: %.2f%%\n', H2_loss_percentage(e
 namecp = model.EOSModel.getComponentNames();
 indH2=find(strcmp(namecp,'H2'));
 indCO2= find(strcmp(namecp,'CO2'));
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/GdrHydrogemm
 indCH4= find(strcmp(namecp,'C1'));
 nT=numel(states);
 xH2=zeros(nT,1);
@@ -263,6 +286,10 @@ for i = 1:nT
     xH2(i)=sum(states{i}.x(:,indH2).*model.operators.pv);
     yH2(i)=sum(states{i}.y(:,indH2).*model.operators.pv);
     yCO2(i)=sum(states{i}.y(:,indCO2).*model.operators.pv);
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/GdrHydrogemm
     xCO2(i)=sum(states{i}.x(:,indCO2).*model.operators.pv);
     xCH4(i)=sum(states{i}.x(:,indCH4).*model.operators.pv);
     yCH4(i)=sum(states{i}.y(:,indCH4).*model.operators.pv);
@@ -275,7 +302,10 @@ for i = 1:nT
     yCO2NoBact(i)=sum(statesNoBact{i}.y(:,indCO2).*model.operators.pv);
     xCH4NoBact(i)=sum(statesNoBact{i}.x(:,indCH4).*model.operators.pv);
     yCH4NoBact(i)=sum(statesNoBact{i}.y(:,indCH4).*model.operators.pv);
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/GdrHydrogemm
 end
 
 sum(yH2+xH2)./sum(yH2NoBact+xH2NoBact)
