@@ -37,7 +37,6 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
                 Z = eos.getMassFraction(z);
                 n = size(z, 1);
                 [L, x, y, Z_L, Z_V, rhoL, rhoV] = standaloneFlash(repmat(p, n, 1), repmat(T, n, 1), z, eos);
-
  
                 if strcmp(model.EOSModel.shortname,'sw')
                     for i = 1:numel(wellIndices)

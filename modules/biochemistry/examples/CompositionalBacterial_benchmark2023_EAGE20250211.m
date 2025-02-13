@@ -12,8 +12,8 @@ mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
 biochemistrymodel=true;%false; 
 writedatafile=false;
-useHandler=false;% true;%
-compare_bact=true;%false;
+useHandler=false;%true;% 
+compare_bact=true;%false;%
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
 %[nx, ny, nz] = deal(61,61,10);  % Grid cells in x, y, z directions
@@ -62,7 +62,7 @@ fluid.pcOG = @(sg) pcOG(max((1 - sg - srw) / (1 - srw), 1e-5));
 % Set total time, pore volume, and injection rate
 niter=120;
 TotalTime = niter*day;
-rate = 8e5*meter^3/day; 
+rate = 1e6*meter^3/day; 
 
 
 %% Time Stepping and Schedule
@@ -169,7 +169,7 @@ end
 %model_mpfa = setMPFADiscretization(model);
 %[wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
 if useHandler 
-    dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
+    dir='/home/sdelage/PROJETS/gdr_h2/MRST2024/MRST/output';
     diroutput='Benchmark2023AEGE_NOBACT';
     handler = ResultHandler('writeToDisk', true,'dataDirectory',dir,...
         'dataFolder', diroutput);
@@ -214,7 +214,7 @@ end
 %% Compare case without bacteria and with bacteria
 if compare_bact
     %Extraction data states_nobact de handler
-    dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
+    dir='/home/sdelage/PROJETS/gdr_h2/MRST2024/MRST/output';
     handler1 = ResultHandler('dataDirectory',dir,'dataFolder','Benchmark2023AEGE_NOBACT');
     m = handler1.numelData();
     states_nobact = cell(m, 1);
@@ -224,10 +224,21 @@ if compare_bact
     totMassH2_nobact= zeros(nT,1);
     totMassCO2_nobact= zeros(nT,1);
     totMassCH4_nobact= zeros(nT,1);
+    totMassComp_nobact= zeros(nT,1);
+    FractionMassCO2_nobact= zeros(nT,1);
+    FractionMassH2_nobact= zeros(nT,1);
+    FractionMassCH4_nobact= zeros(nT,1);
+
     for i = 1:nT
+        for j=1:ncomp
+        totMassComp_nobact(i)=totMassComp_nobact(i)+sum(states_nobact{i}.FlowProps.ComponentTotalMass{j});
+        end
         totMassH2_nobact(i)=sum(states_nobact{i}.FlowProps.ComponentTotalMass{indH2});
         totMassCO2_nobact(i)=sum(states_nobact{i}.FlowProps.ComponentTotalMass{indCO2});
         totMassCH4_nobact(i)=sum(states_nobact{i}.FlowProps.ComponentTotalMass{indCH4});
+        FractionMassH2_nobact(i)=totMassH2_nobact(i)/totMassComp(i);
+        FractionMassCO2_nobact(i)=totMassCO2_nobact(i)/totMassComp(i);
+        FractionMassCH4_nobact(i)=totMassCH4_nobact(i)/totMassComp(i);
     end
 
     %% Calculate percentage of H2 loss
@@ -241,6 +252,19 @@ if compare_bact
     fprintf('Total H2 loss due to bacterial effects: %.2f%%\n', H2_loss_percentage(end));
     fprintf('Total CO2 loss due to bacterial effects: %.2f%%\n', CO2_loss_percentage(end));
     fprintf('Total CH4 production due to bacterial effects: %.2f%%\n', CH4_loss_percentage(end));
+
+
+
+for i = 1:nT
+    figure(1); clf; 
+    plot(1:nT,FractionMassH2_nobact,'b')
+    hold on
+    plot(1:nT,FractionMassH2,'k-')
+end
+title('H2 Mass fractions in gas phase')
+xlabel('Time (days)')
+ylabel('mass fraction')
+legend('yH2 nobact','yH2 with bact')
 
 end
 
