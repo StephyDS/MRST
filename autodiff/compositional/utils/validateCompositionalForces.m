@@ -62,11 +62,7 @@ end
 function [rho, compi] = getSurfaceParameters(model, W, p,T, rhoL, rhoV, x, y, L, Z_L, Z_V, Z)
     hc = model.getEoSPhaseIndices();
     nph = model.getNumberOfPhases();
-<<<<<<< HEAD
-    if true
-=======
     if strcmp(model.EOSModel.shortname,'sw')
->>>>>>> origin/hydrogen
         % Use flash
         %[sL, sV] = eos.computeSaturations(p,T, rhoL, rhoV, x, y, L, Z_L, Z_V);
         [sL, sV] = model.EOSModel.computeSaturations(p, T, rhoL, rhoV, x, y, L, Z_L, Z_V);

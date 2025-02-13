@@ -9,7 +9,6 @@
 %BACTERIA
 % Clear workspace and initialize MRST modules
 clear; clc;
-%mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
 biochemistrymodel=true;
@@ -161,8 +160,8 @@ if biochemistrymodel
     model.outputFluxes = false;
     model.EOSModel.msalt=0;
 else
-    arg = {G, rock, fluid, compFluid, 'water', true, 'oil', false, 'gas', true, ...
-      'liquidPhase', 'W', 'vaporPhase', 'G'};
+    arg = {G, rock, fluid, compFluid, 'water', false, 'oil', true, 'gas', true, ...
+      'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = GenericOverallCompositionModel(arg{:});
 end
 
@@ -203,11 +202,7 @@ name = 'H2_STORAGE_EAGE2003_BACT';
 problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
 
 %% Execute the simulation of the packed problem
-<<<<<<< HEAD
-simulatePackedProblem(problem,'restartStep',1);
-=======
 simulatePackedProblem(problem);
->>>>>>> origin/hydrogen
 
 %% Get packed reservoir and well states
 [ws, states] = getPackedSimulatorOutput(problem);
@@ -219,9 +214,7 @@ problemNoBact.OutputHandlers.states.dataDirectory= "\\wsl.localhost\ubuntu\home\
 problemNoBact.OutputHandlers.wellSols.dataDirectory= "\\wsl.localhost\ubuntu\home\elyesa\Projects\MRST\core\output\H2_STORAGE_EAGE2003_NOBACT";
 problemNoBact.OutputHandlers.reports.dataDirectory= "\\wsl.localhost\ubuntu\home\elyesa\Projects\MRST\core\output\H2_STORAGE_EAGE2003_NOBACT";
 [wsNoBact,statesNoBact] = getPackedSimulatorOutput(problemNoBact);
-<<<<<<< HEAD
 
-=======
 namecp = model.EOSModel.getComponentNames();
 indH2=find(strcmp(namecp,'H2'));
 indCO2= find(strcmp(namecp,'CO2'));
@@ -259,7 +252,6 @@ CH4_loss_percentage = ((totalCH4_bact - totalCH4_noBact) ./ totalCH4_noBact) * 1
 
 %% Display final H2 loss
 fprintf('Total H2 loss due to bacterial effects: %.2f%%\n', H2_loss_percentage(end));
->>>>>>> origin/hydrogen
 %% Plotting Results
 namecp = model.EOSModel.getComponentNames();
 indH2=find(strcmp(namecp,'H2'));
