@@ -231,7 +231,7 @@ for i = 1:numel(states)
 
     % With bacterial effects
     totalCO2_bact(i) = sum(states{i}.FlowProps.ComponentTotalMass{indCO2});
-
+end
 namecp = model.EOSModel.getComponentNames();
 indH2=find(strcmp(namecp,'H2'));
 indCO2= find(strcmp(namecp,'CO2'));
@@ -273,10 +273,6 @@ fprintf('Total H2 loss due to bacterial effects: %.2f%%\n', H2_loss_percentage(e
 namecp = model.EOSModel.getComponentNames();
 indH2=find(strcmp(namecp,'H2'));
 indCO2= find(strcmp(namecp,'CO2'));
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/GdrHydrogemm
 indCH4= find(strcmp(namecp,'C1'));
 nT=numel(states);
 xH2=zeros(nT,1);
@@ -286,10 +282,6 @@ for i = 1:nT
     xH2(i)=sum(states{i}.x(:,indH2).*model.operators.pv);
     yH2(i)=sum(states{i}.y(:,indH2).*model.operators.pv);
     yCO2(i)=sum(states{i}.y(:,indCO2).*model.operators.pv);
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/GdrHydrogemm
     xCO2(i)=sum(states{i}.x(:,indCO2).*model.operators.pv);
     xCH4(i)=sum(states{i}.x(:,indCH4).*model.operators.pv);
     yCH4(i)=sum(states{i}.y(:,indCH4).*model.operators.pv);
@@ -302,10 +294,6 @@ for i = 1:nT
     yCO2NoBact(i)=sum(statesNoBact{i}.y(:,indCO2).*model.operators.pv);
     xCH4NoBact(i)=sum(statesNoBact{i}.x(:,indCH4).*model.operators.pv);
     yCH4NoBact(i)=sum(statesNoBact{i}.y(:,indCH4).*model.operators.pv);
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/GdrHydrogemm
 end
 
 sum(yH2+xH2)./sum(yH2NoBact+xH2NoBact)
