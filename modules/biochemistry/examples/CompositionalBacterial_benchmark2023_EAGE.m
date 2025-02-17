@@ -47,7 +47,6 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
 % Relative permeability and initial saturations
 [srw, src] = deal(0.2, 0.05);
 P0=100 * barsa;
-T0 = 313.15;                % Initial temperature (K)
 fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
                            'rho', [rhow, rhog], 'pRef', 150, ...
                            'c', [cfw, 0], 'n', [2, 2], 'smin', [srw, src]);
@@ -168,7 +167,7 @@ end
 
 %% Initial Conditions
 % Temperature and initial saturations
-T0 = 313.15;                % Initial temperature (K)
+T0 = 40+273.15;                % Initial temperature (K)
 s0 = [0.2, 0.8];           % Initial saturations (Sw,Sg)
 z0 = [0.6890, 0.00, 0.0, 0.311];  % Initial composition: H2O, H2, CO2, CH4 corresponding to 0.2 swc
 Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);

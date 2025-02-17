@@ -104,9 +104,30 @@ maxpresbarb=[max(presbar2),max(presbar4)];
 %% calculate the errors
 error_swexp=abs(xliqCO2sw-xliqCO2Exp')./xliqCO2Exp';
 error_prexp=abs(xliqCO2pr-xliqCO2Exp')./xliqCO2Exp';
+error_swexp2=abs(xliqCO2sw2-xliqCO2Exp2')./xliqCO2Exp2';
+error_swexp4=abs(xliqCO2sw4-xliqCO2Exp4')./xliqCO2Exp4';
+
 fprintf('Errormax SW-Experiment: %12.8f, Errormax PR-Experiment: %12.8f\n', max(error_swexp), max(error_prexp));
 fprintf('Errormin SW-Experiment: %12.8f, Errormin PR-Experiment: %12.8f\n', min(error_swexp), min(error_prexp));
 fprintf('Errormean SW-Experiment: %12.8f, Errormean PR-Experiment: %12.8f\n', mean(error_swexp), mean(error_prexp));
+
+fprintf('Errormax Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw2.msalt,max(error_swexp2));
+fprintf('Errormin Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw2.msalt,min(error_swexp2));
+fprintf('Errormean Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw2.msalt,mean(error_swexp2));
+
+fprintf('Errormax Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw4.msalt,max(error_swexp4));
+fprintf('Errormin Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw4.msalt,min(error_swexp4));
+fprintf('Errormean Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw4.msalt,mean(error_swexp4));
+
+
+
+
+
+
+
+
+
+
 
 %% plot the results
 f1=figure('Name','CO2_solubility_Swmsalt','NumberTitle','off');

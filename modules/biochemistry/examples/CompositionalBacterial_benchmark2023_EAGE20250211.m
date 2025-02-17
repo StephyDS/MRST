@@ -143,7 +143,7 @@ end
 
 %% Initial Conditions
 % Temperature and initial saturations
-T0 = 313.15;                % Initial temperature (K)
+T0 = 40+273.15;                % Initial temperature (K)
 s0 = [0.2, 0.8];           % Initial saturations (Sw,Sg)
 %z0 = [0.2, 0.0, 0.0, 0.8];  % Initial composition: H2O, H2, CO2, CH4
 z0 = [0.7, 0.0, 0.0, 0.3];  % Initial composition: H2O, H2, CO2, CH4

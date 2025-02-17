@@ -76,7 +76,7 @@ xliqH2Exp2=[0.00107012,0.00159298,0.00161244,0.00213575,0.00102099,...
     0.00177350,0.00204000,0.00234604];
 
 %% case 4, msalt=4
- eosModelsw4 .msalt=4;
+ eosModelsw4.msalt=4;
  Temp4=[298.20, 298.20, 298.15, 323.30, 323.40, 323.40, 373.25, 373.35, 373.15];
  pres4=[100.01, 150.01, 200.01, 100.01, 150.01, 200.01, 100.01, 150.01, 200.01]*barsa;
  xliqH2Exp4=[0.00059422, 0.00093595, 0.00121838, 0.00061736, ...
@@ -117,9 +117,21 @@ maxpresbarb=[max(presbar2),max(presbar4)];
 %% calculate the errors
 error_swexp=abs(xliqH2sw-xliqH2Exp')./xliqH2Exp';
 error_prexp=abs(xliqH2pr-xliqH2Exp')./xliqH2Exp';
+error_swexp2=abs(xliqH2sw2-xliqH2Exp2')./xliqH2Exp2';
+error_swexp4=abs(xliqH2sw4-xliqH2Exp4')./xliqH2Exp4';
+
 fprintf('Errormax SW-Experiment: %12.8f, Errormax PR-Experiment: %12.8f\n', max(error_swexp), max(error_prexp));
 fprintf('Errormin SW-Experiment: %12.8f, Errormin PR-Experiment: %12.8f\n', min(error_swexp), min(error_prexp));
 fprintf('Errormean SW-Experiment: %12.8f, Errormean PR-Experiment: %12.8f\n', mean(error_swexp), mean(error_prexp));
+
+fprintf('Errormax Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw2.msalt,max(error_swexp2));
+fprintf('Errormin Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw2.msalt,min(error_swexp2));
+fprintf('Errormean Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw2.msalt,mean(error_swexp2));
+
+fprintf('Errormax Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw4.msalt,max(error_swexp4));
+fprintf('Errormin Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw4.msalt,min(error_swexp4));
+fprintf('Errormean Salinity: %12.8f, SW-Experiment: %12.8f\n', eosModelsw4.msalt,mean(error_swexp4));
+
 
 %% plot the results
 f1=figure('Name','H2_solubility_Swmsalt','NumberTitle','off');
@@ -134,8 +146,6 @@ hold on
 plot(presbar4,xliqH2Exp4,'g diamond','MarkerSize',8,'LineWidth',2)
 
 title('H2 solubility in salt water with the SW model','FontSize',14,'FontWeight','bold','Color','k')
-%xlabel({'pressure','(bar)'},'FontSize',14,'FontWeight','bold','Color','k')
-%ylabel('H2 molar fraction','FontSize',14,'FontWeight','bold','Color','k')
 xlabel({'pressure','(bar)'},'FontWeight','bold','Color','k')
 ylabel('H2 molar fraction','FontWeight','bold','Color','k')
 ax = gca;
