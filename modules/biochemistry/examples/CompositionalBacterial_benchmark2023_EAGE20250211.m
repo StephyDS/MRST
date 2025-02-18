@@ -85,8 +85,10 @@ W4 = [];
 tmp = cell(4,1);
 n1=floor(0.5*nx)+1; n2=floor(0.5*nx)+1;
 schedule.control = struct('W',tmp);
-cellInd =[1442;2403;3364;4325;5286;6247;7208];
-
+cellInd=zeros(nz-1,1);
+for k=2:nz
+    cellInd(k-1)=(k-1)*nx*ny+(n2-1)*nx+n1;
+end
 % Injection well parameters
 %W1 = verticalWell(W1, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
 %                 'name', 'Injector', 'type', 'rate', 'Val', rate, 'sign', 1);
