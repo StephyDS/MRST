@@ -18,7 +18,7 @@
 % This example is discussed in Section 8.5.1 in the second MRST book:
 % Advanced Modelling with the MATLAB Reservoir Simulation Toolbox (MRST),
 % Cambridge University Press, 2021.
-mrstModule add compositional deckformat ad-core ad-props
+mrstModule add biochemistry compositional deckformat ad-core ad-props
 
 %% Set up model
 % MRST includes both natural variables and overall composition. This toggle

@@ -133,6 +133,8 @@ if biochemistrymodel
         'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
+    model.Y_H2 =3.410e14;
+    model.b_bact = 3.e-11;%6.87E-11;        
     model.EOSModel.msalt=0;
 else
     eosname='pr';
@@ -154,7 +156,7 @@ Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 
 if biochemistrymodel
     if model.bacteriamodel
-        nbact0 = 1e6;  
+        nbact0 = 1e4;%1e6;  
         state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, ...
             z0, nbact0,eosmodel);
     else
@@ -171,7 +173,7 @@ end
 %model_mpfa = setMPFADiscretization(model);
 %[wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
 if useHandler 
-    dir='/home/sdelage/PROJETS/gdr_h2/MRST2024/MRST/output';
+    dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
     diroutput='Benchmark2023AEGE_NOBACT';
     handler = ResultHandler('writeToDisk', true,'dataDirectory',dir,...
         'dataFolder', diroutput);
@@ -216,7 +218,7 @@ end
 %% Compare case without bacteria and with bacteria
 if compare_bact
     %Extraction data states_nobact de handler
-    dir='/home/sdelage/PROJETS/gdr_h2/MRST2024/MRST/output';
+    dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
     handler1 = ResultHandler('dataDirectory',dir,'dataFolder','Benchmark2023AEGE_NOBACT');
     m = handler1.numelData();
     states_nobact = cell(m, 1);
@@ -270,18 +272,17 @@ legend('yH2 nobact','yH2 with bact')
 
 end
 
-
-
-
-
-
-
 for i = 1:nT
     figure(1); clf; 
     plot(1:nT,FractionMassH2,'b')
     hold on
     plot(1:nT,FractionMassCO2,'k-')
 end
+title('Mass fractions in gas phase, with bacteria')
+xlabel('Time (days)')
+ylabel('mass fraction')
+legend('yH2','yCO2')
+
 
 for i = 1:nT
     xH2(i)=max(states{i}.x(:,indH2));
@@ -296,7 +297,7 @@ for i = 1:nT
     hold on
     plot(1:nT,yCO2,'k-')
 end
-title('Molar fractions in gas')
+title('Maximum Molar fractions in gas')
 xlabel('Time (days)')
 ylabel('molar fraction')
 legend('yH2','yCO2')
@@ -307,7 +308,7 @@ for i = 1:nT
     hold on
     plot(1:nT,xCO2,'k-')
 end
-title('Molar fractions in Liquid')
+title('Maximum Molar fractions in Liquid')
 xlabel('Time (days)')
 ylabel('molar fraction')
 legend('xH2','xCO2')
@@ -328,6 +329,11 @@ if biochemistrymodel && model.bacteriamodel
         figure(3); clf; 
         plot(1:nT,nbacteria,'b')
     end
+    title('Bacteria density in the liquid phase')
+    xlabel('Time (days)')
+    ylabel('bacteria density')
+    legend('nbacteria')
+
     figure(4),clf
     for i=1:nT
         clf;
@@ -339,6 +345,8 @@ if biochemistrymodel && model.bacteriamodel
         pause(0.1)   
     end
     title('Archea density')
+    legend('nbacteria')
+
 end
 
 if writedatafile
