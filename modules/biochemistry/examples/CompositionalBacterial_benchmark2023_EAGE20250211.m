@@ -47,7 +47,8 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
 [cfw, cfg] = deal(5.0015e-5, 1.0009 / barsa);
 
 % Relative permeability and initial saturations
-[srw, src] = deal(0.0, 0.0);
+%[srw, src] = deal(0.0, 0.0);
+[srw, src] = deal(0.2, 0.05);
 P0=106 * barsa;
 fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
                            'rho', [rhow, rhog], 'pRef', P0, ...
@@ -60,7 +61,7 @@ fluid.pcOG = @(sg) pcOG(max((1 - sg - srw) / (1 - srw), 1e-5));
 
 %% Simulation Parameters
 % Set total time, pore volume, and injection rate
-niter=120;
+niter=140;%120;
 TotalTime = niter*day;
 rate = 1e6*meter^3/day; 
 
@@ -70,7 +71,7 @@ rate = 1e6*meter^3/day;
 nls = NonLinearSolver('useRelaxation', true);
 deltaT =rampupTimesteps(TotalTime, 1*day, 0);
 schedule = simpleSchedule(deltaT);
-nj1=90;nj2=100;nj3=110;
+nj1=90;nj2=100;nj3=130;%110;
 schedule.step.control(1:nj1)=1;
 schedule.step.control(nj1+1:nj2)=2;
 schedule.step.control(nj2+1:nj3)=3;
@@ -133,7 +134,7 @@ if biochemistrymodel
         'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
-    model.Y_H2 =3.410e14;
+    model.Y_H2 =3.410e11;%3.410e14;
     model.b_bact = 3.e-11;%6.87E-11;        
     model.EOSModel.msalt=0;
 else
@@ -194,6 +195,8 @@ xH2=zeros(nT,1);
 yH2=zeros(nT,1);
 xCO2= zeros(nT,1);
 yCO2= zeros(nT,1);
+pressure=zeros(nT,1);
+
 totMassH2= zeros(nT,1);
 totMassCO2= zeros(nT,1);
 totMassCH4= zeros(nT,1);
@@ -214,6 +217,11 @@ for i = 1:nT
     FractionMassCO2(i)=totMassCO2(i)/totMassComp(i);
     FractionMassCH4(i)=totMassCH4(i)/totMassComp(i);
 end
+%% Calculate H2 production efficiency
+mH2_injected=totMassH2(nj1)-totMassH2(1);
+mH2_produced=totMassH2(nj2+1)-totMassH2(nj3);
+Efficiency_H2=(mH2_produced/mH2_injected) * 100;
+fprintf('H2 Production Efficiency : %.2f%%\n', Efficiency_H2);
 
 %% Compare case without bacteria and with bacteria
 if compare_bact
@@ -233,6 +241,7 @@ if compare_bact
     FractionMassH2_nobact= zeros(nT,1);
     FractionMassCH4_nobact= zeros(nT,1);
 
+    %total mass
     for i = 1:nT
         for j=1:ncomp
         totMassComp_nobact(i)=totMassComp_nobact(i)+sum(states_nobact{i}.FlowProps.ComponentTotalMass{j});
@@ -245,6 +254,14 @@ if compare_bact
         FractionMassCH4_nobact(i)=totMassCH4_nobact(i)/totMassComp(i);
     end
 
+    %% Calculate H2 production efficiency 
+    mH2_injected_nobact=totMassH2_nobact(nj1)-totMassH2_nobact(1);
+    mH2_produced_nobact=totMassH2_nobact(nj2+1)-totMassH2_nobact(nj3);
+    Efficiency_H2_nobact=(mH2_produced_nobact/mH2_injected_nobact) * 100;
+    %% Display H2 production efficiency
+    fprintf('H2 Production Efficiency without bacteria: %.2f%%\n', Efficiency_H2_nobact);
+    fprintf('H2 Production Efficiency with bacteria: %.2f%%\n', Efficiency_H2);
+  
     %% Calculate percentage of H2 loss
     H2_loss_percentage = (abs(totMassH2_nobact-totMassH2)./totMassH2_nobact) * 100;
     %% Calculate percentage of CO2 loss
@@ -257,20 +274,42 @@ if compare_bact
     fprintf('Total CO2 loss due to bacterial effects: %.2f%%\n', CO2_loss_percentage(end));
     fprintf('Total CH4 production due to bacterial effects: %.2f%%\n', CH4_loss_percentage(end));
 
+    %% plot mass
+    for i = 1:nT
+        figure(1); clf; 
+        plot(1:nT,FractionMassH2_nobact,'b')
+        hold on
+        plot(1:nT,FractionMassH2,'k-')
+    end
+    title('H2 Mass fractions')
+    xlabel('Time (days)')
+    ylabel('mass fraction')
+    legend('YH2 nobact','YH2 with bact')
+
+    for i = 1:nT
+        figure(1); clf; 
+        plot(1:nT,totMassH2_nobact,'b')
+        hold on
+        plot(1:nT,totMassCO2_nobact,'k-')
+    end
+    title('Mass ')
+    xlabel('Time (days)')
+    ylabel('mass fraction')
+    legend('mH2','mCO2')
+
+end %end comparebact
 
 
 for i = 1:nT
     figure(1); clf; 
-    plot(1:nT,FractionMassH2_nobact,'b')
+    plot(1:nT,totMassH2,'b')
     hold on
-    plot(1:nT,FractionMassH2,'k-')
+    plot(1:nT,totMassCO2,'k-')
 end
-title('H2 Mass fractions in gas phase')
+title('Mass ')
 xlabel('Time (days)')
-ylabel('mass fraction')
-legend('yH2 nobact','yH2 with bact')
-
-end
+ylabel('mass of H_2 and CO_2')
+legend('mH2','mCO2')
 
 for i = 1:nT
     figure(1); clf; 
@@ -278,10 +317,10 @@ for i = 1:nT
     hold on
     plot(1:nT,FractionMassCO2,'k-')
 end
-title('Mass fractions in gas phase, with bacteria')
+title('Mass fractions with bacteria')
 xlabel('Time (days)')
 ylabel('mass fraction')
-legend('yH2','yCO2')
+legend('YH2','YCO2')
 
 
 for i = 1:nT
@@ -289,7 +328,18 @@ for i = 1:nT
     yH2(i)=max(states{i}.y(:,indH2));
     xCO2(i)=max(states{i}.x(:,indCO2));
     yCO2(i)=max(states{i}.y(:,indCO2));
+    pressure(i)=max(states{i}.pressure(:));
 end
+
+for i = 1:nT
+    figure(1); clf; 
+    plot(1:nT,pressure./1e5,'b')
+end
+title('pressure')
+xlabel('Time (days)')
+ylabel('pressure (bar)')
+legend('pressure')
+
 
 for i = 1:nT
     figure(1); clf; 
