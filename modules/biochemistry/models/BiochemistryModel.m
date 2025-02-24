@@ -381,7 +381,14 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             ix = strcmpi(names, 'bacteria');
             if any(ix)
                 scaleChemistry = dt./chemistry;
-                scale{ix} = scaleChemistry./model.fluid.rhoWS;
+                %scale{ix} = scaleChemistry./model.fluid.rhoWS;
+                if model.oil
+                    rhoLiq=model.fluid.rhoOS;
+                elseif model.water
+                    rhoLiq=model.fluid.rhoWS; 
+                end
+                scale{ix} = scaleChemistry./rhoLiq;
+
             end
 
         end
