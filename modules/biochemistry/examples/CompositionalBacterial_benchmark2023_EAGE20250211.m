@@ -44,10 +44,11 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
 [viscow, viscog] = deal(1.3059 * centi * poise, 0.01763 * centi * poise);
 
 % Compressibility (per bar)
-[cfw, cfg] = deal(5.0015e-5, 1.0009 / barsa);
+[cfw, cfg] = deal(5.0015e-5/ barsa, 1.0009 / barsa);
 
 % Relative permeability and initial saturations
-[srw, src] = deal(0.0, 0.0);
+%[srw, src] = deal(0.0, 0.0);
+[srw, src] = deal(0.2, 0.05);
 P0=106 * barsa;
 fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
                            'rho', [rhow, rhog], 'pRef', P0, ...
@@ -60,7 +61,7 @@ fluid.pcOG = @(sg) pcOG(max((1 - sg - srw) / (1 - srw), 1e-5));
 
 %% Simulation Parameters
 % Set total time, pore volume, and injection rate
-niter=120;
+niter=140;%120;
 TotalTime = niter*day;
 rate = 1e6*meter^3/day; 
 
@@ -70,7 +71,7 @@ rate = 1e6*meter^3/day;
 nls = NonLinearSolver('useRelaxation', true);
 deltaT =rampupTimesteps(TotalTime, 1*day, 0);
 schedule = simpleSchedule(deltaT);
-nj1=90;nj2=100;nj3=110;
+nj1=90;nj2=100;nj3=130;
 schedule.step.control(1:nj1)=1;
 schedule.step.control(nj1+1:nj2)=2;
 schedule.step.control(nj2+1:nj3)=3;
@@ -85,11 +86,11 @@ W4 = [];
 tmp = cell(4,1);
 n1=floor(0.5*nx)+1; n2=floor(0.5*nx)+1;
 schedule.control = struct('W',tmp);
-cellInd =[1442;2403;3364;4325;5286;6247;7208];
-
+cellInd=zeros(nz-1,1);
+for k=2:nz
+    cellInd(k-1)=(k-1)*nx*ny+(n2-1)*nx+n1;
+end
 % Injection well parameters
-%W1 = verticalWell(W1, G, rock, n1, n2, 1:nz, 'compi', [0, 1], 'Radius', 0.5, ...
-%                 'name', 'Injector', 'type', 'rate', 'Val', rate, 'sign', 1);
 W1 = verticalWell(W1, G, rock, n1, n2, 1:nz-1, 'comp_i', [0, 1], 'Radius', 0.5, ...
                  'name', 'Injector', 'type', 'rate', 'Val', rate, 'sign', 1);
 W1(1).components = [0.0, 0.95,  0.05, 0.0];  % H2-rich injection   {'H2O', 'H2', 'CO2', 'C1'});
@@ -124,13 +125,16 @@ if biochemistrymodel
     eosmodel =SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
     diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
     mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
-    %includeWater=true
+
     arg = {G, rock, fluid, compFluid,true,diagonal_backend,...
         'water', false, 'oil', true, 'gas', true,'bacteriamodel', true,...
         'bDiffusionEffect', false,'moleculardiffusion',false,...
         'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
+    model.Psigrowthmax=5.e-5;
+    model.b_bact= 1.e-10;
+    %model.Y_H2 =3.410e14;
     model.EOSModel.msalt=0;
 else
     eosname='pr';
@@ -152,7 +156,7 @@ Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 
 if biochemistrymodel
     if model.bacteriamodel
-        nbact0 = 1e6;  
+        nbact0 = 5.e5;%1e6;  
         state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, ...
             z0, nbact0,eosmodel);
     else
@@ -165,18 +169,18 @@ end
 
 
 %% Run simulation
-%mrstModule add mpfa
-%model_mpfa = setMPFADiscretization(model);
+mrstModule add mpfa
+model_mpfa = setMPFADiscretization(model);
 %[wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
 if useHandler 
-    dir='/home/sdelage/PROJETS/gdr_h2/MRST2024/MRST/output';
+    dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
     diroutput='Benchmark2023AEGE_NOBACT';
     handler = ResultHandler('writeToDisk', true,'dataDirectory',dir,...
         'dataFolder', diroutput);
-    [wellSols,states,report]= simulateScheduleAD(state0, model, schedule,...
+    [wellSols,states,report]= simulateScheduleAD(state0, model_mpfa, schedule,...
         'nonlinearsolver',nls,'outputHandler', handler);
 else
-    [wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
+    [wellSols,states,report]= simulateScheduleAD(state0, model_mpfa, schedule, 'nonlinearsolver', nls);
 end  
 
 
@@ -190,6 +194,8 @@ xH2=zeros(nT,1);
 yH2=zeros(nT,1);
 xCO2= zeros(nT,1);
 yCO2= zeros(nT,1);
+pressure=zeros(nT,1);
+
 totMassH2= zeros(nT,1);
 totMassCO2= zeros(nT,1);
 totMassCH4= zeros(nT,1);
@@ -210,11 +216,16 @@ for i = 1:nT
     FractionMassCO2(i)=totMassCO2(i)/totMassComp(i);
     FractionMassCH4(i)=totMassCH4(i)/totMassComp(i);
 end
+%% Calculate H2 production efficiency
+mH2_injected=totMassH2(nj1)-totMassH2(1);
+mH2_produced=totMassH2(nj2+1)-totMassH2(nj3);
+Efficiency_H2=(mH2_produced/mH2_injected) * 100;
+fprintf('H2 Production Efficiency : %.2f%%\n', Efficiency_H2);
 
 %% Compare case without bacteria and with bacteria
 if compare_bact
     %Extraction data states_nobact de handler
-    dir='/home/sdelage/PROJETS/gdr_h2/MRST2024/MRST/output';
+    dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
     handler1 = ResultHandler('dataDirectory',dir,'dataFolder','Benchmark2023AEGE_NOBACT');
     m = handler1.numelData();
     states_nobact = cell(m, 1);
@@ -229,6 +240,7 @@ if compare_bact
     FractionMassH2_nobact= zeros(nT,1);
     FractionMassCH4_nobact= zeros(nT,1);
 
+    %total mass
     for i = 1:nT
         for j=1:ncomp
         totMassComp_nobact(i)=totMassComp_nobact(i)+sum(states_nobact{i}.FlowProps.ComponentTotalMass{j});
@@ -241,6 +253,14 @@ if compare_bact
         FractionMassCH4_nobact(i)=totMassCH4_nobact(i)/totMassComp(i);
     end
 
+    %% Calculate H2 production efficiency 
+    mH2_injected_nobact=totMassH2_nobact(nj1)-totMassH2_nobact(1);
+    mH2_produced_nobact=totMassH2_nobact(nj2+1)-totMassH2_nobact(nj3);
+    Efficiency_H2_nobact=(mH2_produced_nobact/mH2_injected_nobact) * 100;
+    %% Display H2 production efficiency
+    fprintf('H2 Production Efficiency without bacteria: %.2f%%\n', Efficiency_H2_nobact);
+    fprintf('H2 Production Efficiency with bacteria: %.2f%%\n', Efficiency_H2);
+  
     %% Calculate percentage of H2 loss
     H2_loss_percentage = (abs(totMassH2_nobact-totMassH2)./totMassH2_nobact) * 100;
     %% Calculate percentage of CO2 loss
@@ -253,59 +273,76 @@ if compare_bact
     fprintf('Total CO2 loss due to bacterial effects: %.2f%%\n', CO2_loss_percentage(end));
     fprintf('Total CH4 production due to bacterial effects: %.2f%%\n', CH4_loss_percentage(end));
 
-
-
-for i = 1:nT
+    %% plot mass
     figure(1); clf; 
     plot(1:nT,FractionMassH2_nobact,'b')
     hold on
     plot(1:nT,FractionMassH2,'k-')
-end
-title('H2 Mass fractions in gas phase')
+    title('H2 Mass fractions')
+    xlabel('Time (days)')
+    ylabel('mass fraction')
+    legend('YH2 nobact','YH2 with bact')
+
+    figure(2); clf; 
+    plot(1:nT,totMassH2_nobact,'b')
+    hold on
+    plot(1:nT,totMassCO2_nobact,'k-')
+    title('Mass ')
+    xlabel('Time (days)')
+    ylabel('mass fraction')
+    legend('mH2','mCO2')
+
+end %end comparebact
+
+
+figure(3); clf; 
+plot(1:nT,totMassH2,'b')
+hold on
+plot(1:nT,totMassCO2,'k-')
+title('Mass ')
+xlabel('Time (days)')
+ylabel('mass of H_2 and CO_2')
+legend('mH2','mCO2')
+
+figure(4); clf; 
+plot(1:nT,FractionMassH2,'b')
+hold on
+plot(1:nT,FractionMassCO2,'k-')
+title('Mass fractions with bacteria')
 xlabel('Time (days)')
 ylabel('mass fraction')
-legend('yH2 nobact','yH2 with bact')
+legend('YH2','YCO2')
 
-end
-
-
-
-
-
-
-
-for i = 1:nT
-    figure(1); clf; 
-    plot(1:nT,FractionMassH2,'b')
-    hold on
-    plot(1:nT,FractionMassCO2,'k-')
-end
 
 for i = 1:nT
     xH2(i)=max(states{i}.x(:,indH2));
     yH2(i)=max(states{i}.y(:,indH2));
     xCO2(i)=max(states{i}.x(:,indCO2));
     yCO2(i)=max(states{i}.y(:,indCO2));
+    pressure(i)=max(states{i}.pressure(:));
 end
 
-for i = 1:nT
-    figure(1); clf; 
-    plot(1:nT,yH2,'b')
-    hold on
-    plot(1:nT,yCO2,'k-')
-end
-title('Molar fractions in gas')
+figure(5); clf; 
+plot(1:nT,pressure./1e5,'b')
+title('pressure')
+xlabel('Time (days)')
+ylabel('pressure (bar)')
+legend('pressure')
+
+figure(6); clf; 
+plot(1:nT,yH2,'b')
+hold on
+plot(1:nT,yCO2,'k-')
+title('Maximum Molar fractions in gas')
 xlabel('Time (days)')
 ylabel('molar fraction')
 legend('yH2','yCO2')
 
-for i = 1:nT
-    figure(2); clf; 
-    plot(1:nT,xH2,'b')
-    hold on
-    plot(1:nT,xCO2,'k-')
-end
-title('Molar fractions in Liquid')
+figure(7); clf; 
+plot(1:nT,xH2,'b')
+hold on
+plot(1:nT,xCO2,'k-')
+title('Maximum Molar fractions in Liquid')
 xlabel('Time (days)')
 ylabel('molar fraction')
 legend('xH2','xCO2')
@@ -322,14 +359,17 @@ if biochemistrymodel && model.bacteriamodel
        %nbacteria(i)=max(states{i}.nbact);
     end
 
-    for i = 1:nT
-        figure(3); clf; 
-        plot(1:nT,nbacteria,'b')
-    end
-    figure(4),clf
+    figure(8); clf; 
+    plot(1:nT,nbacteria,'b')
+    title('Bacteria density in the liquid phase')
+    xlabel('Time (days)')
+    ylabel('bacteria density')
+    legend('nbacteria')
+
+    figure(9),clf
     for i=1:nT
         clf;
-        plotCellData(G,states{i}.nbact./nbact0);
+        plotCellData(G,states{i}.nbact);
         colorbar; 
         axis equal
         axis ([0 Lx  0 Ly depth_res depth_res+Lz])
@@ -337,6 +377,8 @@ if biochemistrymodel && model.bacteriamodel
         pause(0.1)   
     end
     title('Archea density')
+    legend('nbacteria')
+
 end
 
 if writedatafile

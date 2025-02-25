@@ -14,7 +14,7 @@
 %--------------------------------------------------------------------------
 % Add required MRST modules for compositional simulation.
 %--------------------------------------------------------------------------
-mrstModule add compositional deckformat ad-core ad-props;
+mrstModule add biochemistry compositional deckformat ad-core ad-props;
 
 %% Set Up Simulation Model
 %--------------------------------------------------------------------------

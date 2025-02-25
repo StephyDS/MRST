@@ -84,8 +84,11 @@ tmp = cell(4,1);
 n1=floor(0.5*nx)+1; n2=floor(0.5*nx)+1;
 schedule.control = struct('W',tmp);
 
-cellInd =[1442;2403;3364;4325;5286;6247;7208];
-
+%cellInd =[1442;2403;3364;4325;5286;6247;7208];
+cellInd=zeros(nz-1,1);
+for k=2:nz
+    cellInd(k-1)=(k-1)*nx*ny+(n2-1)*nx+n1;
+end
 
 % Add a production well at the identified cells with specified properties
 W0 = addWell([], G, rock, cellInd, ...
