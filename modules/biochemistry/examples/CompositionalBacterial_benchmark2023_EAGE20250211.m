@@ -7,7 +7,6 @@
 %This test case comes from a Benchmark in EAGE 2023
 % Clear workspace and initialize MRST modules
 clear; clc;
-%mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
 biochemistrymodel=true;%false; 
@@ -49,7 +48,7 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
 % Relative permeability and initial saturations
 %[srw, src] = deal(0.0, 0.0);
 [srw, src] = deal(0.2, 0.05);
-P0=106 * barsa;
+P0=100 * barsa;%106 * barsa;
 fluid = initSimpleADIFluid('phases', 'OG', 'mu', [viscow, viscog], ...
                            'rho', [rhow, rhog], 'pRef', P0, ...
                            'c', [cfw, cfg], 'n', [2, 2], 'smin', [srw, src]);
@@ -61,7 +60,7 @@ fluid.pcOG = @(sg) pcOG(max((1 - sg - srw) / (1 - srw), 1e-5));
 
 %% Simulation Parameters
 % Set total time, pore volume, and injection rate
-niter=140;%120;
+niter=140;
 TotalTime = niter*day;
 rate = 1e6*meter^3/day; 
 
@@ -194,6 +193,7 @@ xH2=zeros(nT,1);
 yH2=zeros(nT,1);
 xCO2= zeros(nT,1);
 yCO2= zeros(nT,1);
+yCH4= zeros(nT,1);
 pressure=zeros(nT,1);
 
 totMassH2= zeros(nT,1);
@@ -204,6 +204,15 @@ FractionMassH2= zeros(nT,1);
 FractionMassCH4= zeros(nT,1);
 totMassComp= zeros(nT,1);
 ncomp=model.EOSModel.getNumberOfComponents;
+
+for i = 1:nT
+    xH2(i)=max(states{i}.x(:,indH2));
+    yH2(i)=max(states{i}.y(:,indH2));
+    yCH4(i)=max(states{i}.y(:,indCH4));
+    xCO2(i)=max(states{i}.x(:,indCO2));
+    yCO2(i)=max(states{i}.y(:,indCO2));
+    pressure(i)=mean(states{i}.pressure(:));
+end
 
 for i = 1:nT
     for j=1:ncomp
@@ -239,6 +248,12 @@ if compare_bact
     FractionMassCO2_nobact= zeros(nT,1);
     FractionMassH2_nobact= zeros(nT,1);
     FractionMassCH4_nobact= zeros(nT,1);
+    pressure_nobact=zeros(nT,1);
+    xH2_nobact=zeros(nT,1);
+    xCO2_nobact= zeros(nT,1);
+    yH2_nobact=zeros(nT,1);
+    yCO2_nobact= zeros(nT,1);
+    yCH4_nobact= zeros(nT,1);
 
     %total mass
     for i = 1:nT
@@ -251,6 +266,12 @@ if compare_bact
         FractionMassH2_nobact(i)=totMassH2_nobact(i)/totMassComp(i);
         FractionMassCO2_nobact(i)=totMassCO2_nobact(i)/totMassComp(i);
         FractionMassCH4_nobact(i)=totMassCH4_nobact(i)/totMassComp(i);
+        pressure_nobact(i)=mean(states_nobact{i}.pressure(:));
+        xH2_nobact(i)=max(states_nobact{i}.x(:,indH2));
+        xCO2_nobact(i)=max(states_nobact{i}.x(:,indCO2));
+        yH2_nobact(i)=max(states_nobact{i}.y(:,indH2));
+        yCO2_nobact(i)=max(states_nobact{i}.y(:,indCO2));
+        yCH4_nobact(i)=max(states_nobact{i}.y(:,indCH4));
     end
 
     %% Calculate H2 production efficiency 
@@ -292,6 +313,111 @@ if compare_bact
     ylabel('mass fraction')
     legend('mH2','mCO2')
 
+   
+
+f1=figure('Name','Pressure_compar_bact','NumberTitle','off');
+f1.Position(3:4) = [900 700];
+plot(1:nT,pressure./1e5,'b','MarkerSize',7,'LineWidth',2)
+hold on
+plot(1:nT,pressure_nobact./1e5,'r--','MarkerSize',8,'LineWidth',2)
+
+title('Mean pressure in the reservoir','FontSize',14,'FontWeight','bold','Color','k')
+xlabel({'time','(days)'},'FontWeight','bold','Color','k')
+ylabel({'pressure','(bar)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 14; 
+
+legend({'pressure, with archae','pressure, no archae'},...
+    'FontSize',13,'TextColor','black',...
+    'Location','best')
+%xlim([1 nT])
+%ylim([min(min_xliqH2)-1e-4 max(max_xliqH2)+1e-4])
+
+
+f2=figure('Name','maxyH2_compar_bact','NumberTitle','off');
+f2.Position(3:4) = [900 700];
+plot(0:nT,[0;yH2],'b','MarkerSize',7,'LineWidth',2)
+hold on
+plot(0:nT,[0;yH2_nobact],'r--','MarkerSize',8,'LineWidth',2)
+
+title('Maximum H_2 Molar fractions in gaz','FontSize',14,'FontWeight','bold','Color','k')
+xlabel({'time','(days)'},'FontWeight','bold','Color','k')
+ylabel({'H_2 molar fraction',''},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 14; 
+
+legend({'X_{g,H_2}, with archae','X_{g,H_2}, no archae'},...
+    'FontSize',13,'TextColor','black',...
+    'Location','best')
+
+
+f20=figure('Name','maxxH2_compar_bact','NumberTitle','off');
+f20.Position(3:4) = [900 700];
+plot(0:nT,[0;xH2],'b','MarkerSize',7,'LineWidth',2)
+hold on
+plot(0:nT,[0;xH2_nobact],'r--','MarkerSize',8,'LineWidth',2)
+
+title('Maximum H_2 Molar fractions in liquid','FontSize',14,'FontWeight','bold','Color','k')
+xlabel({'time','(days)'},'FontWeight','bold','Color','k')
+ylabel({'H_2 molar fraction',''},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 14; 
+
+legend({'X_{a,H_2}, with archae','X_{a,H_2}, no archae'},...
+    'FontSize',13,'TextColor','black',...
+    'Location','best')
+
+f21=figure('Name','maxxCO2_compar_bact','NumberTitle','off');
+f21.Position(3:4) = [900 700];
+plot(0:nT,[0;xCO2],'b','MarkerSize',7,'LineWidth',2)
+hold on
+plot(0:nT,[0;xCO2_nobact],'r--','MarkerSize',8,'LineWidth',2)
+
+title('Maximum CO_2 Molar fractions in liquid','FontSize',14,'FontWeight','bold','Color','k')
+xlabel({'time','(days)'},'FontWeight','bold','Color','k')
+ylabel({'CO_2 molar fraction',''},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 14; 
+
+legend({'X_{a,CO_2}, with archae','X_{a,CO_2}, no archae'},...
+    'FontSize',13,'TextColor','black',...
+    'Location','best')
+
+f3=figure('Name','maxyCO2_compar_bact','NumberTitle','off');
+f3.Position(3:4) = [900 700];
+plot(0:nT,[0;yCO2],'b','MarkerSize',7,'LineWidth',2)
+hold on
+plot(0:nT,[0;yCO2_nobact],'r--','MarkerSize',8,'LineWidth',2)
+
+title('Maximum CO_2 Molar fractions in gaz','FontSize',14,'FontWeight','bold','Color','k')
+xlabel({'time','(days)'},'FontWeight','bold','Color','k')
+ylabel({'CO_2 molar fraction',''},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 14; 
+
+legend({'X_{g,CO_2}, with archae','X_{g,CO_2}, no archae'},...
+    'FontSize',13,'TextColor','black',...
+    'Location','best')
+
+
+f4=figure('Name','fractionmass_compar_bact','NumberTitle','off');
+f4.Position(3:4) = [900 700];
+plot(0:nT,[0;FractionMassH2],'b','MarkerSize',7,'LineWidth',2)
+hold on
+plot(0:nT,[0;FractionMassH2_nobact],'r--','MarkerSize',8,'LineWidth',2)
+
+title('Total H_2 mass fraction ','FontSize',14,'FontWeight','bold','Color','k')
+xlabel({'time','(days)'},'FontWeight','bold','Color','k')
+ylabel({'H_2 mass fraction',''},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 14; 
+
+legend({'X_{H_2}, with archae','X_{H_2}, no archae'},...
+    'FontSize',13,'TextColor','black',...
+    'Location','best')
+
+
+
 end %end comparebact
 
 
@@ -314,13 +440,6 @@ ylabel('mass fraction')
 legend('YH2','YCO2')
 
 
-for i = 1:nT
-    xH2(i)=max(states{i}.x(:,indH2));
-    yH2(i)=max(states{i}.y(:,indH2));
-    xCO2(i)=max(states{i}.x(:,indCO2));
-    yCO2(i)=max(states{i}.y(:,indCO2));
-    pressure(i)=max(states{i}.pressure(:));
-end
 
 figure(5); clf; 
 plot(1:nT,pressure./1e5,'b')
@@ -347,6 +466,29 @@ xlabel('Time (days)')
 ylabel('molar fraction')
 legend('xH2','xCO2')
 
+
+figure(7); clf; 
+plot(0:nT,[0;xH2/max(xH2)],'b')
+hold on
+plot(0:nT,[0;xCO2/max(xCO2)],'k-')
+title('Maximum Molar fractions in Liquid')
+xlabel('Time (days)')
+ylabel('molar fraction')
+legend('xH2/xH2_{max}','xCO2/xCO2_{max}')
+
+figure(7); clf; 
+plot(0:nT,[0;yH2/max(yH2)],'b')
+hold on
+plot(0:nT,[0;yCO2/max(yCO2)],'k-')
+title('Maximum Molar fractions in gaz')
+xlabel('Time (days)')
+ylabel('molar fraction')
+legend('yH2/yH2_{max}','yCO2/yCO2_{max}')
+
+
+
+
+
 if biochemistrymodel && model.bacteriamodel
     nbacteria= zeros(nT,1);
     pv=model.operators.pv;
@@ -358,6 +500,40 @@ if biochemistrymodel && model.bacteriamodel
        nbacteria(i)=sum(states{i}.nbact.*Swpvi)/Swpv;
        %nbacteria(i)=max(states{i}.nbact);
     end
+
+f31=figure('Name','nbacteria','NumberTitle','off');
+f31.Position(3:4) = [900 700];
+plot(0:nT,[nbact0;nbacteria],'b','MarkerSize',7,'LineWidth',2)
+
+title('Methanogenic Archae','FontSize',14,'FontWeight','bold','Color','k')
+xlabel({'time','(days)'},'FontWeight','bold','Color','k')
+ylabel({'n_{archae}','(m^{-3})'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 14; 
+
+legend({'n_{archae}'},...
+    'FontSize',13,'TextColor','black',...
+    'Location','best')
+
+
+
+f11=figure('Name','nbacteria_t140','NumberTitle','off');
+f11.Position(3:4) = [900 700];
+plotCellData(G,states{140}.nbact);
+colorbar; 
+axis equal
+axis ([0 Lx  0 Ly depth_res depth_res+Lz])
+view(0,-90)
+title('Methanogenic Archae density, 140 days','FontSize',14,'FontWeight','bold','Color','k')
+xlabel({'x','(m)'},'FontWeight','bold','Color','k')
+ylabel({'y','(m)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 14; 
+%legend({'n_{archae}'},...
+ %   'FontSize',13,'TextColor','black',...
+%    'Location','east')
+clim([0 nbact0])
+
 
     figure(8); clf; 
     plot(1:nT,nbacteria,'b')
