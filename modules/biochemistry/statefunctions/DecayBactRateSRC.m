@@ -16,6 +16,7 @@ classdef DecayBactRateSRC <  StateFunction
             Psidecay = 0;
             bbact = model.ReservoirModel.b_bact;
             nbMax = model.ReservoirModel.nbactMax;
+            nb0 = model.ReservoirModel.nbact0;
             namecp = model.ReservoirModel.getComponentNames();
             pv = model.ReservoirModel.PVTPropertyFunctions.get(model.ReservoirModel, state, 'PoreVolume');
             s = model.ReservoirModel.getProps(state, 's');
@@ -37,7 +38,7 @@ classdef DecayBactRateSRC <  StateFunction
                     Voln = sL;
                 end
                 Voln = max(Voln, 1.0e-8);
-                Psidecay = pv.*bbact.*nbact.*(nbact.*Voln)./nbMax;
+                Psidecay = pv.*bbact.*nbact.*(nbact.*Voln)./nb0;%./nbMax;SDS modif
             end
         end
     end
