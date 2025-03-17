@@ -30,8 +30,8 @@ classdef BactConvertionRate <  StateFunction
              mc = model.ReservoirModel.EOSModel.CompositionalMixture.molarMass;
              for c = 1:ncomp            
                 %qbiot{c} = gammak(c)/2.*qbiot_temp.*mc(c) +0;
-                %qbiot{c} = gammak(c).*qbiot_temp.*mc(c)./gamma_H2 +0;%SDS modif
-                qbiot{c} = gammak(c).*qbiot_temp +0;%SDS modif
+                qbiot{c} = gammak(c).*qbiot_temp.*mc(c)./gamma_H2 +0;%SDS modif
+                %qbiot{c} = gammak(c).*qbiot_temp +0;%SDS modif
              end
          end         
         end
