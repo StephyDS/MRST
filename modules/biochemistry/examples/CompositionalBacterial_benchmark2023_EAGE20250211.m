@@ -131,8 +131,8 @@ if biochemistrymodel
         'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
-    model.Psigrowthmax=5.e-5;
-    model.b_bact= 1.e-10;
+    %model.Psigrowthmax=5.e-5;
+    %model.b_bact= 1.e-10;
     %model.Y_H2 =3.410e14;
     model.EOSModel.msalt=0;
 else
@@ -155,7 +155,7 @@ Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
 
 if biochemistrymodel
     if model.bacteriamodel
-        nbact0 = 5.e5;%1e6;  
+        nbact0 = 1.e14;%5.e5; 
         state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, ...
             z0, nbact0,eosmodel);
     else
@@ -172,7 +172,7 @@ mrstModule add mpfa
 model_mpfa = setMPFADiscretization(model);
 %[wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
 if useHandler 
-    dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
+    dir='/home/sdelage/PROJETS/gdr_H2/MRST2024/MRST/output';
     diroutput='Benchmark2023AEGE_NOBACT';
     handler = ResultHandler('writeToDisk', true,'dataDirectory',dir,...
         'dataFolder', diroutput);
@@ -234,7 +234,7 @@ fprintf('H2 Production Efficiency : %.2f%%\n', Efficiency_H2);
 %% Compare case without bacteria and with bacteria
 if compare_bact
     %Extraction data states_nobact de handler
-    dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
+    dir='/home/sdelage/PROJETS/gdr_H2/MRST2024/MRST/output';
     handler1 = ResultHandler('dataDirectory',dir,'dataFolder','Benchmark2023AEGE_NOBACT');
     m = handler1.numelData();
     states_nobact = cell(m, 1);

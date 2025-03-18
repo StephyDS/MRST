@@ -5,8 +5,6 @@
 % ('H2O','H2','CO2','CH4') and The microbial activity of 
 %a archaea.
 %This test case comes from a Benchmark in EAGE 2023
-%TO DO: ERROR BUG WITH BACTERIAL=FALSE AND PRODUCTION WELL. DIVERGES WITH
-%BACTERIA
 % Clear workspace and initialize MRST modules
 clear; clc;
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
