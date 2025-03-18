@@ -57,7 +57,8 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         bDiffusionEffect = false;
         moleculardiffusion = false;
         
-        nbactMax = 1e9; % 1/m^3
+        nbactMax =  1e9; % 1/m^3
+        nbact0 = 1.e6;
         
         bacteriamodel = true;
         metabolicReaction = 'MethanogenicArchae';
@@ -467,13 +468,13 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             aH2 = model.alphaH2;
             aCO2 = model.alphaCO2;
             PsigrowthMax = model.Psigrowthmax;
-            nbMax = model.nbactMax;
+            nbact0 = model.nbact0; %SDS modif
             bbact = model.b_bact;
             dt = 288; % Time step (5 seconds)
 
             % Compute coefficients for the quadratic equation
             A = PsigrowthMax .* (xH2 ./ (aH2 + xH2)) .* (xCO2 ./ (aCO2 + xCO2));
-            B = bbact ./ nbMax;
+            B = bbact ./ nbact0; %SDS modif
 
             % Quadratic equation: nbact_new - (1 + dt * A) * nbact + dt * B * nbact^2 = 0
             a_quad = dt * B;
@@ -493,7 +494,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
             % Update state with computed bacterial population
             state = model.setProp(state, 'nbact', nbact_new);
-            state = model.capProperty(state, 'nbact', 08, 1.0e12);
+            state = model.capProperty(state, 'nbact', 1.e-08, 1.0e12);
 
         end
 

@@ -145,15 +145,20 @@ plot(presbar2,xliqH2Exp2,'k o','MarkerSize',8,'LineWidth',2)
 hold on
 plot(presbar4,xliqH2Exp4,'g diamond','MarkerSize',8,'LineWidth',2)
 
-title('H2 solubility in salt water with the SW model','FontSize',14,'FontWeight','bold','Color','k')
-xlabel({'pressure','(bar)'},'FontWeight','bold','Color','k')
-ylabel('H2 molar fraction','FontWeight','bold','Color','k')
+%title('H2 solubility in salt water with the SW model','FontSize',14,'FontWeight','bold','Color','k')
+title('H2 solubility in salt water with the SW model','FontSize',16,'FontWeight','normal','Color','k')
+%xlabel({'pressure','(bar)'},'FontWeight','bold','Color','k')
+%ylabel('H2 molar fraction','FontWeight','bold','Color','k')
+xlabel({'pressure','(bar)'},'Color','k')
+ylabel('H2 molar fraction','Color','k')
 ax = gca;
-ax.FontSize = 14; 
-
-legend({'x_{H_{2}}, m_{salt}=1','x_{H_{2}, m_{salt}=4}','x_{H_{2}}^{exp}, m_{salt}=1','x_{H_{2}}^{exp}, m_{salt}=4'},...
-    'FontSize',13,'TextColor','black',...
+ax.FontSize = 16; 
+legend({'H_{2}, m_{salt}=1','H_{2}, m_{salt}=4','H_{2}, m_{salt}=1, Exp','H_{2}, m_{salt}=4, Exp'},...
+    'FontSize',16,'TextColor','black',...
     'Location','best')
+%legend({'x_{H_{2}}, m_{salt}=1','x_{H_{2}}, m_{salt}=4','x_{H_{2}}^{exp}, m_{salt}=1','x_{H_{2}}^{exp}, m_{salt}=4'},...
+%    'FontSize',16,'TextColor','black',...
+%    'Location','best')
 xlim([min(minpresbarb)-10 max(maxpresbarb)+10])
 ylim([min(min_xliqH2b)-1e-4 max(max_xliqH2b)+1e-4])
 
@@ -167,14 +172,14 @@ plot(presbar,xliqH2pr,'r square','MarkerSize',8,'LineWidth',2)
 hold on
 plot(presbar,xliqH2Exp,'k o','MarkerSize',8,'LineWidth',2)
 
-title('H2 solubility in pure water','FontSize',14,'FontWeight','bold','Color','k')
-xlabel({'pressure','(bar)'},'FontWeight','bold','Color','k')
-ylabel('H2 molar fraction','FontWeight','bold','Color','k')
+title('H2 solubility in pure water','FontSize',16,'FontWeight','normal','Color','k')
+xlabel({'pressure','(bar)'},'FontWeight','normal','Color','k')
+ylabel('H2 molar fraction','FontWeight','normal','Color','k')
 ax = gca;
-ax.FontSize = 14; 
+ax.FontSize = 16; 
 
-legend({'x_{H_{2}}, SW','x_{H_{2}}, PR','x_{H_{2}}^{exp}'},...
-    'FontSize',13,'TextColor','black',...
+legend({'H_{2}, SW','H_{2}, PR','H_{2}, Exp'},...
+    'FontSize',16,'TextColor','black',...
     'Location','best')
 xlim([min(presbar)-10 max(presbar)+10])
 ylim([min(min_xliqH2)-1e-4 max(max_xliqH2)+1e-4])

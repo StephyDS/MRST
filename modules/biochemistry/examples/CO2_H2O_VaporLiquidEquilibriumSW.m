@@ -131,16 +131,14 @@ plot(presbar2,xliqCO2Exp2,'k o','MarkerSize',8,'LineWidth',2)
 hold on
 plot(presbar4,xliqCO2Exp4,'g diamond','MarkerSize',8,'LineWidth',2)
 
-title('CO2 solubility in salt water with the SW model','FontSize',14,'FontWeight','bold','Color','k')
-%xlabel({'pressure','(bar)'},'FontSize',14,'FontWeight','bold','Color','k')
-%ylabel('CO2 molar fraction','FontSize',14,'FontWeight','bold','Color','k')
-xlabel({'pressure','(bar)'},'FontWeight','bold','Color','k')
-ylabel('CO2 molar fraction','FontWeight','bold','Color','k')
+title('CO2 solubility in salt water with the SW model','FontSize',16,'FontWeight','normal','Color','k')
+xlabel({'pressure','(bar)'},'FontWeight','normal','Color','k')
+ylabel('CO2 molar fraction','FontWeight','normal','Color','k')
 ax = gca;
-ax.FontSize = 14; 
+ax.FontSize = 16; 
 
-legend({'x_{CO_{2}}, m_{salt}=1','x_{CO_{2}, m_{salt}=3.01}','x_{CO_{2}}^{exp}, m_{salt}=1','x_{CO_{2}}^{exp}, m_{salt}=3.01'},...
-    'FontSize',13,'TextColor','black',...
+legend({'CO_{2}, m_{salt}=1','CO_{2}, m_{salt}=3.01','CO_{2}, m_{salt}=1, Exp','CO_{2}, m_{salt}=3.01, Exp'},...
+    'FontSize',16,'TextColor','black',...
     'Location','best')
 xlim([min(minpresbarb)-10 max(maxpresbarb)+10])
 ylim([min(min_xliqCO2b)-1e-4 max(max_xliqCO2b)+1e-4])
@@ -155,14 +153,14 @@ plot(presbar,xliqCO2pr,'r square','MarkerSize',8,'LineWidth',2)
 hold on
 plot(presbar,xliqCO2Exp,'k o','MarkerSize',8,'LineWidth',2)
 
-title('CO2 solubility in pure water','FontSize',14,'FontWeight','bold','Color','k')
-xlabel({'pressure','(bar)'},'FontWeight','bold','Color','k')
-ylabel('CO2 molar fraction','FontWeight','bold','Color','k')
+title('CO2 solubility in pure water','FontSize',16,'FontWeight','normal','Color','k')
+xlabel({'pressure','(bar)'},'FontWeight','normal','Color','k')
+ylabel('CO2 molar fraction','FontWeight','normal','Color','k')
 ax = gca;
-ax.FontSize = 14; 
+ax.FontSize = 16; 
 
-legend({'x_{CO_{2}}, SW','x_{CO_{2}}, PR','x_{CO_{2}}^{exp}'},...
-    'FontSize',13,'TextColor','black',...
+legend({'CO_{2}, SW','CO_{2}, PR','CO_{2}, Exp'},...
+    'FontSize',16,'TextColor','black',...
     'Location','best')
 xlim([min(presbar)-10 max(presbar)+10])
 ylim([min(min_xliqCO2)-1e-4 max(max_xliqCO2)+1e-4])
