@@ -11,7 +11,7 @@ mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
 biochemistrymodel=true;%false; 
 writedatafile=false;
-useHandler=false;%true;% 
+useHandler=false;% true;%
 compare_bact=true;%false;%
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
@@ -121,7 +121,7 @@ schedule.control(4).W = W4;
 %% Model Setup: Compositional Model with Bacterial Growth
 if biochemistrymodel
     eosname='sw';
-    eosmodel =SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
+    model.EOSModel =SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
     diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
     mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
 
@@ -131,12 +131,13 @@ if biochemistrymodel
         'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
-    model.Psigrowthmax=3.e-5;
-    model.b_bact= 3.e-6;%b_bact       = 1.35148e-6; % 1/s
+    %model.Psigrowthmax=3.e-5;
+    model.Y_H2=7.697e10;
+     model.b_bact= 5.e-5;%b_bact       = 1.35148e-6; % 1/s
     model.EOSModel.msalt=0;
 else
     eosname='pr';
-    arg = {G, rock, fluid, compFluid, 'water', false, 'oil', true, 'gas', true, ...
+    arg = {G, rock, fluid, compFluid, 'water', false, 'oil', true, 'gas', false, ...
       'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = GenericOverallCompositionModel(arg{:});
 end
@@ -156,7 +157,7 @@ if biochemistrymodel
     if model.bacteriamodel
         model.nbact0 = 5.e5;  
         state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, ...
-            z0, model.nbact0,eosmodel);
+            z0, model.nbact0,model.EOSModel);
     else
         state0 = initCompositionalState(model, Phydro0, T0, s0, z0);
     end

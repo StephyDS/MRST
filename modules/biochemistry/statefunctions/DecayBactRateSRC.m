@@ -42,7 +42,6 @@ classdef DecayBactRateSRC <  StateFunction
                 end
                 Voln = max(Voln, 1.0e-8);
 
-                %Psidecay = pv.*bbact.*nbact.*(nbact.*Voln)./nb0; %SDS modif
                 Psidecay = pv.*bbact.*nbact.*(nbact.*Voln);
             end
         end
