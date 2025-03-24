@@ -32,7 +32,6 @@ classdef BactConvertionRate <  StateFunction
              idxH2 = find(strcmp(compn, 'H2'));  % Index of CO2
 
              Y_H2 = model.ReservoirModel.Y_H2;
-
              gammak = model.ReservoirModel.gammak;
              nbactMax =model.ReservoirModel.nbactMax;
              nbact0 =model.ReservoirModel.nbact0;
@@ -41,8 +40,7 @@ classdef BactConvertionRate <  StateFunction
              qbiot = cell(ncomp,1);
              mc = model.ReservoirModel.EOSModel.CompositionalMixture.molarMass;
              for c = 1:ncomp            
-                %qbiot{c} = gammak(c).*qbiot_temp.*mc(c).*nbactMax./rho{L_ix} + 0;
-                qbiot{c} = gammak(c).*qbiot_temp.*mc(c).*nbact0./rho{L_ix} + 0;
+                qbiot{c} = gammak(c).*qbiot_temp.*mc(c).*nbactMax./rho{L_ix} + 0;
              end
          end         
         end

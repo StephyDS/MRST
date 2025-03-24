@@ -15,8 +15,6 @@ classdef DecayBactRateSRC <  StateFunction
         function Psidecay = evaluateOnDomain(prop, model, state)
             Psidecay = 0;
             bbact = model.ReservoirModel.b_bact;
-            nbMax = model.ReservoirModel.nbactMax;
-            nb0 = model.ReservoirModel.nbact0;
             namecp = model.ReservoirModel.getComponentNames();
             pv = model.ReservoirModel.PVTPropertyFunctions.get(model.ReservoirModel, state, 'PoreVolume');
             rho = model.ReservoirModel.PVTPropertyFunctions.get(model.ReservoirModel, state, 'Density');

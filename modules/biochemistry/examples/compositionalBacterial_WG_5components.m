@@ -61,11 +61,11 @@ Phydro0=rhol*norm(gravity).*G.cells.centroids(:,3);
 [Pref1,Pe]=deal(114*barsa,0.1*barsa); %pressions
 
 %initialisation fluides incompressibles, Brooks-Corey relperm krw=(Sw)^nw
-fluid=initSimpleADIFluid('phases', 'WG', 'mu',[viscol,viscog],...
+fluid=initSimpleADIFluid('phases', 'OG', 'mu',[viscol,viscog],...
     'rho',[rhol,rhog],'pRef',Pref1,'c',[0.0,cfg],'n',[2,2],'smin',[srl,src]);
 %Capillary pressure
-pcWG = @(sw) Pe * sw.^(-1/2);
-fluid.pcWG = @(sg) pcWG(max((1-sg-srl)./(1-srl), 1e-5)); 
+pcOG = @(so) Pe * so.^(-1/2);
+fluid.pcOG = @(sg) pcOG(max((1-sg-srl)./(1-srl), 1e-5)); 
 
 
 %% ===========Boundary conditions and well injection============
@@ -82,22 +82,28 @@ W = verticalWell(W, G, rock,1,1,nz, 'comp_i', [0, 1],'Radius',0.5,...
 W(1).components = [0.0 0.95 0.05 0.0 0.0];
 
 %% =======Model Setup: Compositional Model with Bacterial Growth=======
-arg = {G, rock, fluid, compFluid,'water', true, 'oil', false, ...
-    'gas', true, 'bacteriamodel', true,'bDiffusionEffect',false,...
-    'liquidPhase', 'W','vaporPhase', 'G'}; % water=liquid, gas=vapor
-model = BiochemistryModel(arg{:});
-model.outputFluxes = false;
 eosname='sw'; %'pr';
 model.EOSModel = SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
+
+diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
+mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
+
+arg = {G, rock, fluid, compFluid,true,diagonal_backend,...
+        'water', false, 'oil', true, 'gas', true,'bacteriamodel', true,...
+        'bDiffusionEffect', false,'moleculardiffusion',false,...
+        'liquidPhase', 'O', 'vaporPhase', 'G'};
+ model = BiochemistryModel(arg{:});
+
+model.outputFluxes = false;
 model.EOSModel.msalt=0;
  
 %% ======= Initial conditions =====================
 T0=317.5; %Kelvin
 s0= [0.8 0.2]; %initial saturations 
 z0 = [0.8,0.0,0.006,0.018,0.176]; %initial composition: H2O,H2,CO2,N2,CH4.
-nbact0=10^6;
-state0 = initCompositionalStateBacteria(model,Phydro0,T0,s0,z0,nbact0);
-
+model.nbact0=1.e6;
+ state0 = initCompositionalStateBacteria(model, Phydro0, T0, s0, ...
+            z0, model.nbact0,model.EOSModel);
 %% ===== Resolution of the equations =========
 niter = 200;    
 deltaT = T/niter;
