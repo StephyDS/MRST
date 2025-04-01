@@ -56,7 +56,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         bDiffusionEffect = false;
         moleculardiffusion = false;
         
-        nbactMax = 1e8; % 1/m^3
+        nbactMax = 1.e9; %1e8; % 1/m^3
         
         bacteriamodel = true;
         metabolicReaction = 'MethanogenicArchae';

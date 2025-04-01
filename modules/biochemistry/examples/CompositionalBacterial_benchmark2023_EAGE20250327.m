@@ -2,15 +2,15 @@
 % Description: This script uses MRST to model gas injection into a 3D porous medium,
 % incorporating compositional fluid properties, bacterial mono modal.
 % We consider a liquid phase (W) and a gas (G) phase, 4 components 
-% ('H2O','H2','CO2','CH4') and The microbial activity of 
+% ('H2O','H2','CO2','C1') and The microbial activity of 
 %a archaea.
 %This test case comes from a Benchmark in EAGE 2023
 % Clear workspace and initialize MRST modules
 clear; clc;
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
-nobact=false;
-compare_bact=false;%true;%
+nobact=false;%true;%
+compare_bact=true;%false;%
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
 %[nx, ny, nz] = deal(61,61,10);  % Grid cells in x, y, z directions
@@ -139,35 +139,30 @@ schedule.control(6).W = W6;
     model.EOSModel =SoreideWhitsonEquationOfStateModel(G, compFluid,eosname);
     diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
     mex_backend = DiagonalAutoDiffBackend('modifyOperators', true, 'useMex', true, 'rowMajor', true);
-
     if nobact
         arg = {G, rock, fluid, compFluid,true,diagonal_backend,...
-            'water', false, 'oil', true, 'gas', true,'bacteriamodel', false,...
-            'bDiffusionEffect', false,'moleculardiffusion',false,...
-            'liquidPhase', 'O', 'vaporPhase', 'G'};
+        'water', false, 'oil', true, 'gas', true,'bacteriamodel',false,...
+        'bDiffusionEffect', false,'moleculardiffusion',false,...
+        'liquidPhase', 'O', 'vaporPhase', 'G'};
     else
         arg = {G, rock, fluid, compFluid,true,diagonal_backend,...
-            'water', false, 'oil', true, 'gas', true,'bacteriamodel', true,...
-            'bDiffusionEffect', false,'moleculardiffusion',false,...
-            'liquidPhase', 'O', 'vaporPhase', 'G'};
+        'water', false, 'oil', true, 'gas', true,'bacteriamodel',true,...
+        'bDiffusionEffect', false,'moleculardiffusion',false,...
+        'liquidPhase', 'O', 'vaporPhase', 'G'};          
     end   
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
     model.EOSModel.msalt=0;
 
-
-
-
 %% Initial Conditions
 % Temperature and initial saturations
 T0 = 40+273.15;                % Initial temperature (K)
 s0 = [0.2, 0.8];           % Initial saturations (Sw,Sg)
-z0 = [0.7, 0.0, 0.02, 0.28];  % Initial composition: H2O, H2, CO2, CH4
-%Phydro0=rhow*norm(gravity).*G.cells.centroids(:,3);
+z0 = [0.7, 0.0, 0.02, 0.28];  % Initial composition: H2O, H2, CO2, C1
 
 % Initialize state with bacterial concentration
 if model.bacteriamodel
-    nbact0 = 50; 
+    nbact0 = 1; 
     state0 = initCompositionalStateBacteria(model, P0, T0, s0, ...
         z0, nbact0,model.EOSModel);
 else
@@ -177,306 +172,324 @@ end
 
 %% Run simulation
 %% Pack the simulation problem with the defined components
-name='Benchmark2023AEGE_170_pack_NOBACT';
-problem = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
+if nobact
+    name='Benchmark2023AEGE_170_pack_NOBACT';
+    problem_nbs0 = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls);
+    %% Execute the simulation of the packed problem
+    simulatePackedProblem(problem_nbs0, 'restartStep',1);
+    %% Get reservoir and well states
+    [ws_nbs0,states_nbs0] = getPackedSimulatorOutput(problem_nbs0);
+else
+    name='Benchmark2023AEGE_170_pack';
+    problem_bs0 = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls); 
+    %% Execute the simulation of the packed problem
+    simulatePackedProblem(problem_bs0, 'restartStep',1); %execute la simulation depuis le pas 1
+    simulatePackedProblem(problem_nbs0); %recupere resultats si  le repertoire existe
+    %% Get reservoir and well states
+    [ws_bs0,states_bs0] = getPackedSimulatorOutput(problem_bs0);
+    [ws_nbs0,states_nbs0] = getPackedSimulatorOutput(problem_nbs0);
+end
 
-%% Execute the simulation of the packed problem
-simulatePackedProblem(problem, 'restartStep',1);
-%simulatePackedProblem(problemNoBact);
-
-%% Get reservoir and well states
-[ws,states] = getPackedSimulatorOutput(problem);
 
 
 
-
-
-%% Plotting Results and estimate bacteria effects
+% %% Plotting Results and estimate bacteria effects
+% %% initialise unknowns %%%%%%%%%%%%%%%%%%
 namecp = model.EOSModel.getComponentNames();
+ncomp=model.EOSModel.getNumberOfComponents;
+nT=numel(states_nbs0);
 indH2=find(strcmp(namecp,'H2'));
 indCO2= find(strcmp(namecp,'CO2'));
-indCH4= find(strcmp(namecp,'C1'));
-nT=numel(states);
-xH2=zeros(nT,1);
-yH2=zeros(nT,1);
-xCO2= zeros(nT,1);
-yCO2= zeros(nT,1);
-yCH4= zeros(nT,1);
-pressure=zeros(nT,1);
+indC1= find(strcmp(namecp,'C1'));
 
-totMassH2= zeros(nT,1);
-totMassCO2= zeros(nT,1);
-totMassCH4= zeros(nT,1);
-FractionMassCO2= zeros(nT,1);
-FractionMassH2= zeros(nT,1);
-FractionMassCH4= zeros(nT,1);
-totMassComp= zeros(nT,1);
-ncomp=model.EOSModel.getNumberOfComponents;
 
-for i = 1:nT
-    xH2(i)=max(states{i}.x(:,indH2));
-    yH2(i)=max(states{i}.y(:,indH2));
-    yCH4(i)=max(states{i}.y(:,indCH4));
-    xCO2(i)=max(states{i}.x(:,indCO2));
-    yCO2(i)=max(states{i}.y(:,indCO2));
-    pressure(i)=mean(states{i}.pressure(:));
+xH2_nbs0=zeros(nT,1);
+yH2_nbs0=zeros(nT,1);
+xCO2_nbs0= zeros(nT,1);
+yCO2_nbs0= zeros(nT,1);
+yC1_nbs0= zeros(nT,1);
+pressure_nbs0=zeros(nT,1);
+H2_well_nbs0=zeros(nT,1);
+CO2_well_nbs0=zeros(nT,1);
+C1_well_nbs0=zeros(nT,1);
+totMassH2_nbs0= zeros(nT,1);
+totMassCO2_nbs0= zeros(nT,1);
+totMassC1_nbs0= zeros(nT,1);
+FractionMassCO2_nbs0= zeros(nT,1);
+FractionMassH2_nbs0= zeros(nT,1);
+FractionMassC1_nbs0= zeros(nT,1);   
+totMassComp_nbs0= zeros(nT,1);
+
+if ~nobact
+    xH2_bs0=zeros(nT,1);
+    yH2_bs0=zeros(nT,1);
+    xCO2_bs0= zeros(nT,1);
+    yCO2_bs0= zeros(nT,1);
+    yC1_bs0= zeros(nT,1);
+    pressure_bs0=zeros(nT,1);
+    H2_well_bs0=zeros(nT,1);
+    CO2_well_bs0=zeros(nT,1);
+    C1_well_bs0=zeros(nT,1);
+    totMassH2_bs0= zeros(nT,1);
+    totMassCO2_bs0= zeros(nT,1);
+    totMassC1_bs0= zeros(nT,1);
+    FractionMassCO2_bs0= zeros(nT,1);
+    FractionMassH2_bs0= zeros(nT,1);
+    FractionMassC1_bs0= zeros(nT,1);
+    totMassComp_bs0= zeros(nT,1);
 end
 
+for i = 1:nT
+    xH2_nbs0(i)=max(states_nbs0{i}.x(:,indH2));
+    yH2_nbs0(i)=max(states_nbs0{i}.y(:,indH2));
+    yC1_nbs0(i)=max(states_nbs0{i}.y(:,indC1));
+    xCO2_nbs0(i)=max(states_nbs0{i}.x(:,indCO2));
+    yCO2_nbs0(i)=max(states_nbs0{i}.y(:,indCO2));
+    pressure_nbs0(i)=mean(states_nbs0{i}.pressure(:));
+    H2_well_nbs0(i)=ws_nbs0{i}.H2;%kg/s
+    %H2_well_nbs0(i)=ws_nbs0{i}.H2.*schedule.step.val(i);
+    CO2_well_nbs0(i)=ws_nbs0{i}.CO2;
+    C1_well_nbs0(i)=ws_nbs0{i}.C1;
+end
+
+if ~nobact
+    for i = 1:nT
+        xH2_bs0(i)=max(states_bs0{i}.x(:,indH2));
+        yH2_bs0(i)=max(states_bs0{i}.y(:,indH2));
+        yC1_bs0(i)=max(states_bs0{i}.y(:,indC1));
+        xCO2_bs0(i)=max(states_bs0{i}.x(:,indCO2));
+        yCO2_bs0(i)=max(states_bs0{i}.y(:,indCO2));
+        pressure_bs0(i)=mean(states_bs0{i}.pressure(:));
+        H2_well_bs0(i)=ws_bs0{i}.H2;
+        %H2_well_bs0(i)=ws_bs0{i}.H2.*schedule.step.val(i);
+        CO2_well_bs0(i)=ws_bs0{i}.CO2;
+        C1_well_bs0(i)=ws_bs0{i}.C1;
+    end
+end
+
+%% mass calculations
 for i = 1:nT
     for j=1:ncomp
-        totMassComp(i)=totMassComp(i)+sum(states{i}.FlowProps.ComponentTotalMass{j});
+        totMassComp_nbs0(i)=totMassComp_nbs0(i)+sum(states_nbs0{i}.FlowProps.ComponentTotalMass{j});
     end
-    totMassH2(i)=sum(states{i}.FlowProps.ComponentTotalMass{indH2});
-    totMassCO2(i)=sum(states{i}.FlowProps.ComponentTotalMass{indCO2});
-    totMassCH4(i)=sum(states{i}.FlowProps.ComponentTotalMass{indCH4});
-    FractionMassH2(i)=totMassH2(i)/totMassComp(i);
-    FractionMassCO2(i)=totMassCO2(i)/totMassComp(i);
-    FractionMassCH4(i)=totMassCH4(i)/totMassComp(i);
+    totMassH2_nbs0(i)=sum(states_nbs0{i}.FlowProps.ComponentTotalMass{indH2});
+    totMassCO2_nbs0(i)=sum(states_nbs0{i}.FlowProps.ComponentTotalMass{indCO2});
+    totMassC1_nbs0(i)=sum(states_nbs0{i}.FlowProps.ComponentTotalMass{indC1});
+    FractionMassH2_nbs0(i)=totMassH2_nbs0(i)/totMassComp_nbs0(i);
+    FractionMassCO2_nbs0(i)=totMassCO2_nbs0(i)/totMassComp_nbs0(i);
+    FractionMassC1_nbs0(i)=totMassC1_nbs0(i)/totMassComp_nbs0(i);
 end
-%% Calculate H2 production efficiency
-mH2_injected=totMassH2(nj1)-totMassH2(1)+totMassH2(nj3)-totMassH2(nj2+1);
-mH2_produced=totMassH2(nj4+1)-totMassH2(nj5);
-Efficiency_H2=(mH2_produced/mH2_injected) * 100;
-fprintf('H2 Production Efficiency : %.2f%%\n', Efficiency_H2);
 
-%% Compare case without bacteria and with bacteria
-if compare_bact
-    %Extraction data states_nobact de handler
-    dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
-    handler1 = ResultHandler('dataDirectory',dir,'dataFolder','Benchmark2023AEGE_NOBACT170b');
-    m = handler1.numelData();
-    states_nobact = cell(m, 1);
-    for i = 1:m
-        states_nobact{i} = handler1{i};
+if ~nobact
+    for j=1:ncomp
+        totMassComp_bs0(i)=totMassComp_bs0(i)+sum(states_bs0{i}.FlowProps.ComponentTotalMass{j});
     end
-    totMassH2_nobact= zeros(nT,1);
-    totMassCO2_nobact= zeros(nT,1);
-    totMassCH4_nobact= zeros(nT,1);
-    totMassComp_nobact= zeros(nT,1);
-    FractionMassCO2_nobact= zeros(nT,1);
-    FractionMassH2_nobact= zeros(nT,1);
-    FractionMassCH4_nobact= zeros(nT,1);
-    pressure_nobact=zeros(nT,1);
-    xH2_nobact=zeros(nT,1);
-    xCO2_nobact= zeros(nT,1);
-    yH2_nobact=zeros(nT,1);
-    yCO2_nobact= zeros(nT,1);
-    yCH4_nobact= zeros(nT,1);
+    totMassH2_bs0(i)=sum(states_bs0{i}.FlowProps.ComponentTotalMass{indH2});
+    totMassCO2_bs0(i)=sum(states_bs0{i}.FlowProps.ComponentTotalMass{indCO2});
+    totMassC1_bs0(i)=sum(states_bs0{i}.FlowProps.ComponentTotalMass{indC1});
+    FractionMassH2_bs0(i)=totMassH2_bs0(i)/totMassComp_bs0(i);
+    FractionMassCO2_bs0(i)=totMassCO2_bs0(i)/totMassComp_bs0(i);
+    FractionMassC1_bs0(i)=totMassC1_bs0(i)/totMassComp_bs0(i);
+end
 
-    %total mass
-    for i = 1:nT
-        for j=1:ncomp
-        totMassComp_nobact(i)=totMassComp_nobact(i)+sum(states_nobact{i}.FlowProps.ComponentTotalMass{j});
-        end
-        totMassH2_nobact(i)=sum(states_nobact{i}.FlowProps.ComponentTotalMass{indH2});
-        totMassCO2_nobact(i)=sum(states_nobact{i}.FlowProps.ComponentTotalMass{indCO2});
-        totMassCH4_nobact(i)=sum(states_nobact{i}.FlowProps.ComponentTotalMass{indCH4});
-        FractionMassH2_nobact(i)=totMassH2_nobact(i)/totMassComp(i);
-        FractionMassCO2_nobact(i)=totMassCO2_nobact(i)/totMassComp(i);
-        FractionMassCH4_nobact(i)=totMassCH4_nobact(i)/totMassComp(i);
-        pressure_nobact(i)=mean(states_nobact{i}.pressure(:));
-        xH2_nobact(i)=max(states_nobact{i}.x(:,indH2));
-        xCO2_nobact(i)=max(states_nobact{i}.x(:,indCO2));
-        yH2_nobact(i)=max(states_nobact{i}.y(:,indH2));
-        yCO2_nobact(i)=max(states_nobact{i}.y(:,indCO2));
-        yCH4_nobact(i)=max(states_nobact{i}.y(:,indCH4));
-    end
+% %% Calculate H2 production efficiency in the well
+mH2_well_injected_nbs0=sum(H2_well_nbs0(1:nj1))+sum(H2_well_nbs0(nj2+1:nj3));
+mH2_well_produced_nbs0=sum(H2_well_nbs0(nj4+1:nj5));
+Efficiency_H2_well_nbs0=abs(mH2_well_produced_nbs0./mH2_well_injected_nbs0).*100;
+%% Display H2 production efficiency
+fprintf('In the well, H2 Production Efficiency_nobact, msalt=0 : %.2f%%\n', Efficiency_H2_well_nbs0);   
 
-    %% Calculate H2 production efficiency 
-    mH2_injected_nobact=totMassH2_nobact(nj1)-totMassH2_nobact(1)...
-        +totMassH2_nobact(nj3)-totMassH2_nobact(nj2+1);
-    mH2_produced_nobact=totMassH2_nobact(nj4+1)-totMassH2_nobact(nj5);
-    Efficiency_H2_nobact=(mH2_produced_nobact/mH2_injected_nobact) * 100;
-    fprintf('H2 Production Efficiency_nobact : %.2f%%\n', Efficiency_H2_nobact);
+if ~nobact
+    %% Calculate H2 production efficiency in the well 
+    mH2_well_injected_bs0=sum(H2_well_bs0(1:nj1))+sum(H2_well_bs0(nj2+1:nj3));
+    mH2_well_produced_bs0=sum(H2_well_bs0(nj4+1:nj5));
+    Efficiency_H2_well_bs0=abs(mH2_well_produced_bs0./mH2_well_injected_bs0).*100;
 
-   
     %% Display H2 production efficiency
-    fprintf('H2 Production Efficiency without bacteria: %.2f%%\n', Efficiency_H2_nobact);
-    fprintf('H2 Production Efficiency with bacteria: %.2f%%\n', Efficiency_H2);
-  
+    fprintf('In the well, H2 Production Efficiency_bact, msalt=0 : %.2f%%\n', Efficiency_H2_well_bs0);
     %% Calculate percentage of H2 loss
-    H2_loss_percentage = (abs(totMassH2_nobact-totMassH2)./totMassH2_nobact) * 100;
+    H2_loss_percentage_nbs0 = (abs(totMassH2_nbs0-totMassH2_bs0)./totMassH2_nbs0) * 100;
     %% Calculate percentage of CO2 loss
-    CO2_loss_percentage = (abs(totMassCO2_nobact-totMassCO2)./totMassCO2_nobact) * 100;
-    %% Calculate percentage of CH4 production
-    CH4_loss_percentage = (abs(totMassCH4_nobact-totMassCH4)./totMassCH4_nobact) * 100;
-
+    CO2_loss_percentage_nbs0 = (abs(totMassCO2_nbs0-totMassCO2_bs0)./totMassCO2_nbs0) * 100;
+    %% Calculate percentage of C1 production
+    C1_loss_percentage_nbs0 = (abs(totMassC1_nbs0-totMassC1_bs0)./totMassC1_nbs0) * 100;
     %% Display final H2 loss
-    fprintf('Total H2 loss due to bacterial effects: %.2f%%\n', H2_loss_percentage(end));
-    fprintf('Total CO2 loss due to bacterial effects: %.2f%%\n', CO2_loss_percentage(end));
-    fprintf('Total CH4 production due to bacterial effects: %.2f%%\n', CH4_loss_percentage(end));
-
-    %% plot mass
-    figure(1); clf; 
-    plot(1:nT,FractionMassH2_nobact,'b')
-    hold on
-    plot(1:nT,FractionMassH2,'k-')
-    title('H2 Mass fractions')
-    xlabel('Time (days)')
-    ylabel('mass fraction')
-    legend('YH2 nobact','YH2 with bact')
-
-    figure(2); clf; 
-    plot(1:nT,totMassH2_nobact,'b')
-    hold on
-    plot(1:nT,totMassCO2_nobact,'k-')
-    title('Mass ')
-    xlabel('Time (days)')
-    ylabel('mass fraction')
-    legend('mH2','mCO2')
-
-   
-
-f1=figure('Name','Pressure_compar_bact','NumberTitle','off');
-f1.Position(3:4) = [900 700];
-plot(1:nT,pressure./1e5,'b','MarkerSize',7,'LineWidth',2)
-hold on
-plot(1:nT,pressure_nobact./1e5,'r--','MarkerSize',8,'LineWidth',2)
-
-title('Mean pressure in the reservoir','FontSize',16,'FontWeight','bold','Color','k')
-xlabel({'time (days)'},'FontWeight','bold','Color','k')
-ylabel({'pressure (bar)'},'FontWeight','bold','Color','k')
-ax = gca;
-ax.FontSize = 16; 
-
-legend({'pressure, with archae','pressure, no archae'},...
-    'FontSize',16,'TextColor','black',...
-    'Location','best')
-%xlim([1 nT])
-%ylim([min(min_xliqH2)-1e-4 max(max_xliqH2)+1e-4])
-
-
-f2=figure('Name','maxyH2_compar_bact','NumberTitle','off');
-f2.Position(3:4) = [900 700];
-plot(0:nT,[0;yH2],'b','MarkerSize',7,'LineWidth',2)
-hold on
-plot(0:nT,[0;yH2_nobact],'r--','MarkerSize',8,'LineWidth',2)
-
-title('Maximum H_2 Molar fractions in gaz','FontSize',16,'FontWeight','bold','Color','k')
-xlabel({'time (days)'},'FontWeight','bold','Color','k')
-ylabel({'H_2 molar fraction '},'FontWeight','bold','Color','k')
-ax = gca;
-ax.FontSize = 16; 
-
-legend({'X_{g,H_2}, with archae','X_{g,H_2}, no archae'},...
-    'FontSize',16,'TextColor','black',...
-    'Location','best')
-
-
-f20=figure('Name','maxxH2_compar_bact','NumberTitle','off');
-f20.Position(3:4) = [900 700];
-plot(0:nT,[0;xH2],'b','MarkerSize',7,'LineWidth',2)
-hold on
-plot(0:nT,[0;xH2_nobact],'r--','MarkerSize',8,'LineWidth',2)
-
-title('Maximum H_2 Molar fractions in liquid','FontSize',16,'FontWeight','bold','Color','k')
-xlabel({'time (days)'},'FontWeight','bold','Color','k')
-ylabel({'H_2 molar fraction '},'FontWeight','bold','Color','k')
-ax = gca;
-ax.FontSize = 16; 
-
-legend({'X_{l,H_2}, with archae','X_{l,H_2}, no archae'},...
-    'FontSize',16,'TextColor','black',...
-    'Location','best')
-
-f21=figure('Name','maxxCO2_compar_bact','NumberTitle','off');
-f21.Position(3:4) = [900 700];
-plot(0:nT,[0;xCO2],'b','MarkerSize',7,'LineWidth',2)
-hold on
-plot(0:nT,[0;xCO2_nobact],'r--','MarkerSize',8,'LineWidth',2)
-
-title('Maximum CO_2 Molar fractions in liquid','FontSize',16,'FontWeight','bold','Color','k')
-xlabel({'time (days)'},'FontWeight','bold','Color','k')
-ylabel({'CO_2 molar fraction '},'FontWeight','bold','Color','k')
-ax = gca;
-ax.FontSize = 16; 
-
-legend({'X_{l,CO_2}, with archae','X_{l,CO_2}, no archae'},...
-    'FontSize',16,'TextColor','black',...
-    'Location','best')
-
-f3=figure('Name','maxyCO2_compar_bact','NumberTitle','off');
-f3.Position(3:4) = [900 700];
-plot(0:nT,[0;yCO2],'b','MarkerSize',7,'LineWidth',2)
-hold on
-plot(0:nT,[0;yCO2_nobact],'r--','MarkerSize',8,'LineWidth',2)
-
-title('Maximum CO_2 Molar fractions in gaz','FontSize',16,'FontWeight','bold','Color','k')
-xlabel({'time (days)'},'FontWeight','bold','Color','k')
-ylabel({'CO_2 molar fraction '},'FontWeight','bold','Color','k')
-ax = gca;
-ax.FontSize = 16; 
-
-legend({'X_{g,CO_2}, with archae','X_{g,CO_2}, no archae'},...
-    'FontSize',16,'TextColor','black',...
-    'Location','best')
-
-
-f4=figure('Name','fractionmass_compar_bact','NumberTitle','off');
-f4.Position(3:4) = [900 700];
-plot(0:nT,[0;FractionMassH2],'b','MarkerSize',7,'LineWidth',2)
-hold on
-plot(0:nT,[0;FractionMassH2_nobact],'r--','MarkerSize',8,'LineWidth',2)
-
-title('Total H_2 mass fraction ','FontSize',16,'FontWeight','bold','Color','k')
-xlabel({'time (days)'},'FontWeight','bold','Color','k')
-ylabel({'H_2 mass fraction'},'FontWeight','bold','Color','k')
-ax = gca;
-ax.FontSize = 16; 
-
-legend({'X_{H_2}, with archae','X_{H_2}, no archae'},...
-    'FontSize',16,'TextColor','black',...
-    'Location','best')
-
-
-
-end %end comparebact
-
-
-
-if biochemistrymodel && model.bacteriamodel
-    nbacteria= zeros(nT,1);
-    pv=model.operators.pv;
-    ncells=G.cells.num;
-    for i = 1:nT
-       Swi = states{i}.s(:,1);
-       Swpvi=Swi.*pv;
-       Swpv=sum(Swpvi);
-       nbacteria(i)=sum(states{i}.nbact.*Swpvi)/Swpv;
-       %nbacteria(i)=max(states{i}.nbact);
-    end
-
-f31=figure('Name','nbacteria','NumberTitle','off');
-f31.Position(3:4) = [900 700];
-plot(0:nT,[nbact0;nbacteria],'b','MarkerSize',7,'LineWidth',2)
-
-title('Methanogenic Archae','FontSize',16,'FontWeight','bold','Color','k')
-xlabel({'time (days)'},'FontWeight','bold','Color','k')
-ylabel({'N_{archae}'},'FontWeight','bold','Color','k')
-ax = gca;
-ax.FontSize = 16; 
-
-legend({'N_{archae}'},...
-    'FontSize',16,'TextColor','black',...
-    'Location','best')
-
-
-
-f11=figure('Name','nbacteria_t5','NumberTitle','off');
-f11.Position(3:4) = [900 700];
-plotCellData(G,states{5}.nbact);
-colorbar; 
-axis equal
-axis ([0 Lx  0 Ly depth_res depth_res+Lz])
-view(0,-90)
-title('Methanogenic Archae density, 5 days','FontSize',16,'FontWeight','bold','Color','k')
-xlabel({'x (m)'},'FontWeight','bold','Color','k')
-ylabel({'y (m)'},'FontWeight','bold','Color','k')
-ax = gca;
-ax.FontSize = 16; 
-%legend({'n_{archae}'},...
- %   'FontSize',13,'TextColor','black',...
-%    'Location','east')
-clim([0 nbact0])
-
+    fprintf('Total H2 loss due to bacterial effects, msalt=0: %.2f%%\n', H2_loss_percentage_nbs0(end));
+    fprintf('Total CO2 loss due to bacterial effects, msalt=0: %.2f%%\n', CO2_loss_percentage_nbs0(end));
+    fprintf('Total C1 production due to bacterial effects, msalt=0: %.2f%%\n', C1_loss_percentage_nbs0(end));
 end
+
+% %% plotting%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% if ~nobact
+%     %% plot pressure
+%     f01=figure('Name','Pressure_compar_bact_msalt0','NumberTitle','off');
+%     f01.Position(3:4) = [900 700];
+%     plot(1:nT,pressure_bs0./1e5,'b','MarkerSize',7,'LineWidth',2)
+%     hold on
+%     plot(1:nT,pressure_nbs0./1e5,'r--','MarkerSize',8,'LineWidth',2)
+%     title('Mean pressure in the pure water reservoir','FontSize',16,'FontWeight','bold','Color','k')
+%     xlabel({'time (days)'},'FontWeight','bold','Color','k')
+%     ylabel({'pressure (bar)'},'FontWeight','bold','Color','k')
+%     ax = gca;
+%     ax.FontSize = 16; 
+%     legend({'pressure, with archae','pressure, no archae'},...
+%     'FontSize',16,'TextColor','black',...
+%     'Location','best')
+% 
+%     %% plot molar H2 fraction in Gaz
+%     f11=figure('Name','maxyH2_compar_bact_msalt0','NumberTitle','off');
+%     f11.Position(3:4) = [900 700];
+%     plot(0:nT,[0;yH2_bs0],'b','MarkerSize',7,'LineWidth',2)
+%     hold on
+%     plot(0:nT,[0;yH2_nbs0],'r--','MarkerSize',8,'LineWidth',2)
+%     title('Maximum H_2 Molar fractions in gaz, no salt','FontSize',16,'FontWeight','bold','Color','k')
+%     xlabel({'time (days)'},'FontWeight','bold','Color','k')
+%     ylabel({'H_2 molar fraction '},'FontWeight','bold','Color','k')
+%     ax = gca;
+%     ax.FontSize = 16; 
+%     legend({'X_{g,H_2}, with archae','X_{g,H_2}, no archae'},...
+%     'FontSize',16,'TextColor','black','Location','best')
+% 
+%     %% plot H2 molar fraction in Liquid
+%     f13=figure('Name','maxxH2_compar_bact_msalt0','NumberTitle','off');
+%     f13.Position(3:4) = [900 700];
+%     plot(0:nT,[0;xH2_bs0],'b','MarkerSize',7,'LineWidth',2)
+%     hold on
+%     plot(0:nT,[0;xH2_nbs0],'r--','MarkerSize',8,'LineWidth',2)
+%     title('Maximum H_2 Molar fractions in liquid, no salt','FontSize',16,'FontWeight','bold','Color','k')
+%     xlabel({'time (days)'},'FontWeight','bold','Color','k')
+%     ylabel({'H_2 molar fraction '},'FontWeight','bold','Color','k')
+%     ax = gca;
+%     ax.FontSize = 16; 
+%     ax.XTick
+%     legend({'X_{l,H_2}, with archae','X_{l,H_2}, no archae'},...
+%     'FontSize',16,'TextColor','black','Location','best')
+% 
+% 
+% %% plot molar CO2 fraction in Gaz
+% f15=figure('Name','maxyCO2_compar_bact_msalt0','NumberTitle','off');
+% f15.Position(3:4) = [900 700];
+% plot(0:nT,[0;yCO2_bs0],'b','MarkerSize',7,'LineWidth',2)
+% hold on
+% plot(0:nT,[0;yCO2_nbs0],'r--','MarkerSize',8,'LineWidth',2)
+% title('Maximum CO_2 Molar fractions in gaz, no salt','FontSize',16,'FontWeight','bold','Color','k')
+% xlabel({'time (days)'},'FontWeight','bold','Color','k')
+% ylabel({'CO_2 molar fraction '},'FontWeight','bold','Color','k')
+% ax = gca;
+% ax.FontSize = 16; 
+% legend({'X_{g,CO_2}, with archae','X_{g,CO_2}, no archae'},...
+%     'FontSize',16,'TextColor','black','Location','best')
+% 
+% 
+% %% plot CO2 molar fraction in Liquid
+% f17=figure('Name','maxxCO2_compar_bact_msalt0','NumberTitle','off');
+% f17.Position(3:4) = [900 700];
+% plot(0:nT,[0;xCO2_bs0],'b','MarkerSize',7,'LineWidth',2)
+% hold on
+% plot(0:nT,[0;xCO2_nbs0],'r--','MarkerSize',8,'LineWidth',2)
+% title('Maximum CO_2 Molar fractions in liquid, no salt','FontSize',16,'FontWeight','bold','Color','k')
+% xlabel({'time (days)'},'FontWeight','bold','Color','k')
+% ylabel({'CO_2 molar fraction'},'FontWeight','bold','Color','k')
+% ax = gca;
+% ax.FontSize = 16; 
+% legend({'CO_{l,H_2}, with archae','CO_{l,H_2}, no archae'},...
+%     'FontSize',16,'TextColor','black','Location','best')
+% 
+% 
+% %% plot well%%%%%%%%%%%%%%%%
+% f20=figure('Name','H2_well','NumberTitle','off');
+% f20.Position(3:4) = [900 700];
+% plot(1:nT,H2_well_bs0,'b','MarkerSize',7,'LineWidth',2)
+% hold on;
+% plot(1:nT,H2_well_nbs0,'r--','MarkerSize',7,'LineWidth',2)
+% title(' H2 well rate, no salt','FontSize',16,'FontWeight','bold','Color','k')
+% xlabel({'time (days)'},'FontWeight','bold','Color','k')
+% ylabel({'H2 Production (kg/day)'},'FontWeight','bold','Color','k')
+% ax = gca;
+% ax.XMinorTick='on';
+% ax.YMinorTick='on';
+% ax.FontSize = 16; 
+% legend({'H2, with archae','H2, no archae'},...
+%     'FontSize',16,'TextColor','black','Location','west')
+% 
+% f21=figure('Name','CO2_well','NumberTitle','off');
+% f21.Position(3:4) = [900 700];
+% plot(1:nT,CO2_well_bs0,'b','MarkerSize',7,'LineWidth',2)
+% hold on;
+% plot(1:nT,CO2_well_nbs0,'r--','MarkerSize',7,'LineWidth',2)
+% title(' CO2 well rate, no salt','FontSize',16,'FontWeight','bold','Color','k')
+% xlabel({'time (days)'},'FontWeight','bold','Color','k')
+% ylabel({'CO2 Production (kg/day)'},'FontWeight','bold','Color','k')
+% ax = gca;
+% ax.XMinorTick='on';
+% ax.YMinorTick='on';
+% ax.FontSize = 16; 
+% legend({'CO2, with archae','CO2, no archae'},...
+%     'FontSize',16,'TextColor','black','Location','best')
+% 
+% f22=figure('Name','C1_well','NumberTitle','off');
+% f22.Position(3:4) = [900 700];
+% plot(1:nT,C1_well_bs0,'b','MarkerSize',7,'LineWidth',2)
+% hold on;
+% plot(1:nT,C1_well_nbs0,'r--','MarkerSize',7,'LineWidth',2)
+% title(' C1 well rate, no salt','FontSize',16,'FontWeight','bold','Color','k')
+% xlabel({'time (days)'},'FontWeight','bold','Color','k')
+% ylabel({'C1 Production (kg/day)'},'FontWeight','bold','Color','k')
+% ax = gca;
+% ax.XMinorTick='on';
+% ax.YMinorTick='on';
+% ax.FontSize = 16; 
+% legend({'C1, with archae','C1, no archae'},...
+%     'FontSize',16,'TextColor','black','Location','best')
+% 
+% f23=figure('Name','H2_CO2_C1_well','NumberTitle','off');
+% f23.Position(3:4) = [900 700];
+% plot(0:nT,[0;H2_well_nbs0],'b','MarkerSize',7,'LineWidth',2)
+% hold on;
+% plot(0:nT,[0;CO2_well_nbs0],'r--','MarkerSize',7,'LineWidth',2)
+% hold on;
+% plot(0:nT,[0;C1_well_nbs0],'k:','MarkerSize',7,'LineWidth',2)
+% title(' mass of H2, CO2 and C1 in the well','FontSize',16,'FontWeight','bold','Color','k')
+% xlabel({'time (days)'},'FontWeight','bold','Color','k')
+% ylabel({'H2, CO2, C1'},'FontWeight','bold','Color','k')
+% ax = gca;
+% ax.FontSize = 16; 
+% legend({'H2, no archae','CO2, no archae','C1, no archae'},...
+%     'FontSize',16,'TextColor','black','Location','best')
+% 
+%     nbacteria_bs0= zeros(nT,1);
+%     pv=model.operators.pv;
+%     ncells=G.cells.num;
+%     for i = 1:nT
+%        Swi_bs0 = states_bs0{i}.s(:,1);
+%        Swpvi_bs0=Swi_bs0.*pv;
+%        Swpv_bs0=sum(Swpvi_bs0);
+%        nbacteria_bs0(i)=sum(states_bs0{i}.nbact.*Swpvi_bs0)/Swpv_bs0;
+%     end
+% 
+%    f31=figure('Name','nbacteria','NumberTitle','off');
+%    f31.Position(3:4) = [900 700];
+%    plot(0:nT,[nbact0;nbacteria_bs0],'b','MarkerSize',7,'LineWidth',2)
+%    title('Methanogenic Archae in pure water','FontSize',16,'FontWeight','bold','Color','k')
+%    xlabel({'time (days)'},'FontWeight','bold','Color','k')
+%    ylabel({'N_{archae}'},'FontWeight','bold','Color','k')
+%    ax = gca;
+%    ax.FontSize = 16; 
+%    legend({'N_{archae}, pure water'},'FontSize',16,'TextColor','black',...
+%     'Location','best')   
+% end 
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% 
