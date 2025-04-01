@@ -74,7 +74,6 @@ classdef BactConvertionRate < StateFunction
                     qbiot{c} = gammak(c) .* qbiot_temp .* mc(c) .* nbactMax;
                 end
             end
-
         end
     end
 end

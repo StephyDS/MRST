@@ -149,7 +149,7 @@ if biochemistrymodel
         'liquidPhase', 'O', 'vaporPhase', 'G'};
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
-    model.EOSModel.msalt=0;
+    model.EOSModel.msalt=3;
 else
     eosname='pr';
     arg = {G, rock, fluid, compFluid, 'water', false, 'oil', true, 'gas', false, ...
@@ -169,7 +169,7 @@ z0 = [0.7, 0.0, 0.02, 0.28];  % Initial composition: H2O, H2, CO2, CH4
 
 if biochemistrymodel
     if model.bacteriamodel
-        nbact0 = 50; 
+        nbact0 = 1; %20; %50; 
         state0 = initCompositionalStateBacteria(model, P0, T0, s0, ...
             z0, nbact0,model.EOSModel);
     else
@@ -187,7 +187,7 @@ end
 %[wellSols,states,report]= simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls);
 if useHandler 
     dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
-    diroutput='Benchmark2023AEGE_170b';
+    diroutput='Benchmark2023AEGE_170new_n09_nbact1_msalt3';
     handler = ResultHandler('writeToDisk', true,'dataDirectory',dir,...
         'dataFolder', diroutput);
     [wellSols,states,report]= simulateScheduleAD(state0, model, schedule,...
@@ -249,7 +249,7 @@ fprintf('H2 Production Efficiency : %.2f%%\n', Efficiency_H2);
 if compare_bact
     %Extraction data states_nobact de handler
     dir='/home/sdelage2/PROJETS/gdr_h2/MRST2024/MRST/output';
-    handler1 = ResultHandler('dataDirectory',dir,'dataFolder','Benchmark2023AEGE_NOBACT170b');
+    handler1 = ResultHandler('dataDirectory',dir,'dataFolder','Benchmark2023AEGE_NOBACT_170new');
     m = handler1.numelData();
     states_nobact = cell(m, 1);
     for i = 1:m

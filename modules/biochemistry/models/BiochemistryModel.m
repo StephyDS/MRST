@@ -56,7 +56,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         bDiffusionEffect = false;
         moleculardiffusion = false;
         
-        nbactMax = 1e8; % 1/m^3
+        nbactMax = 1.e9; %1e8; % 1/m^3
         
         bacteriamodel = true;
         metabolicReaction = 'MethanogenicArchae';
@@ -427,7 +427,6 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
         function [state, report] = updateState(model, state, problem, dz, drivingForces)
             if model.bacteriamodel
-
                 state = model.capProperty(state, 'nbact', 1.0e-8, 100);
                 state = model.capProperty(state, 's', 1.0e-8, 1); 
                 state.components = ensureMinimumFraction(state.components, model.EOSModel.minimumComposition);
