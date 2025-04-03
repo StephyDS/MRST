@@ -1,6 +1,9 @@
-function schedule = createCyclicScenario2(rampupTime, nCycles, buildUpLength, restLength, injectionLength, idleLength0,productionLength, idleLength, W)
+function [schedule,TotalTime,buildUpSteps,restSteps,injectionSteps,idleSteps,productionSteps,idle1Steps] =...
+    createCyclicScenario2(rampupTime, nCycles, buildUpLength, restLength, injectionLength, ...
+    idleLength,productionLength, idle1Length, W)
     % Create time steps
-    TotalTime = buildUpLength + restLength + nCycles*(injectionLength+idleLength0+productionLength +idleLength);
+    TotalTime = buildUpLength + restLength + nCycles*(injectionLength+idleLength+...
+        productionLength +idle1Length);
     deltaT = rampupTimesteps(TotalTime, rampupTime, 0);
     schedule = simpleSchedule(deltaT);
     
@@ -12,10 +15,10 @@ function schedule = createCyclicScenario2(rampupTime, nCycles, buildUpLength, re
     buildUpSteps = round(buildUpLength/rampupTime);
     restSteps = round(restLength/rampupTime);
     injectionSteps = round(injectionLength/rampupTime);
-    idle0Steps = round(idleLength0/rampupTime);
-    productionSteps = round(productionLength/rampupTime);
     idleSteps = round(idleLength/rampupTime);
-    sumSTeps = sum(buildUpSteps+restSteps+(injectionSteps+idle0Steps+productionSteps+idleSteps)*nCycles);
+    productionSteps = round(productionLength/rampupTime);
+    idle1Steps = round(idle1Length/rampupTime);
+    sumSTeps = sum(buildUpSteps+restSteps+(injectionSteps+idleSteps+productionSteps+idle1Steps)*nCycles);
     if sumSTeps<length(schedule.step.val)
         buildUpSteps = buildUpSteps + (sumSTeps-length(schedule.step.val));
     end
@@ -32,16 +35,16 @@ function schedule = createCyclicScenario2(rampupTime, nCycles, buildUpLength, re
         schedule.control(3).W = W(3);
         currentStep = currentStep + injectionSteps;
 
-        schedule.step.control(currentStep:currentStep+idle0Steps-1) = 4;
+        schedule.step.control(currentStep:currentStep+idleSteps-1) = 4;
         schedule.control(4).W = W(2);
-        currentStep = currentStep + idle0Steps;
+        currentStep = currentStep + idleSteps;
        
         schedule.step.control(currentStep:currentStep+productionSteps-1) = 5;
         schedule.control(5).W = W(4);
         currentStep = currentStep + productionSteps;
-        schedule.step.control(currentStep:currentStep+idleSteps-1) = 6;
+        schedule.step.control(currentStep:currentStep+idle1Steps-1) = 6;
         schedule.control(6).W = W(2);
-        currentStep = currentStep + idleSteps;
+        currentStep = currentStep + idle1Steps;
     end
     
     % Ensure the schedule does not exceed the total number of steps
