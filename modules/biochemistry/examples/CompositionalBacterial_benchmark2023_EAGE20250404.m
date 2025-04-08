@@ -100,7 +100,7 @@ W5(1).components = [0.0, 0.95,  0.05, 0.0];  %production
 % Define schedule and solver
 nls = NonLinearSolver('useRelaxation', true);
 
-ncycles=6;
+ncycles=1; %6;
 deltaT=1*day;
 nbj_buildUp=60*day;nbj_rest=20*day;nbj_inject=30*day;
 nbj_idle=20*day;nbj_prod=30*day;nbj_idle1=20*day;
@@ -126,7 +126,7 @@ nbj_idle=20*day;nbj_prod=30*day;nbj_idle1=20*day;
     end   
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
-    model.EOSModel.msalt=0;
+    model.EOSModel.msalt=3;
 
 %% Initial Conditions
 % Temperature and initial saturations
@@ -146,7 +146,7 @@ end
 
 %% Run simulation
 %% Pack the simulation problem with the defined components
-name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles';
+name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_1cycle_msalt3';
 problem_nbs0 = packSimulationProblem(state0, model, schedule, name_nbs0, 'NonLinearSolver', nls);
    
 if nobact
@@ -155,7 +155,8 @@ if nobact
     %% Get reservoir and well states
     [ws_nbs0,states_nbs0] = getPackedSimulatorOutput(problem_nbs0);
 else
-    name='Benchmark2023AEGE_180_pack_6cycles';
+    %name='Benchmark2023AEGE_180_pack_6cycles_msalt3';
+    name='Benchmark2023AEGE_180_pack_1cycle_msalt3';
     problem_bs0 = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls); 
     %% Execute the simulation of the packed problem
     simulatePackedProblem(problem_bs0, 'restartStep',1); %execute la simulation depuis le pas 1
@@ -270,7 +271,7 @@ ndeb0=nbuildUp+nrest;
 njcycle=ninject+nidle+nprod+nidle1;
 mH2_well_injected_nbs0=sum(H2_well_nbs0(1:nbuildUp));
 mH2_well_produced_nbs0=0.0;
-for cycle=2:ncycles
+for cycle=1:ncycles
     ndebi=ndeb0+(cycle-1)*njcycle; nj1=ndebi+ninject;
     mH2_well_injected_nbs0=mH2_well_injected_nbs0+...
         sum(H2_well_nbs0(ndebi+1:nj1));
@@ -307,5 +308,23 @@ if ~nobact
     fprintf('Total H2 loss due to bacterial effects, msalt=0: %.2f%%\n', H2_loss_percentage_nbs0(end));
     fprintf('Total CO2 loss due to bacterial effects, msalt=0: %.2f%%\n', CO2_loss_percentage_nbs0(end));
     fprintf('Total C1 production due to bacterial effects, msalt=0: %.2f%%\n', C1_loss_percentage_nbs0(end));
-end
 
+
+
+%% plot pressure
+f01=figure('Name','Pressure_compar_bact_msalt0','NumberTitle','off');
+f01.Position(3:4) = [900 700];
+plot(1:nT,pressure_bs0./1e5,'b','MarkerSize',7,'LineWidth',2)
+hold on
+plot(1:nT,pressure_nbs0./1e5,'r--','MarkerSize',8,'LineWidth',2)
+title('Mean pressure in the pure water reservoir','FontSize',16,'FontWeight','bold','Color','k')
+xlabel({'time (days)'},'FontWeight','bold','Color','k')
+ylabel({'pressure (bar)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 16; 
+
+legend({'pressure, with archae','pressure, no archae'},...
+    'FontSize',16,'TextColor','black',...
+    'Location','best')
+
+end

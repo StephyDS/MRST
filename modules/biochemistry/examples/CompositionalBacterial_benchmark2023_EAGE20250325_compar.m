@@ -722,14 +722,14 @@ if biochemistrymodel && model.bacteriamodel
 
 
 
-f33=figure('Name','nbacteria_t5','NumberTitle','off');
+f33=figure('Name','nbacteria_t110','NumberTitle','off');
 f33.Position(3:4) = [900 700];
-plotCellData(G,states_bs0{5}.nbact);
+plotCellData(G,states_bs0{110}.nbact);
 colorbar; 
 axis equal
 axis ([0 Lx  0 Ly depth_res depth_res+Lz])
 view(0,-90)
-title('Methanogenic Archae population, 5 days','FontSize',16,'FontWeight','bold','Color','k')
+title('Methanogenic Archae population, 110 days','FontSize',16,'FontWeight','bold','Color','k')
 xlabel({'x (m)'},'FontWeight','bold','Color','k')
 ylabel({'y (m)'},'FontWeight','bold','Color','k')
 ax = gca;
