@@ -100,7 +100,7 @@ W5(1).components = [0.0, 0.95,  0.05, 0.0];  %production
 % Define schedule and solver
 nls = NonLinearSolver('useRelaxation', true);
 
-ncycles=1; %6;
+ncycles=10; %6;
 deltaT=1*day;
 nbj_buildUp=60*day;nbj_rest=20*day;nbj_inject=30*day;
 nbj_idle=20*day;nbj_prod=30*day;nbj_idle1=20*day;
@@ -137,6 +137,7 @@ z0 = [0.7, 0.0, 0.02, 0.28];  % Initial composition: H2O, H2, CO2, C1
 % Initialize state with bacterial concentration
 if model.bacteriamodel
     nbact0 = 1; 
+    model.nbactMax=1.e8;
     state0 = initCompositionalStateBacteria(model, P0, T0, s0, ...
         z0, nbact0,model.EOSModel);
 else
@@ -146,20 +147,22 @@ end
 
 %% Run simulation
 %% Pack the simulation problem with the defined components
-name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_1cycle_msalt3';
+%name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_msalt3';
+name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_10cycles_msalt3';
 problem_nbs0 = packSimulationProblem(state0, model, schedule, name_nbs0, 'NonLinearSolver', nls);
    
 if nobact
     %% Execute the simulation of the packed problem
-    simulatePackedProblem(problem_nbs0, 'restartStep',1);
+    simulatePackedProblem(problem_nbs0, 'restartStep',680);
     %% Get reservoir and well states
     [ws_nbs0,states_nbs0] = getPackedSimulatorOutput(problem_nbs0);
 else
-    %name='Benchmark2023AEGE_180_pack_6cycles_msalt3';
-    name='Benchmark2023AEGE_180_pack_1cycle_msalt3';
+    %name='Benchmark2023AEGE_180_pack_6cycles_n0_1e8_msalt3';
+    name='Benchmark2023AEGE_180_pack_10cycles_n0_1e8_msalt3';
+    %name='Benchmark2023AEGE_180_pack_6cycles';
     problem_bs0 = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls); 
     %% Execute the simulation of the packed problem
-    simulatePackedProblem(problem_bs0, 'restartStep',1); %execute la simulation depuis le pas 1
+    simulatePackedProblem(problem_bs0, 'restartStep',680); %execute la simulation depuis le pas 1
     simulatePackedProblem(problem_nbs0); %recupere resultats si  le repertoire existe
     %% Get reservoir and well states
     [ws_bs0,states_bs0] = getPackedSimulatorOutput(problem_bs0);
@@ -288,7 +291,7 @@ if ~nobact
     njcycle=ninject+nidle+nprod+nidle1;
     mH2_well_injected_bs0=sum(H2_well_bs0(1:nbuildUp));
     mH2_well_produced_bs0=0.0;
-    for cycle=2:ncycles
+    for cycle=1:ncycles
         ndebi=ndeb0+(cycle-1)*njcycle; nj1=ndebi+ninject;
         mH2_well_injected_bs0=mH2_well_injected_bs0+...
            sum(H2_well_bs0(ndebi+1:nj1));
@@ -328,3 +331,5 @@ legend({'pressure, with archae','pressure, no archae'},...
     'Location','best')
 
 end
+
+

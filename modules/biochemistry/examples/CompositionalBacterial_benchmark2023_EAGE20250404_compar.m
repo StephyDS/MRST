@@ -171,9 +171,9 @@ end
 %% Run simulation
 %% Pack the simulation problem with the defined components
 name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles';
-name_bs0='Benchmark2023AEGE_180_pack_6cycles';
+name_bs0='Benchmark2023AEGE_180_pack_6cycles_n0_1e9';
 name_nbs3='Benchmark2023AEGE_180_pack_NOBACT_6cycles_msalt3';
-name_bs3='Benchmark2023AEGE_180_pack_6cycles_msalt3';
+name_bs3='Benchmark2023AEGE_180_pack_6cycles_n0_1e9_msalt3';
 % name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_1cycle';
 % name_bs0='Benchmark2023AEGE_180_pack_1cycle';
 % name_nbs3='Benchmark2023AEGE_180_pack_NOBACT_1cycle_msalt3';
@@ -195,14 +195,6 @@ simulatePackedProblem(problem_bs3);
 [ws_nbs0,states_nbs0] = getPackedSimulatorOutput(problem_nbs0);
 [ws_bs3,states_bs3] = getPackedSimulatorOutput(problem_bs3);
 [ws_nbs3,states_nbs3] = getPackedSimulatorOutput(problem_nbs3);
-
-
-
-
-
-
-
-
 
 
     %% initialise unknowns %%%%%%%%%%%%%%%%%%
@@ -369,8 +361,8 @@ Efficiency_H2_well_bs3=abs(mH2_well_produced_bs3./mH2_well_injected_bs3).*100;
 %% Display H2 production efficiency
 fprintf('In the well, H2 Production Efficiency_nobact, msalt=0 : %.2f%%\n', Efficiency_H2_well_nbs0);   
 fprintf('In the well, H2 Production Efficiency_nobact, msalt=3 : %.2f%%\n', Efficiency_H2_well_nbs3);   
-fprintf('In the well, H2 Production Efficiency_nobact, msalt=0 : %.2f%%\n', Efficiency_H2_well_bs0);   
-fprintf('In the well, H2 Production Efficiency_nobact, msalt=3 : %.2f%%\n', Efficiency_H2_well_bs3);   
+fprintf('In the well, H2 Production Efficiency_bact, msalt=0 : %.2f%%\n', Efficiency_H2_well_bs0);   
+fprintf('In the well, H2 Production Efficiency_bact, msalt=3 : %.2f%%\n', Efficiency_H2_well_bs3);   
 
 
     %% Calculate percentage of H2 loss
@@ -472,20 +464,65 @@ legend({'CO2 , no bact','CO2, boact'},...
 
 
 
-f20=figure('Name','C1_loss','NumberTitle','off');
+f20=figure('Name','C1_prod','NumberTitle','off');
 f20.Position(3:4) = [900 700];
 plot(1:nT,CH4_loss_percentage_nbs0,'b','MarkerSize',7,'LineWidth',2)
 hold on;
 plot(1:nT,CH4_loss_percentage_nbs3,'r--','MarkerSize',7,'LineWidth',2)
-title(' C1 loss','FontSize',16,'FontWeight','bold','Color','k')
+title(' C1 production','FontSize',16,'FontWeight','bold','Color','k')
 xlabel({'time (days)'},'FontWeight','bold','Color','k')
-ylabel({'C1 loss (%)'},'FontWeight','bold','Color','k')
+ylabel({'C1 production (%)'},'FontWeight','bold','Color','k')
 ax = gca;
 ax.XMinorTick='on';
 ax.YMinorTick='on';
 ax.FontSize = 16; 
 legend({'C1 , msalt=0','C1, msalt=3'},...
     'FontSize',16,'TextColor','black','Location','west')
+
+
+%% plot total masses over time of: H2, CO2, production C1%%%%%%%%%%%%%%%%
+f20=figure('Name','H2_total_mass','NumberTitle','off');
+f20.Position(3:4) = [900 700];
+plot(1:nT,totMassH2_nbs0,'b','MarkerSize',7,'LineWidth',2)
+hold on;
+plot(1:nT,totMassH2_bs0,'r--','MarkerSize',7,'LineWidth',2)
+title(' H2 total mass over time, no salt','FontSize',16,'FontWeight','bold','Color','k')
+xlabel({'time (days)'},'FontWeight','bold','Color','k')
+ylabel({'H2 mass (kg)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 16; 
+legend({'H2 total mass, no archae','H2 total mass, archae'},...
+    'FontSize',16,'TextColor','black','Location','west')
+
+
+f20=figure('Name','CO2_total_mass','NumberTitle','off');
+f20.Position(3:4) = [900 700];
+plot(1:nT,totMassCO2_nbs0,'b','MarkerSize',7,'LineWidth',2)
+hold on;
+plot(1:nT,totMassCO2_bs0,'r--','MarkerSize',7,'LineWidth',2)
+title(' CO2 total mass over time, no salt','FontSize',16,'FontWeight','bold','Color','k')
+xlabel({'time (days)'},'FontWeight','bold','Color','k')
+ylabel({'CO2 mass (kg)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 16; 
+legend({'CO2 total mass, no archae','CO2 total mass, archae'},...
+    'FontSize',16,'TextColor','black','Location','west')
+
+f20=figure('Name','C1_total_mass','NumberTitle','off');
+f20.Position(3:4) = [900 700];
+plot(1:nT,totMassCH4_nbs0,'b','MarkerSize',7,'LineWidth',2)
+hold on;
+plot(1:nT,totMassCH4_bs0,'r--','MarkerSize',7,'LineWidth',2)
+title(' C1 total mass over time, no salt','FontSize',16,'FontWeight','bold','Color','k')
+xlabel({'time (days)'},'FontWeight','bold','Color','k')
+ylabel({'C1 mass (kg)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 16; 
+legend({'C1 total mass, no archae','C1 total mass, archae'},...
+    'FontSize',16,'TextColor','black','Location','west')
+
+
+
 
 
 %% plot well%%%%%%%%%%%%%%%%

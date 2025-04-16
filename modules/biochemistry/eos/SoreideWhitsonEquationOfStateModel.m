@@ -743,7 +743,7 @@ classdef SoreideWhitsonEquationOfStateModel < PhysicalModel
                     end
                     %Only for component H2O in the liquid phase
                     TrH2O=Tr{indH2O};
-                    oA{indH2O} = model.omegaA.*(1 +0.4530.*(1-(1-0.0103*coef_msalt).*TrH2O)+0.0034.*(TrH2O.^(-3)-1).^2);                 
+                    oA{indH2O} = model.omegaA.*(1 +0.4530.*(1-(1-0.0103*coef_msalt).*TrH2O)+0.0034.*(TrH2O.^(-3)-1)).^2;                 
                 else
                     %for liquid phase:
                     tmp = bsxfun(@times, 0.37464 + 1.54226.*acf - 0.26992.*acf.^2, 1-Tr.^(1/2));

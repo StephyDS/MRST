@@ -173,7 +173,7 @@ hold on
 plot(presbar,xliqH2Exp,'k o','MarkerSize',8,'LineWidth',2)
 
 title('H2 solubility in pure water','FontSize',16,'FontWeight','normal','Color','k')
-xlabel({'pressure','(bar)'},'FontWeight','normal','Color','k')
+xlabel({'pressure (bar)'},'FontWeight','normal','Color','k')
 ylabel('H2 molar fraction','FontWeight','normal','Color','k')
 ax = gca;
 ax.FontSize = 16; 
