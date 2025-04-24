@@ -141,7 +141,6 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     model.gammak(indC1)  = 1.0;
                 end                 
             end
-            model.compFluid = compFluid;
                                    
             model.compFluid = compFluid;                
             eos = SoreideWhitsonEquationOfStateModel([], compFluid, 'sw');
@@ -153,8 +152,13 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 'BioChemsitryModel supports currently only one micro-organism');
             % Set output state functions
             model.OutputStateFunctions = {'ComponentTotalMass', 'Density'};
+               
             if model.bacteriamodel
                 model.FlowDiscretization = BiochemicalFlowDiscretization(model);
+            else %SDS MODIF===============================
+                if model.moleculardiffusion 
+                    model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
+                end   
             end
         end
         
@@ -272,6 +276,26 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         function [eqs, names, types, state] = getModelEquations(model, state0, state, dt, drivingForces, varargin)
             % Discretize
             [eqs, flux, names, types] = model.FlowDiscretization.componentConservationEquations(model, state, state0, dt);
+
+           %======SDSMODIF=========A FAIRE: RAJOUTER LA DIFFUSION MOLECULAIRE 
+           % QUI EST DANS BIOCHEMICALDISCRETIZATIONFLOW==================
+            % flowState = fd.buildFlowState(model, state, state0, dt);
+            % act = model.getActivePhases();
+            % ncomp = model.getNumberOfComponents();
+            % nph = sum(act); 
+            % if model.moleculardiffusion           
+            %     J = model.getProps(flowState, 'MolecularDiffPhaseFlux');
+            %     for c = 1:ncomp
+            %         for ph = 1:nph                   
+            %             flux{c} = flux{c} + J{c,ph};                     
+            %         end
+            %     end
+            % end
+            %=======================================================================
+            
+            
+            
+            
             src = model.FacilityModel.getComponentSources(state);
             % Assemble equations and add in sources
             [pressures, sat, mob, rho, X] = model.getProps(state, 'PhasePressures', 's', 'Mobility', 'Density', 'ComponentPhaseMassFractions');

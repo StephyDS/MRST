@@ -98,7 +98,7 @@ W5(1).components = [0.0, 0.95,  0.05, 0.0];  %production
 % Define schedule and solver
 nls = NonLinearSolver('useRelaxation', true);
 
-ncycles=10; %6;
+ncycles=6; %6;
 deltaT=1*day;
 nbj_buildUp=60*day;nbj_rest=20*day;nbj_inject=30*day;
 nbj_idle=20*day;nbj_prod=30*day;nbj_idle1=20*day;
@@ -184,15 +184,11 @@ end
 
 %% Run simulation
 %% Pack the simulation problem with the defined components
-name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_10cycles';
-name_bs0='Benchmark2023AEGE_180_pack_10cycles_n0_1e8';
-name_bs01e9='Benchmark2023AEGE_180_pack_10cycles_n0_1e9';
-name_nbs3='Benchmark2023AEGE_180_pack_NOBACT_10cycles_msalt3';
-name_bs3='Benchmark2023AEGE_180_pack_10cycles_n0_1e8_msalt3';
-% name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_1cycle';
-% name_bs0='Benchmark2023AEGE_180_pack_1cycle';
-% name_nbs3='Benchmark2023AEGE_180_pack_NOBACT_1cycle_msalt3';
-% name_bs3='Benchmark2023AEGE_180_pack_1cycle_msalt3';
+name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles';
+name_bs0='Benchmark2023AEGE_180_pack_6cycles_n0_1e8';
+name_bs01e9='Benchmark2023AEGE_180_pack_6cycles_n0_1e9';
+name_nbs3='Benchmark2023AEGE_180_pack_NOBACT_6cycles_msalt3';
+name_bs3='Benchmark2023AEGE_180_pack_6cycles_n0_1e8_msalt3';
 problem_nbs0 = packSimulationProblem(state0_nbs0, model_nbs0, schedule, name_nbs0, 'NonLinearSolver', nls);
 problem_bs0= packSimulationProblem(state0_bs0, model_bs0, schedule, name_bs0, 'NonLinearSolver', nls);
 problem_bs01e9= packSimulationProblem(state0_bs01e9, model_bs01e9, schedule, name_bs01e9, 'NonLinearSolver', nls);
@@ -369,6 +365,9 @@ mH2_well_produced_nbs3=0.0;
 mH2_well_produced_bs0=0.0;
 mH2_well_produced_bs01e9=0.0;
 mH2_well_produced_bs3=0.0;
+Efficiency_H2_well_nbs0_cycle=zeros(ncycles,1);
+Efficiency_H2_well_bs0_cycle=zeros(ncycles,1);
+
 for cycle=1:ncycles
     ndebi=ndeb0+(cycle-1)*njcycle; nj1=ndebi+ninject;
     mH2_well_injected_nbs0=mH2_well_injected_nbs0+...
@@ -391,6 +390,8 @@ for cycle=1:ncycles
         sum(H2_well_bs3(ndebi+1:nj1));
     mH2_well_produced_bs3=mH2_well_produced_bs3+...
         sum(H2_well_bs3(nj1+nidle+1:nj1+nidle+nprod));
+    Efficiency_H2_well_nbs0_cycle(cycle)=abs(mH2_well_produced_nbs0./mH2_well_injected_nbs0).*100;
+    Efficiency_H2_well_bs0_cycle(cycle)=abs(mH2_well_produced_bs0./mH2_well_injected_bs0).*100;
 end
 Efficiency_H2_well_nbs0=abs(mH2_well_produced_nbs0./mH2_well_injected_nbs0).*100;
 Efficiency_H2_well_nbs3=abs(mH2_well_produced_nbs3./mH2_well_injected_nbs3).*100;
