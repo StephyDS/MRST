@@ -9,7 +9,7 @@
 clear; clc;
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
-nobact=false;%true;%
+nobact=true;%false;%
 
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
@@ -126,7 +126,7 @@ nbj_idle=20*day;nbj_prod=30*day;nbj_idle1=20*day;
     end   
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
-    model.EOSModel.msalt=3;
+    model.EOSModel.msalt=0;
 
 %% Initial Conditions
 % Temperature and initial saturations
@@ -148,17 +148,17 @@ end
 %% Run simulation
 %% Pack the simulation problem with the defined components
 %name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_msalt3';
-name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_10cycles_msalt3';
+name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_10cycles';
 problem_nbs0 = packSimulationProblem(state0, model, schedule, name_nbs0, 'NonLinearSolver', nls);
    
 if nobact
     %% Execute the simulation of the packed problem
-    simulatePackedProblem(problem_nbs0, 'restartStep',680);
+    simulatePackedProblem(problem_nbs0, 'restartStep',1);
     %% Get reservoir and well states
     [ws_nbs0,states_nbs0] = getPackedSimulatorOutput(problem_nbs0);
 else
     %name='Benchmark2023AEGE_180_pack_6cycles_n0_1e8_msalt3';
-    name='Benchmark2023AEGE_180_pack_10cycles_n0_1e8_msalt3';
+    name='Benchmark2023AEGE_180_pack_10cycles_n0_1e8';
     %name='Benchmark2023AEGE_180_pack_6cycles';
     problem_bs0 = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls); 
     %% Execute the simulation of the packed problem

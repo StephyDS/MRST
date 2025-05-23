@@ -45,17 +45,19 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         % Physical quantities and bounds
         Y_H2 = 3.90875e11; % in 1/mole(H2)
         gammak   = [];
-        mol_diff = [];
         alphaH2  = 3.6e-7;
         alphaCO2 = 1.98e-6;
 
         Psigrowthmax = 1.338e-4; % 1/s        
         b_bact       = 2.35148e-6; % 1/s
         
-        Db = 10^(-8)*meter/second
+        Db = 10^(-3)*meter/second
         bDiffusionEffect = false;
+
         moleculardiffusion = false;
-        
+        mol_diff = [];
+        param_LJ=[];
+       
         nbactMax = 1.e9; % 1/m^3
         
         bacteriamodel = true;
@@ -88,6 +90,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     'N2', find(strcmp(namecp, 'N2')), ...
                     'C2', find(strcmp(namecp, 'C2')), ...
                     'C3', find(strcmp(namecp, 'C3')), ...
+                    'H2S', find(strcmp(namecp, 'H2S')), ...
                     'NC4', find(strcmp(namecp, 'NC4')));
                 
                 fields = fieldnames(indices);
@@ -101,8 +104,31 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     'CO2', [1.9e-9, 1.4e-5], ... 
                     'N2',  [2.1e-9, 1.8e-5], ... 
                     'C2',  [3.2e-9, 2.5e-5], ... 
-                    'C3',  [2.8e-9, 2.2e-5], ... 
+                    'C3',  [2.8e-9, 2.2e-5], ...
+                    'H2S',  [1.6e-9, 2.2e-5], ...
                     'NC4', [2.4e-9, 1.9e-5]);
+
+                % coeffs = struct(...
+                %     'H2',  [4.5e-9, 6.1e-5], ...
+                %     'C1', [1.5e-9, 1.6e-5], ...
+                %     'H2O', [2.3e-9, 1.5e-5], ...
+                %     'CO2', [1.9e-9, 1.4e-5], ... 
+                %     'N2',  [2.0e-9, 1.8e-5], ... 
+                %     'C2',  [1.3e-9, 2.5e-5], ... 
+                %     'C3',  [1.1e-9, 2.2e-5], ... 
+                %     'H2S',  [1.6e-9, 2.2e-5], ... 
+                %     'NC4', [0.98e-9, 1.9e-5]);
+
+                coeffs_LJ=struct(... %paramètres de Lennard-Jones (diametre moyen (Angstrom), potentiel(K))
+                    'H2',  [2.92,59.7], ...
+                    'C1',  [3.758,148.6], ...
+                    'H2O',  [2.641,809.1], ...
+                    'CO2',  [3.996,195.2], ...
+                    'N2',   [3.798,71.4], ...
+                    'C2',   [4.443,215.7], ...
+                    'C3',   [5.118,237.1], ...
+                    'H2S',   [3.60,301.0], ...
+                    'NC4', [5.206,289.5]);
                 
                 for i = 1:nfields
                     comp = fields{i};
@@ -110,6 +136,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                     
                     if ~isempty(indComp) && isfield(coeffs, comp)
                       model.mol_diff(indices.(comp),:)= coeffs.(comp);
+                      model.param_LJ(indices.(comp),:)=coeffs_LJ.(comp);
                     end
                  end
             end
@@ -152,13 +179,18 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 'BioChemsitryModel supports currently only one micro-organism');
             % Set output state functions
             model.OutputStateFunctions = {'ComponentTotalMass', 'Density'};
-               
+             
+
+            if model.moleculardiffusion 
+               model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
+            end   
             if model.bacteriamodel
                 model.FlowDiscretization = BiochemicalFlowDiscretization(model);
-            else %SDS MODIF===============================
-                if model.moleculardiffusion 
-                    model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
-                end   
+                %model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
+            % else %SDS MODIF===============================
+            %     if model.moleculardiffusion 
+            %         model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
+            %     end   
             end
         end
         
@@ -277,24 +309,6 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             % Discretize
             [eqs, flux, names, types] = model.FlowDiscretization.componentConservationEquations(model, state, state0, dt);
 
-           %======SDSMODIF=========A FAIRE: RAJOUTER LA DIFFUSION MOLECULAIRE 
-           % QUI EST DANS BIOCHEMICALDISCRETIZATIONFLOW==================
-            % flowState = fd.buildFlowState(model, state, state0, dt);
-            % act = model.getActivePhases();
-            % ncomp = model.getNumberOfComponents();
-            % nph = sum(act); 
-            % if model.moleculardiffusion           
-            %     J = model.getProps(flowState, 'MolecularDiffPhaseFlux');
-            %     for c = 1:ncomp
-            %         for ph = 1:nph                   
-            %             flux{c} = flux{c} + J{c,ph};                     
-            %         end
-            %     end
-            % end
-            %=======================================================================
-            
-            
-            
             
             src = model.FacilityModel.getComponentSources(state);
             % Assemble equations and add in sources

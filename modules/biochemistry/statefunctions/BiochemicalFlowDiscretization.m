@@ -1,9 +1,8 @@
 classdef BiochemicalFlowDiscretization < FlowDiscretization
 %Discretization and state function grouping for bio-chemistry flow
     
-    properties
-              
-        MolecularDiffPhaseFlux
+    properties              
+        %MolecularDiffPhaseFlux
         PsiGrowthRate
         BactConvRate
         PsiDecayRate
@@ -38,36 +37,37 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             else
                 % Static transmissibilities already been set up by parent
             end
-            props = props.setStateFunction('MolecularDiffPhaseFlux', ComponentMolecularDiffPhaseFlux(model));
+            %props = props.setStateFunction('MolecularDiffPhaseFlux', ComponentMolecularDiffPhaseFlux(model));
             props = props.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
             props = props.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
             props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
             props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
             if model.bDiffusionEffect
-                props = props.setStateFunction('BactFlux'          , DiffusiveBactFlux(model)          );
+                props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model)          );
             end
-            if model.moleculardiffusion
-                % Set molecular diffusion flux
-                props = props.setStateFunction('MolecularDiffusivity'       , ComponentMolecularDiffPhaseFlux(model));
-            end
+            % if model.moleculardiffusion
+            %     % Set molecular diffusion flux
+            %     props = props.setStateFunction('MolecularDiffPhaseFlux', ComponentMolecularDiffPhaseFlux(model));
+            % 
+            % end
         end
         
         %-----------------------------------------------------------------%
-        function [acc, flux, names, types] = componentConservationEquations(fd, model, state, state0, dt)
-            [acc, flux, names, types] = componentConservationEquations@FlowDiscretization(fd, model, state, state0, dt);
-            flowState = fd.buildFlowState(model, state, state0, dt);
-            act = model.getActivePhases();
-            ncomp = model.getNumberOfComponents();
-            nph = sum(act); 
-            if model.moleculardiffusion           
-                J = model.getProps(flowState, 'MolecularDiffPhaseFlux');
-                for c = 1:ncomp
-                    for ph = 1:nph                   
-                        flux{c} = flux{c} + J{c,ph};                     
-                    end
-                end
-            end
-        end
+        % function [acc, flux, names, types] = componentConservationEquations(fd, model, state, state0, dt)
+        %     [acc, flux, names, types] = componentConservationEquations@FlowDiscretization(fd, model, state, state0, dt);
+        %     flowState = fd.buildFlowState(model, state, state0, dt);
+        %     act = model.getActivePhases();
+        %     ncomp = model.getNumberOfComponents();
+        %     nph = sum(act); 
+        %     if model.moleculardiffusion           
+        %         J = model.getProps(flowState, 'MolecularDiffPhaseFlux');
+        %         for c = 1:ncomp
+        %             for ph = 1:nph                   
+        %                 flux{c} = flux{c} + J{c,ph};                     
+        %             end
+        %         end
+        %     end
+        % end
         
         %-----------------------------------------------------------------%
         function [acc, bflux, name, type] = bacteriaConservationEquation(fd, model, state, state0, dt)

@@ -1,7 +1,7 @@
 classdef DiffusiveBactFlux < StateFunction & UpwindProperty
     % bacterial diffusive flux
     properties (Access = protected)
-        Db = 10^(-8)*meter/second
+        Db = 10^(-3)*meter/second
         upwind_name; % Name of state function where upwind flag comes from
     end
     
@@ -18,7 +18,8 @@ classdef DiffusiveBactFlux < StateFunction & UpwindProperty
             gp.upwind_name = upwind_name;
             gp = gp.dependsOn(upwind_name);
             gp = gp.dependsOn({'nbact'}, 'state');
-           gp = gp.dependsOn({'s'}, 'state');
+            gp = gp.dependsOn('Density', 'PVTPropertyFunctions'); %SDS MODIF
+            gp = gp.dependsOn({'s'}, 'state');
             gp.label = 'Flux_{bio}';
         end
         function fluxbact = evaluateOnDomain(prop, model, state)
@@ -27,16 +28,23 @@ classdef DiffusiveBactFlux < StateFunction & UpwindProperty
             nbact = model.getProps(state, 'nbact');
             s = model.getProps(state, 's');                
             L_ix = model.getLiquidIndex();
-                
+            %==========SDS MODIF=======================
+            rho = prop.getEvaluatedExternals(model, state, 'Density');      
+            poro= model.rock.poro;
+             %==========SDS MODIF=======================
+               
             if iscell(s)                  
-                 sL = s{L_ix};    
+                 sL = s{L_ix};  
+                 rhoL = rho{L_ix};   %==========SDS MODIF
             else
-                 sL = s(:, L_ix);  
+                 sL = s(:, L_ix);
+                 rhoL = rho(:, L_ix); %==========SDS MODIF
             end
             Diffb = prop.Db;
             gradn = model.operators.Grad(nbact);
-            fluxbact = -prop.faceUpstream(model, state, flag{L_ix}, Diffb.*sL).*gradn;
-                
+             %==========SDS MODIF
+            fluxbact = -prop.faceUpstream(model, state, flag{L_ix}, Diffb.*sL.*poro.*rhoL).*gradn;
+              %==========SDS MODIF   
         end
     end
 end

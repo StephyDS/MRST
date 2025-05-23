@@ -1,6 +1,7 @@
 classdef ComponentMolecularDiffPhaseFlux < StateFunction
     % Flux of each component, in each phase
     properties
+        
     end
 
     methods
@@ -9,6 +10,8 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
             gp = gp.dependsOn('Density', 'PVTPropertyFunctions');
              gp = gp.dependsOn('s', 'state');
              gp = gp.dependsOn('x', 'state');
+             gp = gp.dependsOn('pressure', 'state');
+             gp = gp.dependsOn('T', 'state');
 
             gp.label = 'J_{i,\alpha}';
         end
@@ -20,48 +23,61 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
             J = cellfun(@(x) 0, J, 'UniformOutput', false);      
             if isfield(state,'x')
                nm = model.getPhaseNames();
-               tau = [1,1];
-               rho = prop.getEvaluatedExternals(model, state, 'Density');      
+               rho = prop.getEvaluatedExternals(model, state, 'Density'); 
+               [p, T] = model.getProps(state, 'pressure', 'temperature'); %SDS modeif
+               coeff1=T.^(1.5)./(9.869e-6.*p); %1.e5.*p en atm et p en Pa 
+               Molmass=1.e3.*model.compFluid.molarMass;
+               SigLJ=model.param_LJ(:,1);
+               EpsLJ=model.param_LJ(:,2);
+
                avg = model.operators.faceAvg;
                poro= model.rock.poro;
                L_ix = model.getLiquidIndex();
                V_ix = model.getVaporIndex();
-               %if iscell(rho)
-                   %fprintf('nbphase:=%.2f, min(rho{1}.val)=%.2f \n',nph,min(rho{1}.val));
-                   %ddd1=rho{1}.*tau(1).*poro;
-                   %ddd2=rho{2}.*tau(2).*poro;
-                   %fprintf('nbphase:=%.2f, min(ddd1.val)=%.2f, min(ddd2.val)=%.2f \n',nph,min(ddd1.val),min(ddd2.val));
-                   
-               %else
-               %    fprintf('rho not cell \n');
-               %end
+               
 
                % Define diffusion coefficients in m²/s for liquid and gas phases
                % These are example values, please replace them with actual data as needed
                % Format: [liquid_diff gas_diff] for each component
+               sqrtMij=zeros(ncomp,ncomp);
+               sqrtEpsij=zeros(ncomp,ncomp);
+               Sigij2=zeros(ncomp,ncomp);
+               for c = 1:ncomp
+                   for cj = 1:ncomp
+                       sqrtMij(c,cj)=sqrt(2*Molmass(c)*Molmass(cj)/(Molmass(c)+Molmass(cj)));
+                       sqrtEpsij(c,cj)=sqrt(EpsLJ(c)*EpsLJ(cj));
+                       Sigij2(c,cj)=0.25*(SigLJ(c)+SigLJ(cj))*(SigLJ(c)+SigLJ(cj));
+
+                   end
+                end
+               Dij=1.e-4.*0.001858./(sqrtMij.*Sigij2); %en m2/s
+
+
                for c = 1:ncomp
                    for ph = 1:nph
                        s = model.getProp(state, ['s', nm(ph)]);
-                       %D_diff = avg(model.mol_diff(c,ph).*tau(ph).*poro);
-                       %fprintf('comp:=%.2f, phase=%.2f  min(x(1))=%.2f,min(x(2))=%.2f \n',...
-                       %  c,ph,min(state.x{1}.val),min(state.x{1}.val));
-                       %ddd1=avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau(ph).*poro);
-                       %ddd2=model.operators.Grad(state.x{1});
-                       %ddd3=ddd1.*ddd2;
-                       %fprintf('nbphase:=%.2f, size(ddd1.val,1)=%.2f size(ddd3.val,1)=%.2f \n',nph,min(ddd1.val),size(ddd3.val,1));
-                       %============SDS MODIF TAU MILLINGTON AND QUIRK MODEL======
                        tau_mq=(s.*poro).^(7/3).*poro.^(-2);
-                       D_diff = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau_mq.*poro);%Millington and Quirk model
-                       %D_diff = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau(ph).*poro);%Millington and Quirk model
-                       %============SDS MODIF ======
-               
+                       %D_diff = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau_mq.*poro);%Millington and Quirk model
+                       
                        if (ph==L_ix) 
-                           
-                           J{c, ph} = - D_diff.*model.operators.Grad(state.x{c});
+                           D_diffl = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau_mq.*poro);%Millington and Quirk model
+                           J{c, ph} = - D_diffl.*model.operators.Grad(state.x{c});
 
-                       elseif (ph==V_ix)   
-                           %fprintf('VAP:J{c, ph}: c=%.2f, ph=%.2f,mol_diff=%.2f, \n',c,ph,model.mol_diff(c,ph));
-                          
+                       elseif (ph==V_ix)
+                           %calcul des Dij
+                           D_diffij_inv =state.y{cj};%model.AutoDiffBackend.initVariablesAD(zeros(model.G.cells.num,1));
+
+                           for cj = 1:ncomp
+                               if (cj~=c)
+                                   D_diffij_inv =  D_diffij_inv  +state.y{cj}./Dij(c,cj);
+                               end
+                           end
+                           D_diffij_inv =D_diffij_inv-state.y{cj};%model.AutoDiffBackend.initVariablesAD(zeros(model.G.cells.num,1));
+                           D_diffij=coeff1./D_diffij_inv;
+                           % 
+                            D_diff = avg(s.*rho{ph}.*D_diffij.*tau_mq.*poro);%Millington and Quirk model
+                           % 
+                           %D_diff = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau_mq.*poro);%Millington and Quirk model
                            J{c, ph} = - D_diff.*model.operators.Grad(state.y{c});
                        end
                    end

@@ -10,11 +10,13 @@ clear; clc;
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
 nobact=false;%true;%
-MolecDiffus=true;%false;%
+MolecDiffus=false;%true;%
+BactDiffus=true;%false;%
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
 %[nx, ny, nz] = deal(61,61,10);  % Grid cells in x, y, z directions
 [nx, ny, nz] = deal(31,31,8);  % Grid cells in x, y, z directions
+%[nx, ny, nz] = deal(11,11,8);  % Grid cells in x, y, z directions
 [Lx,Ly,Lz] = deal(1525,1525,50);         % Physical dimensions in meters
 dims = [nx, ny, nz];
 pdims = [Lx, Ly, Lz];
@@ -95,8 +97,9 @@ W5(1).components = [0.0, 0.95,  0.05, 0.0];  %production
 %% Time Stepping and Schedule
 % Define schedule and solver
 nls = NonLinearSolver('useRelaxation', true);
+%nls = NonLinearSolver();
 
-ncycles=2; %6;
+ncycles=6; %6;
 deltaT=1*day;
 nbj_buildUp=60*day;nbj_rest=20*day;nbj_inject=30*day;
 nbj_idle=20*day;nbj_prod=30*day;nbj_idle1=20*day;
@@ -117,14 +120,17 @@ nbj_idle=20*day;nbj_prod=30*day;nbj_idle1=20*day;
     else
         arg = {G, rock, fluid, compFluid,true,diagonal_backend,...
         'water', false, 'oil', true, 'gas', true,'bacteriamodel',true,...
-        'bDiffusionEffect', false,'moleculardiffusion',MolecDiffus,...
+        'bDiffusionEffect', BactDiffus,'moleculardiffusion',MolecDiffus,...
         'liquidPhase', 'O', 'vaporPhase', 'G'};          
     end
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
     model.EOSModel.msalt=0;
-    
-  
+
+%    lsolve = selectLinearSolverAD(model);                          % Select the linear solver for the model
+%    nls.LinearSolver = lsolve;                                     % Assign the linear solver to the nonlinear solver
+
+   
 %% Initial Conditions
 % Temperature and initial saturations
 T0 = 40+273.15;                % Initial temperature (K)
@@ -145,7 +151,7 @@ end
 %% Run simulation
 %% Pack the simulation problem with the defined components
 %name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_msalt3';
-name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_2cycles_MolDiff';
+name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_MolDiffChapman_gmres';
 problem_nbs0 = packSimulationProblem(state0, model, schedule, name_nbs0, 'NonLinearSolver', nls);
    
 if nobact
@@ -155,7 +161,7 @@ if nobact
     [ws_nbs0,states_nbs0] = getPackedSimulatorOutput(problem_nbs0);
 else
     %name='Benchmark2023AEGE_180_pack_6cycles_n0_1e8_msalt3';
-    name='Benchmark2023AEGE_180_pack_10cycles_n0_1e8'; %_MolDiff';
+    name='Benchmark2023AEGE_180_pack_6cycles_n0_1e8_NOMolDiff_gmres';
     problem_bs0 = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls); 
     %% Execute the simulation of the packed problem
       %[wellSols,states,report]= simulateScheduleAD(state0, model, schedule,...
@@ -256,15 +262,17 @@ for i = 1:nT
 end
 
 if ~nobact
-    for j=1:ncomp
-        totMassComp_bs0(i)=totMassComp_bs0(i)+sum(states_bs0{i}.FlowProps.ComponentTotalMass{j});
+    for i=1:nT
+       for j=1:ncomp
+           totMassComp_bs0(i)=totMassComp_bs0(i)+sum(states_bs0{i}.FlowProps.ComponentTotalMass{j});
+       end
+       totMassH2_bs0(i)=sum(states_bs0{i}.FlowProps.ComponentTotalMass{indH2});
+       totMassCO2_bs0(i)=sum(states_bs0{i}.FlowProps.ComponentTotalMass{indCO2});
+       totMassC1_bs0(i)=sum(states_bs0{i}.FlowProps.ComponentTotalMass{indC1});
+       FractionMassH2_bs0(i)=totMassH2_bs0(i)/totMassComp_bs0(i);
+       FractionMassCO2_bs0(i)=totMassCO2_bs0(i)/totMassComp_bs0(i);
+       FractionMassC1_bs0(i)=totMassC1_bs0(i)/totMassComp_bs0(i);
     end
-    totMassH2_bs0(i)=sum(states_bs0{i}.FlowProps.ComponentTotalMass{indH2});
-    totMassCO2_bs0(i)=sum(states_bs0{i}.FlowProps.ComponentTotalMass{indCO2});
-    totMassC1_bs0(i)=sum(states_bs0{i}.FlowProps.ComponentTotalMass{indC1});
-    FractionMassH2_bs0(i)=totMassH2_bs0(i)/totMassComp_bs0(i);
-    FractionMassCO2_bs0(i)=totMassCO2_bs0(i)/totMassComp_bs0(i);
-    FractionMassC1_bs0(i)=totMassC1_bs0(i)/totMassComp_bs0(i);
 end
 
 % %% Calculate H2 production efficiency in the well
@@ -327,6 +335,102 @@ ax.FontSize = 16;
 legend({'pressure, with archae','pressure, no archae'},...
     'FontSize',16,'TextColor','black',...
     'Location','best')
+
+f20=figure('Name','H2_loss','NumberTitle','off');
+f20.Position(3:4) = [900 700];
+plot(1:nT,H2_loss_percentage_nbs0,'b','MarkerSize',7,'LineWidth',2)
+title(' H2 loss','FontSize',16,'FontWeight','bold','Color','k')
+xlabel({'time (days)'},'FontWeight','bold','Color','k')
+ylabel({'H2 loss (%)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.XMinorTick='on';
+%ax.YMinorTick='on';
+ax.FontSize = 16; 
+legend({'H2 , msalt=0'},...
+    'FontSize',16,'TextColor','black','Location','west')
+
+
+f20=figure('Name','H2_total_mass','NumberTitle','off');
+f20.Position(3:4) = [900 700];
+plot(1:nT,totMassH2_nbs0,'b','MarkerSize',7,'LineWidth',2)
+hold on;
+plot(1:nT,totMassH2_bs0,'r--','MarkerSize',7,'LineWidth',2)
+title(' H2 total mass over time, no salt','FontSize',16,'FontWeight','bold','Color','k')
+xlabel({'time (days)'},'FontWeight','bold','Color','k')
+ylabel({'H2 mass (kg)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 16; 
+legend({'H2 total mass, no archae','H2 total mass, archae'},...
+    'FontSize',16,'TextColor','black','Location','west')
+
+
+
+f25=figure('Name','H2_well_bact','NumberTitle','off');
+f25.Position(3:4) = [900 700];
+plot(1:nT,H2_well_bs0,'b','MarkerSize',7,'LineWidth',2)
+title(' H2 well rate with archae','FontSize',16,'FontWeight','bold','Color','k')
+xlabel({'time (days)'},'FontWeight','bold','Color','k')
+ylabel({'H2 Production (kg/day)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.XMinorTick='on';
+ax.YMinorTick='on';
+ax.FontSize = 16; 
+legend({'H2, msalt=0'},...
+    'FontSize',16,'TextColor','black','Location','west')
+
+
+
+
+
+
+
+ nbacteria_bs0= zeros(nT,1);
+    pv=model.operators.pv;
+    ncells=G.cells.num;
+    for i = 1:nT
+       nbacteria_bs0(i)=sum(states_bs0{i}.nbact);
+    end
+
+   f31=figure('Name','nbacteria','NumberTitle','off');
+   f31.Position(3:4) = [900 700];
+   plot(0:nT,[ncells*nbact0;nbacteria_bs0],'b','MarkerSize',7,'LineWidth',2)
+   title('Total methanogenic Archae population','FontSize',16,'FontWeight','bold','Color','k')
+   xlabel({'time (days)'},'FontWeight','bold','Color','k')
+   ylabel({'N_{archae}'},'FontWeight','bold','Color','k')
+   ax = gca;
+   ax.FontSize = 16; 
+   legend({'N_{archae}, msalt=0'},'FontSize',16,'TextColor','black',...
+    'Location','best')
+
+
+
+
+f33=figure('Name','nbacteria_t110','NumberTitle','off');
+f33.Position(3:4) = [900 700];
+plotCellData(G,states_bs0{110}.nbact);
+colorbar; 
+axis equal
+axis ([0 Lx  0 Ly depth_res depth_res+Lz])
+view(0,-90)
+title('Methanogenic Archae population, 110 days','FontSize',16,'FontWeight','bold','Color','k')
+xlabel({'x (m)'},'FontWeight','bold','Color','k')
+ylabel({'y (m)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 16; 
+
+f33=figure('Name','xH2_t110','NumberTitle','off');
+f33.Position(3:4) = [900 700];
+plotCellData(G,states_bs0{110}.x(:,indH2));
+colorbar; 
+axis equal
+axis ([0 Lx  0 Ly depth_res depth_res+Lz])
+view(0,-90)
+title('H2 molar fraction in the liquid phase, 110 days','FontSize',16,'FontWeight','bold','Color','k')
+xlabel({'x (m)'},'FontWeight','bold','Color','k')
+ylabel({'y (m)'},'FontWeight','bold','Color','k')
+ax = gca;
+ax.FontSize = 16; 
+
 
 end
 
