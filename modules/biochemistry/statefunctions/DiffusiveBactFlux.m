@@ -1,22 +1,22 @@
-classdef DiffusiveBactFlux < StateFunction & UpwindProperty
+classdef DiffusiveBactFlux < StateFunction   %& UpwindProperty
     % bacterial diffusive flux
     properties (Access = protected)
-        Db = 10^(-3)*meter/second
-        upwind_name; % Name of state function where upwind flag comes from
+        %Db = 10^(-3)*meter/second
+        %upwind_name; % Name of state function where upwind flag comes from
     end
     
     methods
         function gp = DiffusiveBactFlux(model, varargin)                                  
-            if nargin < 2
-                upstr = UpwindFunctionWrapperDiscretization(model);
-            end
-            if nargin < 3
-                upwind_name = 'PhaseUpwindFlag';
-            end
+            % if nargin < 2
+            %     upstr = UpwindFunctionWrapperDiscretization(model);
+            % end
+            % if nargin < 3
+            %     upwind_name = 'PhaseUpwindFlag';
+            % end
             gp@StateFunction(model);
-            gp@UpwindProperty(upstr);
-            gp.upwind_name = upwind_name;
-            gp = gp.dependsOn(upwind_name);
+            %gp@UpwindProperty(upstr);
+            %gp.upwind_name = upwind_name;
+            %gp = gp.dependsOn(upwind_name);
             gp = gp.dependsOn({'nbact'}, 'state');
             gp = gp.dependsOn('Density', 'PVTPropertyFunctions'); %SDS MODIF
             gp = gp.dependsOn({'s'}, 'state');
@@ -24,7 +24,8 @@ classdef DiffusiveBactFlux < StateFunction & UpwindProperty
         end
         function fluxbact = evaluateOnDomain(prop, model, state)
             % Get dependencies
-            flag = prop.getEvaluatedDependencies(state, prop.upwind_name);
+            %flag = prop.getEvaluatedDependencies(state, prop.upwind_name);
+            avg = model.operators.faceAvg;
             nbact = model.getProps(state, 'nbact');
             s = model.getProps(state, 's');                
             L_ix = model.getLiquidIndex();
@@ -40,11 +41,14 @@ classdef DiffusiveBactFlux < StateFunction & UpwindProperty
                  sL = s(:, L_ix);
                  rhoL = rho(:, L_ix); %==========SDS MODIF
             end
-            Diffb = prop.Db;
-            gradn = model.operators.Grad(nbact);
+            Diffb = avg(model.Db.*sL.*poro.*rhoL);%prop.Db;
+            %gradn = model.operators.Grad(nbact);
              %==========SDS MODIF
-            fluxbact = -prop.faceUpstream(model, state, flag{L_ix}, Diffb.*sL.*poro.*rhoL).*gradn;
-              %==========SDS MODIF   
+            %fluxbact = -prop.faceUpstream(model, state, flag{L_ix}, Diffb.*sL.*poro.*rhoL).*gradn;
+              %==========SDS MODIF  
+            fluxbact = -Diffb.*model.operators.Grad(nbact);
+
+             
         end
     end
 end

@@ -15,8 +15,8 @@ BactDiffus=true;%false;%
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
 %[nx, ny, nz] = deal(61,61,10);  % Grid cells in x, y, z directions
-[nx, ny, nz] = deal(31,31,8);  % Grid cells in x, y, z directions
-%[nx, ny, nz] = deal(11,11,8);  % Grid cells in x, y, z directions
+%[nx, ny, nz] = deal(31,31,8);  % Grid cells in x, y, z directions
+[nx, ny, nz] = deal(11,11,8);  % Grid cells in x, y, z directions
 [Lx,Ly,Lz] = deal(1525,1525,50);         % Physical dimensions in meters
 dims = [nx, ny, nz];
 pdims = [Lx, Ly, Lz];
@@ -127,8 +127,8 @@ nbj_idle=20*day;nbj_prod=30*day;nbj_idle1=20*day;
     model.outputFluxes = false;
     model.EOSModel.msalt=0;
 
-%    lsolve = selectLinearSolverAD(model);                          % Select the linear solver for the model
-%    nls.LinearSolver = lsolve;                                     % Assign the linear solver to the nonlinear solver
+    lsolve = selectLinearSolverAD(model);                          % Select the linear solver for the model
+    nls.LinearSolver = lsolve;                                     % Assign the linear solver to the nonlinear solver
 
    
 %% Initial Conditions

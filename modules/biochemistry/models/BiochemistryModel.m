@@ -51,7 +51,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         Psigrowthmax = 1.338e-4; % 1/s        
         b_bact       = 2.35148e-6; % 1/s
         
-        Db = 10^(-3)*meter/second
+        Db = 10^(-12); %m2/s coefficient de diffusion microbienne 
         bDiffusionEffect = false;
 
         moleculardiffusion = false;
