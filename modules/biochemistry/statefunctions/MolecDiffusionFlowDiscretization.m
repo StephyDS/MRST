@@ -30,11 +30,11 @@ classdef MolecDiffusionFlowDiscretization < FlowDiscretization
             else
                 % Static transmissibilities already been set up by parent
             end
-            %props = props.setStateFunction('MolecularDiffPhaseFlux', ComponentMolecularDiffPhaseFlux(model));
+            
             if model.moleculardiffusion
                 % Set molecular diffusion flux
                 props = props.setStateFunction('MolecularDiffPhaseFlux', ComponentMolecularDiffPhaseFlux(model));
-                %props = props.setStateFunction('MolecularDiffusivity', ComponentMolecularDiffPhaseFlux(model));
+               
             end
         end
         

@@ -1,7 +1,7 @@
 classdef DiffusiveBactFlux < StateFunction   %& UpwindProperty
     % bacterial diffusive flux
     properties (Access = protected)
-        %Db = 10^(-3)*meter/second
+        Db = 1.e-12;
         %upwind_name; % Name of state function where upwind flag comes from
     end
     
@@ -41,7 +41,7 @@ classdef DiffusiveBactFlux < StateFunction   %& UpwindProperty
                  sL = s(:, L_ix);
                  rhoL = rho(:, L_ix); %==========SDS MODIF
             end
-            Diffb = avg(model.Db.*sL.*poro.*rhoL);%prop.Db;
+            Diffb = avg(prop.Db.*sL.*poro.*rhoL);%prop.Db;
             %gradn = model.operators.Grad(nbact);
              %==========SDS MODIF
             %fluxbact = -prop.faceUpstream(model, state, flag{L_ix}, Diffb.*sL.*poro.*rhoL).*gradn;

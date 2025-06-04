@@ -51,8 +51,9 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         Psigrowthmax = 1.338e-4; % 1/s        
         b_bact       = 2.35148e-6; % 1/s
         
-        Db = 10^(-12); %m2/s coefficient de diffusion microbienne 
+        %Db = 10^(-12); %m2/s coefficient de diffusion microbienne 
         bDiffusionEffect = false;
+        chemotaxisEffect = false; %SDS modif
 
         moleculardiffusion = false;
         mol_diff = [];
@@ -186,11 +187,6 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
             end   
             if model.bacteriamodel
                 model.FlowDiscretization = BiochemicalFlowDiscretization(model);
-                %model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
-            % else %SDS MODIF===============================
-            %     if model.moleculardiffusion 
-            %         model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
-            %     end   
             end
         end
         
@@ -343,9 +339,13 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
+               %fprintf('Bacteria: src_growthdecay min:%12.8f, max:%12.8f \n',min(src_growthdecay.val),max(src_growthdecay.val));
                 beqs{1} = beqs{1} - src_growthdecay;
+               % fprintf('Bacteria apres ajout GrowthDecay: beqs min:%12.8f, max:%12.8f \n',min(beqs{1}.val),max(beqs{1}.val));
+                %fprintf('Flux Chemotaxis Bacteria apres ajout GrowthDecay: beqs min:%12.8f, max:%12.8f \n',min(bflux{1}.val),max(bflux{1}.val));
+               
                 %  treat diffusion separately
-                if any(model.bDiffusionEffect > 0)
+                if any(model.bDiffusionEffect > 0) || any(model.chemotaxisEffect>0) %RAJOUT CHEMOTAXIS SDS
                     beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
                 end
             else
