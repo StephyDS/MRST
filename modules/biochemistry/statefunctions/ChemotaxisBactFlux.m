@@ -1,36 +1,66 @@
-classdef DiffusiveBactFlux < StateFunction   %& UpwindProperty
-    % bacterial diffusive flux
+classdef ChemotaxisBactFlux < StateFunction   
+    % bacterial Chemotaxis flux
     properties 
+
     end
     
     methods
-        function gp = DiffusiveBactFlux(model, varargin)                                  
+        function gp = ChemotaxisBactFlux(model, varargin)                                  
             gp@StateFunction(model);
             gp = gp.dependsOn({'nbact'}, 'state');
-            gp = gp.dependsOn('Density', 'PVTPropertyFunctions'); %SDS MODIF
+            gp = gp.dependsOn('Density', 'PVTPropertyFunctions'); 
             gp = gp.dependsOn({'s'}, 'state');
-            gp.label = 'Flux_{bio}';
+            gp = gp.dependsOn({'x'}, 'state');
+            gp = gp.dependsOn({'y'}, 'state');            
+            gp.label = 'Flux_{bioChemotaxis}';
         end
-        function fluxbact = evaluateOnDomain(prop, model, state)
+        function fluxchemobact = evaluateOnDomain(prop, model, state)
             % Get dependencies
             avg = model.operators.faceAvg;
             nbact = model.getProps(state, 'nbact');
             s = model.getProps(state, 's');                
+            x = model.getProps(state, 'x');                
+            y = model.getProps(state, 'y');                
             L_ix = model.getLiquidIndex();
-            %==========SDS MODIF=======================
+            L_iy = model.getVaporIndex();
             rho = prop.getEvaluatedExternals(model, state, 'Density');      
             poro= model.rock.poro;
-             %==========SDS MODIF=======================
-               
+
+            namecp =model.compFluid.names();
+            indH2=find(strcmp(namecp, 'H2'));
+           
+            
             if iscell(s)                  
                  sL = s{L_ix};  
-                 rhoL = rho{L_ix}; 
+                 rhoL = rho{L_ix};  
+                 sG = s{L_iy};  
+                 rhoG = rho{L_iy}; 
+                
             else
                  sL = s(:, L_ix);
                  rhoL = rho(:, L_ix); 
+                 sG = s(:, L_iy);
+                 rhoG = rho(:, L_iy);
+                 
             end
-            Diffb = avg(model.Db.*sL.*poro.*rhoL);
-            fluxbact = -Diffb.*model.operators.Grad(nbact);             
+
+
+            if iscell(x)                  
+                 xH2=x{indH2};
+                 yH2=y{indH2};
+            else
+                 xH2=x(:,indH2);
+                 yH2=y(:,indH2);
+            end
+
+            CH2_denom=max(xH2.*sL+yH2.*sG,1.e-8);
+            CH2=(rhoL.*xH2.*sL+rhoG.*yH2.*sG)./CH2_denom;
+
+            ChemBact=model.Dch.*CH2./(model.Kch+CH2);
+
+            Diffch = avg(ChemBact.*sL.*poro.*rhoL.*nbact);
+            fluxchemobact = -Diffch.*model.operators.Grad(CH2);
+             
         end
     end
 end

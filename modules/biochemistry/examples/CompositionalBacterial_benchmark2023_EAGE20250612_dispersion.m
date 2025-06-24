@@ -11,13 +11,14 @@ mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
 nobact=true;%false;%
 MolecDiffus=false;%true;%
-BactDiffus=true;%false;%
+Dispers=true;%false;%
+BactDiffus=false;%true;%
 BactChemotaxis=false;%true;%
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
 %[nx, ny, nz] = deal(61,61,10);  % Grid cells in x, y, z directions
-[nx, ny, nz] = deal(31,31,8);  % Grid cells in x, y, z directions
-%[nx, ny, nz] = deal(11,11,8);  % Grid cells in x, y, z directions
+%[nx, ny, nz] = deal(31,31,8);  % Grid cells in x, y, z directions
+[nx, ny, nz] = deal(11,11,8);  % Grid cells in x, y, z directions
 [Lx,Ly,Lz] = deal(1525,1525,50);         % Physical dimensions in meters
 dims = [nx, ny, nz];
 pdims = [Lx, Ly, Lz];
@@ -97,7 +98,8 @@ W5(1).components = [0.0, 0.95,  0.05, 0.0];  %production
 
 %% Time Stepping and Schedule
 % Define schedule and solver
-nls = NonLinearSolver('useRelaxation', true);
+%nls = NonLinearSolver('useRelaxation', true);
+nls = NonLinearSolver('useRelaxation', true,'verbose',true);
 %nls = NonLinearSolver();
 
 ncycles=6; %6;
@@ -117,12 +119,13 @@ nbj_idle=20*day;nbj_prod=30*day;nbj_idle1=20*day;
         arg = {G, rock, fluid, compFluid,true,diagonal_backend,...
         'water', false, 'oil', true, 'gas', true,'bacteriamodel',false,...
         'bDiffusionEffect', false,'moleculardiffusion',MolecDiffus,...
-        'liquidPhase', 'O', 'vaporPhase', 'G'};
+        'dispersion',Dispers,'liquidPhase', 'O', 'vaporPhase', 'G'};
     else
         arg = {G, rock, fluid, compFluid,true,diagonal_backend,...
         'water', false, 'oil', true, 'gas', true,'bacteriamodel',true,...
         'bDiffusionEffect', BactDiffus,'moleculardiffusion',MolecDiffus,...
-        'chemotaxisEffect',BactChemotaxis,'liquidPhase', 'O', 'vaporPhase', 'G'};          
+        'dispersion',Dispers,'chemotaxisEffect',BactChemotaxis,...
+        'liquidPhase', 'O', 'vaporPhase', 'G'};          
     end
     model = BiochemistryModel(arg{:});
     model.outputFluxes = false;
@@ -152,7 +155,7 @@ end
 %% Run simulation
 %% Pack the simulation problem with the defined components
 %name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_msalt3';
-name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_BactDiff_gmres_COARSE';
+name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_gmres_DISP_COARSE';
 problem_nbs0 = packSimulationProblem(state0, model, schedule, name_nbs0, 'NonLinearSolver', nls);
    
 if nobact

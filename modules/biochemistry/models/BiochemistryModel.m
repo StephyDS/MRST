@@ -51,13 +51,20 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         Psigrowthmax = 1.338e-4; % 1/s        
         b_bact       = 2.35148e-6; % 1/s
         
-        %Db = 10^(-12); %m2/s coefficient de diffusion microbienne 
         bDiffusionEffect = false;
+        Db = 1.e-12;%m2/s coefficient de diffusion microbienne
         chemotaxisEffect = false; %SDS modif
+        Dch = 1.e-4;
+        Kch = 1.e-4;
 
         moleculardiffusion = false;
         mol_diff = [];
         param_LJ=[];
+
+        dispersion = false;
+        alphaw_long=2.e-4; %Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
+        alphag_long=2.e-3; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
+
        
         nbactMax = 1.e9; % 1/m^3
         
@@ -184,6 +191,9 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
             if model.moleculardiffusion 
                model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
+            end  
+            if model.dispersion 
+               model.FlowDiscretization = DispersionFlowDiscretization(model);
             end   
             if model.bacteriamodel
                 model.FlowDiscretization = BiochemicalFlowDiscretization(model);

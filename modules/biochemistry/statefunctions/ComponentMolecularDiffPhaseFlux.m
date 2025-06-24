@@ -10,6 +10,7 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
             gp = gp.dependsOn('Density', 'PVTPropertyFunctions');
              gp = gp.dependsOn('s', 'state');
              gp = gp.dependsOn('x', 'state');
+             gp = gp.dependsOn('y', 'state');
              gp = gp.dependsOn('pressure', 'state');
              gp = gp.dependsOn('T', 'state');
 
@@ -54,31 +55,41 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
 
 
                for c = 1:ncomp
+                   if iscell(state.x)
+                       xc = state.x{c};
+                   else
+                       xc = state.x(c);
+                   end
+                   if iscell(state.y)
+                       yc = state.y{c};
+                   else
+                       yc = state.y(c);
+                   end
                    for ph = 1:nph
                        s = model.getProp(state, ['s', nm(ph)]);
                        tau_mq=(s.*poro).^(7/3).*poro.^(-2);
-                       %D_diff = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau_mq.*poro);%Millington and Quirk model
                        
                        if (ph==L_ix) 
                            D_diffl = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau_mq.*poro);%Millington and Quirk model
-                           J{c, ph} = - D_diffl.*model.operators.Grad(state.x{c});
+                           J{c, ph} = - D_diffl.*model.operators.Grad(xc);
 
                        elseif (ph==V_ix)
                            %calcul des Dij
-                           D_diffij_inv =state.y{cj};%model.AutoDiffBackend.initVariablesAD(zeros(model.G.cells.num,1));
+                           D_diffij_inv =yc.*0;
 
                            for cj = 1:ncomp
+                               if iscell(state.y)
+                                   ycj = state.y{cj};
+                               else
+                                   ycj = state.y(cj);
+                               end
                                if (cj~=c)
-                                   D_diffij_inv =  D_diffij_inv  +state.y{cj}./Dij(c,cj);
+                                   D_diffij_inv =  D_diffij_inv  +ycj./Dij(c,cj);
                                end
                            end
-                           D_diffij_inv =D_diffij_inv-state.y{cj};%model.AutoDiffBackend.initVariablesAD(zeros(model.G.cells.num,1));
                            D_diffij=coeff1./D_diffij_inv;
-                           % 
-                            D_diff = avg(s.*rho{ph}.*D_diffij.*tau_mq.*poro);%Millington and Quirk model
-                           % 
-                           %D_diff = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau_mq.*poro);%Millington and Quirk model
-                           J{c, ph} = - D_diff.*model.operators.Grad(state.y{c});
+                           D_diff = avg(s.*rho{ph}.*D_diffij.*tau_mq.*poro);%Millington and Quirk model
+                           J{c, ph} = - D_diff.*model.operators.Grad(yc);
                        end
                    end
                end
