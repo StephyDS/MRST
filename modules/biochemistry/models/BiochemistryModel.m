@@ -63,7 +63,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
         dispersion = false;
         alphaw_long=1.e-2; %Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
-        alphag_long=1.e-1; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
+        alphag_long=1.e-2; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
 
        
         nbactMax = 1.e9; % 1/m^3

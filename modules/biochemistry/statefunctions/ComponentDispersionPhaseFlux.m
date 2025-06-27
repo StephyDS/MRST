@@ -51,20 +51,20 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                    for ph = 1:nph
                        u_ph=Darcy_flux{ph}./(interior_areas.*Face_poro);
                        rho_ph=op.faceUpstr(Darcy_flux{ph}, rho{ph});
-                       %fprintf('Darcy_flux{ph}: %16.8f ,  %16.8f \n',min(Darcy_flux{ph}.val),max(Darcy_flux{ph}.val));
-                       %fprintf('u_ph: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
+                       %%fprintf('Darcy_flux{ph}: %16.8f ,  %16.8f \n',min(Darcy_flux{ph}.val),max(Darcy_flux{ph}.val));
+                       %%fprintf('u_ph: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
                            
                        if (ph==L_ix) 
                            D_disp = rho_ph.*model.alphaw_long.*(abs(u_ph)+1.e-12);
-                           fprintf('u_L: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
-                           fprintf('D_disp L: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
+                          % fprintf('u_L: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
+                           %fprintf('D_disp L: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
                            J{c, ph} = - D_disp.*op.Grad(xc);
                            
                        elseif (ph==V_ix) 
                             %fprintf('uG: %8.4f ,  %8.4f \n',min(abs(uG).val),max(abs(uG).val));
-                            fprintf('u_G: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
+                           % fprintf('u_G: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
                            D_disp = rho_ph.*model.alphag_long.*(abs(u_ph)+1.e-12);
-                           fprintf('D_disp G: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
+                           %fprintf('D_disp G: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
                            J{c, ph} = -D_disp.*op.Grad(yc);
                            
                        end

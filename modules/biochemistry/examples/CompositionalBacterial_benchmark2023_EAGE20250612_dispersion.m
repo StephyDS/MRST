@@ -9,16 +9,16 @@
 clear; clc;
 mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on 
-nobact=true;%false;%
+nobact=false;%true;%
 MolecDiffus=false;%true;%
-Dispers=true;%false;%
+Dispers=false;%true;%
 BactDiffus=false;%true;%
 BactChemotaxis=false;%true;%
 %% ============Grid and Rock Properties=====================
 % Define grid dimensions and physical dimensions
 %[nx, ny, nz] = deal(61,61,10);  % Grid cells in x, y, z directions
 %[nx, ny, nz] = deal(31,31,8);  % Grid cells in x, y, z directions
-[nx, ny, nz] = deal(11,11,8);  % Grid cells in x, y, z directions
+[nx, ny, nz] = deal(21,21,8);  % Grid cells in x, y, z directions
 [Lx,Ly,Lz] = deal(1525,1525,50);         % Physical dimensions in meters
 dims = [nx, ny, nz];
 pdims = [Lx, Ly, Lz];
@@ -99,7 +99,7 @@ W5(1).components = [0.0, 0.95,  0.05, 0.0];  %production
 %% Time Stepping and Schedule
 % Define schedule and solver
 %nls = NonLinearSolver('useRelaxation', true);
-nls = NonLinearSolver('useRelaxation', true,'verbose',true);
+nls = NonLinearSolver('useRelaxation', true,'verbose',false);
 %nls = NonLinearSolver();
 
 ncycles=6; %6;
@@ -144,7 +144,7 @@ z0 = [0.7, 0.0, 0.02, 0.28];  % Initial composition: H2O, H2, CO2, C1
 % Initialize state with bacterial concentration
 if model.bacteriamodel
     nbact0 = 1; 
-    model.nbactMax=5.e8;
+    model.nbactMax=1.e8;
     state0 = initCompositionalStateBacteria(model, P0, T0, s0, ...
         z0, nbact0,model.EOSModel);
 else
@@ -154,8 +154,8 @@ end
 
 %% Run simulation
 %% Pack the simulation problem with the defined components
-%name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_msalt3';
-name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_gmres_DISP_COARSE';
+name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_DISP_COARSE';
+%name_nbs0='Benchmark2023AEGE_180_pack_NOBACT_6cycles_NODISP_COARSE';
 problem_nbs0 = packSimulationProblem(state0, model, schedule, name_nbs0, 'NonLinearSolver', nls);
    
 if nobact
@@ -164,9 +164,9 @@ if nobact
     %% Get reservoir and well states
     [ws_nbs0,states_nbs0] = getPackedSimulatorOutput(problem_nbs0);
 else
-    %name='Benchmark2023AEGE_180_pack_6cycles_n0_1e8_msalt3';
-    name='Benchmark2023AEGE_180_pack_6cycles_n0_1e8_BactDiff_gmres_COARSE';
-    problem_bs0 = packSimulationProblem(state0, model, schedule, name, 'NonLinearSolver', nls); 
+    name_bs0='Benchmark2023AEGE_180_pack_BACT_6cycles_NODISP_COARSE';
+    %name_bs0='Benchmark2023AEGE_180_pack_BACT_6cycles_DISP_COARSE';
+    problem_bs0 = packSimulationProblem(state0, model, schedule, name_bs0, 'NonLinearSolver', nls); 
     %% Execute the simulation of the packed problem
       %[wellSols,states,report]= simulateScheduleAD(state0, model, schedule,...
        % 'nonlinearsolver',nls);
