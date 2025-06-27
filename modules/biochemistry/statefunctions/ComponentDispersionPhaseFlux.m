@@ -8,8 +8,8 @@ classdef ComponentDispersionPhaseFlux < StateFunction
         function gp = ComponentDispersionPhaseFlux(model, varargin)
             gp@StateFunction(model);                
             gp = gp.dependsOn('Density', 'PVTPropertyFunctions');
-            gp = gp.dependsOn('pressure', 'state');
-            gp = gp.dependsOn('FaceMobility', 'FlowDiscretization');
+            gp = gp.dependsOn('PhaseFlux', 'FlowDiscretization'); %flux linked to Darcy velocity
+            
             gp = gp.dependsOn('x', 'state');
             gp = gp.dependsOn('y', 'state');
              
@@ -23,10 +23,16 @@ classdef ComponentDispersionPhaseFlux < StateFunction
             J = cellfun(@(x) 0, J, 'UniformOutput', false);      
             if isfield(state,'x')
                rho = prop.getEvaluatedExternals(model, state, 'Density'); 
-               [p, mob_face] = model.getProps(state, 'pressure', 'FaceMobility'); %SDS modeif
+               [Darcy_flux] = model.getProp(state, 'PhaseFlux'); %PhaseFlux linked to Darcy velocity
                op = model.operators;
-               Gradp=op.Grad(p);
-   
+              
+               avg = model.operators.faceAvg;
+               Face_poro= avg(model.rock.poro); %average porosity on faces
+
+               interior_faces = find(all(model.G.faces.neighbors ~= 0, 2));
+               interior_areas = model.G.faces.areas(interior_faces);
+               
+
                L_ix = model.getLiquidIndex();
                V_ix = model.getVaporIndex();
                
@@ -43,20 +49,23 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                        yc = state.y(c);
                    end
                    for ph = 1:nph
-                       u_ph=-op.T.*mob_face{ph}.*Gradp;
-                       rho_ph=op.faceUpstr(u_ph, rho{ph});
-                       
-                       if (ph==L_ix) %&& isfield(state, 'x') && numel(state.x) >= c
-                           D_disp = rho_ph.*model.alphaw_long.*(abs(u_ph)+1.e-12);
-                           %fprintf('uL: %8.4f ,  %8.4f \n',min(abs(uL).val),max(abs(uL).val));
-                           J{c, ph} = - D_disp.*op.Grad(xc);
-                           %fprintf('Liq J{c, ph}: %8.4f  \n',J{c, ph});
+                       u_ph=Darcy_flux{ph}./(interior_areas.*Face_poro);
+                       rho_ph=op.faceUpstr(Darcy_flux{ph}, rho{ph});
+                       %fprintf('Darcy_flux{ph}: %16.8f ,  %16.8f \n',min(Darcy_flux{ph}.val),max(Darcy_flux{ph}.val));
+                       %fprintf('u_ph: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
                            
-                       elseif (ph==V_ix) %&& isfield(state, 'y') && numel(state.y) >= c
+                       if (ph==L_ix) 
+                           D_disp = rho_ph.*model.alphaw_long.*(abs(u_ph)+1.e-12);
+                           fprintf('u_L: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
+                           fprintf('D_disp L: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
+                           J{c, ph} = - D_disp.*op.Grad(xc);
+                           
+                       elseif (ph==V_ix) 
                             %fprintf('uG: %8.4f ,  %8.4f \n',min(abs(uG).val),max(abs(uG).val));
+                            fprintf('u_G: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
                            D_disp = rho_ph.*model.alphag_long.*(abs(u_ph)+1.e-12);
+                           fprintf('D_disp G: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
                            J{c, ph} = -D_disp.*op.Grad(yc);
-                           %fprintf('Gas J{c, ph}: %8.4f  \n',J{c, ph});
                            
                        end
                    end
