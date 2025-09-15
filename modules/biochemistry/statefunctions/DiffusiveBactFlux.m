@@ -7,7 +7,9 @@ classdef DiffusiveBactFlux < StateFunction   %& UpwindProperty
         function gp = DiffusiveBactFlux(model, varargin)                                  
             gp@StateFunction(model);
             gp = gp.dependsOn({'nbact'}, 'state');
-            gp = gp.dependsOn('Density', 'PVTPropertyFunctions'); %SDS MODIF
+            %gp = gp.dependsOn('Density', 'PVTPropertyFunctions'); %SDS MODIF
+            gp = gp.dependsOn({'PoreVolume', 'Density'}, 'PVTPropertyFunctions');
+            
             gp = gp.dependsOn({'s'}, 'state');
             gp.label = 'Flux_{bio}';
         end
@@ -18,20 +20,28 @@ classdef DiffusiveBactFlux < StateFunction   %& UpwindProperty
             s = model.getProps(state, 's');                
             L_ix = model.getLiquidIndex();
             %==========SDS MODIF=======================
-            rho = prop.getEvaluatedExternals(model, state, 'Density');      
-            poro= model.rock.poro;
+           pv = model.PVTPropertyFunctions.get(model, state, 'PoreVolume');
+           rho = model.PVTPropertyFunctions.get(model, state, 'Density');
+
+            %rho = prop.getEvaluatedExternals(model, state, 'Density');      
+            %poro= model.rock.poro;
              %==========SDS MODIF=======================
-               
-            if iscell(s)                  
-                 sL = s{L_ix};  
-                 rhoL = rho{L_ix}; 
-            else
-                 sL = s(:, L_ix);
-                 rhoL = rho(:, L_ix); 
+            if model.bacteriamodel&& model.liquidPhase 
+               if iscell(s)                  
+                   sL = s{L_ix};  
+                   rhoL = rho{L_ix}; 
+               else
+                   sL = s(:, L_ix);
+                   rhoL = rho(:, L_ix); 
+              end
+              %Diffb = avg(model.Db.*sL.*poro.*rhoL);
+              Diffb = avg(model.Db.*sL.*pv.*rhoL);
+              
+              fluxbact = -Diffb.*model.operators.Grad(nbact);  
             end
-            Diffb = avg(model.Db.*sL.*poro.*rhoL);
-            fluxbact = -Diffb.*model.operators.Grad(nbact);             
         end
+
+        
     end
 end
 

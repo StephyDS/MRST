@@ -1,4 +1,4 @@
-classdef BiochemicalFlowDiscretization < FlowDiscretization
+classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization  %FlowDiscretization
 %Discretization and state function grouping for bio-chemistry flow
     
     properties              
@@ -13,7 +13,8 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
         %-----------------------------------------------------------------%
         function props = BiochemicalFlowDiscretization(model)
             % Inherit most of the state functions from FLuxDiscretization
-            props = props@FlowDiscretization(model);
+            %props = props@FlowDiscretization(model);
+             props = props@DispersMolecDiffusFlowDiscretization(model);
             % Fluid flow transmissibility
             if model.dynamicFlowTrans
                 % Dynamic transmissibility. Conductivities are caluclated
@@ -42,12 +43,12 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
             props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
             props = props.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
-            if model.bDiffusionEffect
-                props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
-            end
-            if model.chemotaxisEffect
-                props = props.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
-            end 
+            % if model.bDiffusionEffect
+            %     props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
+            % end
+            % if model.chemotaxisEffect
+            %     props = props.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
+            % end 
         end
         
      

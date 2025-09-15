@@ -9,7 +9,9 @@ classdef ComponentDispersionPhaseFlux < StateFunction
             gp@StateFunction(model);                
             gp = gp.dependsOn('Density', 'PVTPropertyFunctions');
             gp = gp.dependsOn('PhaseFlux', 'FlowDiscretization'); %flux linked to Darcy velocity
-            
+            gp = gp.dependsOn('pressure', 'state');
+            gp = gp.dependsOn('mobility', 'state');
+           
             gp = gp.dependsOn('x', 'state');
             gp = gp.dependsOn('y', 'state');
              
@@ -25,6 +27,7 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                rho = prop.getEvaluatedExternals(model, state, 'Density'); 
                [Darcy_flux] = model.getProp(state, 'PhaseFlux'); %PhaseFlux linked to Darcy velocity
                op = model.operators;
+               [pf]=model.getProp(state, 'pressure');
               
                avg = model.operators.faceAvg;
                Face_poro= avg(model.rock.poro); %average porosity on faces
@@ -35,7 +38,8 @@ classdef ComponentDispersionPhaseFlux < StateFunction
 
                L_ix = model.getLiquidIndex();
                V_ix = model.getVaporIndex();
-               
+               %Grad_face_p=op.Grad(pf);
+               %Grad_cell_p=vectorCellGradient(model,Grad_face_p);
  
                for c = 1:ncomp
                    if iscell(state.x)

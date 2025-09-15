@@ -53,9 +53,11 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
         
         bDiffusionEffect = false;
         Db = 1.e-12;%m2/s coefficient de diffusion microbienne
+
         chemotaxisEffect = false; %SDS modif
-        Dch = 1.e-4;
-        Kch = 1.e-4;
+        Xch_max = 1.e-8;
+        Kch = 1.e-7;
+        xch_seuil=1.e-8;
 
         moleculardiffusion = false;
         mol_diff = [];
@@ -63,7 +65,7 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
 
         dispersion = false;
         alphaw_long=1.e-2; %Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
-        alphag_long=1.e-2; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
+        alphag_long=1.e-1; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
 
        
         nbactMax = 1.e9; % 1/m^3
@@ -177,14 +179,17 @@ classdef BiochemistryModel <  GenericOverallCompositionModel
                 'BioChemsitryModel supports currently only one micro-organism');
             % Set output state functions
             model.OutputStateFunctions = {'ComponentTotalMass', 'Density'};
-             
 
-            if model.moleculardiffusion 
-               model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
-            end  
-            if model.dispersion 
-               model.FlowDiscretization = DispersionFlowDiscretization(model);
+                     
+            if (model.moleculardiffusion || model.dispersion)
+               model.FlowDiscretization = DispersMolecDiffusFlowDiscretization(model);
             end   
+            %if model.moleculardiffusion 
+            %   model.FlowDiscretization = MolecDiffusionFlowDiscretization(model);
+            %end  
+            %if model.dispersion 
+            %   model.FlowDiscretization = DispersionFlowDiscretization(model);
+            %end   
             if model.bacteriamodel
                 model.FlowDiscretization = BiochemicalFlowDiscretization(model);
             end
