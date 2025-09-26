@@ -1,4 +1,4 @@
-classdef BiochemicalFlowDiscretization < FlowDiscretization
+classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization  %FlowDiscretization
     % BiochemicalFlowDiscretization
     % Discretization and state function grouping for bio-chemical flow
     % within a compositional model with microbial growth.
@@ -11,7 +11,8 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
         %-----------------------------------------------------------------%
         function props = BiochemicalFlowDiscretization(model)
             % Constructor: inherit base FlowDiscretization properties
-            props = props@FlowDiscretization(model);
+            %props = props@FlowDiscretization(model); SDS modif
+            props = props@DispersMolecDiffusFlowDiscretization(model);
             if model.bacteriamodel
 
                 % Set up transmissibility and porosity functions
