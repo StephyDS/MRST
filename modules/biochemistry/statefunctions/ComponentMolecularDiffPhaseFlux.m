@@ -50,7 +50,7 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                        Sigij2(c,cj)=0.25*(SigLJ(c)+SigLJ(cj))*(SigLJ(c)+SigLJ(cj));
 
                    end
-                end
+               end
                Dij=1.e-4.*0.001858./(sqrtMij.*Sigij2); %en m2/s
 
 
