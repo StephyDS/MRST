@@ -54,9 +54,9 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
         %Dispersion SDS
         dispersion = false;
-        alphaw_long=1.e-2; %Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
-        alphag_long=1.e-1; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
-
+        alphaL=zeros(2,1);%Longitudinal dispersivity coefficient
+        alphaT=zeros(2,1);%Transversal dispersivity coefficient
+       
     end
 
     methods
@@ -128,6 +128,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                     end
                  end
             end
+           
             if model.moleculardiffusion
                 indices = struct('H2', find(strcmp(namecp, 'H2')), ... 
                     'C1', find(strcmp(namecp, 'C1')), ... 
@@ -175,6 +176,16 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                       model.param_LJ(indices.(comp),:)=coeffs_LJ.(comp);
                     end
                  end
+            end
+
+            %% Dispersion
+            if model.dispersion
+                L_i = model.getLiquidIndex();
+                V_i = model.getVaporIndex();
+                model.alphaL(L_i)=1.e-2; %Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
+                model.alphaL(V_i)=1.e-1; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
+                model.alphaT(L_i)=1.e-3; %Transversal dispersivity coefficient in water phase,  m 
+                model.alphaT(V_i)=1.e-2; %Transversal dispersivity coefficient in gas phase,  m 
             end
 
 
