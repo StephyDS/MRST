@@ -74,13 +74,15 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                                 uDarcy_ph{d} = -mob{ph}.*Kcell(:,d).*Grad_cell_p{d};
                             end
                         end
-                        unorm=uDarcy_ph{1};
+                        unorm=uDarcy_ph{1}.^2;
                         for d = 2:dim
                             unorm=unorm+uDarcy_ph{d}.^2;
                         end
                         unorm=unorm.^0.5;
-                        uhat = cellfun(@(ud) ud./(unorm + 1e-12), uDarcy_ph, 'UniformOutput', false);
-
+                        uhat  = cell(1, dim);
+                        for d = 1:dim
+                            uhat{d} = uDarcy_ph{d} ./ (unorm + 1e-12);
+                        end
                         coef1=model.alphaT(ph).*unorm;
                         coef2=model.alphaL(ph).*unorm-coef1;
 
