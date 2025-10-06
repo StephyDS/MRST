@@ -61,16 +61,15 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                     else
                         yc = state.y(c);
                     end
+
                     for ph = 1:nph
                         if isvector(Kcell) && (numel(Kcell) == ncells)
                             % (1) Isotrope scalaire : u = -lam*K*grad p
                             for d = 1:dim
                                 uDarcy_ph{d} = -mob{ph}.* Kcell.*Grad_cell_p{d};
                             end
-
                         elseif ismatrix(Kcell) && all(size(Kcell) == [ncells, dim])
                             % (2) Anisotrope diagonal : u_d = -lam*K(:,d)*grad_p_d
-
                             for d = 1:dim
                                 uDarcy_ph{d} = -mob{ph}.*Kcell(:,d).*Grad_cell_p{d};
                             end
@@ -86,7 +85,6 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                         coef2=model.alphaL(ph).*unorm-coef1;
 
                         Ddisp=cell(dim,dim); %rho*Ddisp par phase dim*dim cell
-
                         for di=1:dim
                             for dj=1:dim
                                 Ddisp{di,dj}=coef1.*0;
@@ -98,13 +96,14 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                                 Ddisp{di,dj}=Ddisp{di,dj}+coef2.*uhat{di}.*uhat{dj};
                             end
                         end
-                        for di=1:dim
-                            for dj=1:dim
-                             fprintf('ph=%8.1f, i=%8.1f, j=%8.1f, Ddisp : %16.8f , %16.8f \n',...
-                                 ph,di,dj,min(Ddisp{di,dj}.val),max(Ddisp{di,dj}.val));
-                                
-                            end
-                        end
+                        % if (ph==V_ix)
+                        %     for di=1:dim
+                        %         for dj=1:dim
+                        %             fprintf('ph=%8.1f, i=%8.1f, j=%8.1f, Ddisp : %16.8f , %16.8f \n',...
+                        %                 ph,di,dj,min(Ddisp{di,dj}.val),max(Ddisp{di,dj}.val));
+                        %         end
+                        %     end
+                        % end
 
                         Jcell_phc = cell(1, dim);
                         for d = 1:dim
@@ -125,18 +124,17 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                         %cellule) sur les faces (scalaire) suivant la
                         %normale sortante
                         Jvect_face_phc=projectCellFluxToFacesAD(model, Jcell_phc);
+                        %J{c, ph} =Jvect_face_phc;
                         fprintf('ph= %16.2f, Jvect_face_phc: %16.8f ,  %16.8f \n',ph,...
                             min(Jvect_face_phc.val),max(Jvect_face_phc.val));
 
                         u_ph=Darcy_flux{ph}./(interior_areas.*Face_poro);
                         rho_ph=op.faceUpstr(Darcy_flux{ph}, rho{ph});
-                        %%fprintf('Darcy_flux{ph}: %16.8f ,  %16.8f \n',min(Darcy_flux{ph}.val),max(Darcy_flux{ph}.val));
-                        %%fprintf('u_ph: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
 
                         if (ph==L_ix)
                             D_disp = rho_ph.*model.alphaL(ph).*(abs(u_ph)+1.e-12);
                              %fprintf('u_L: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
-                            fprintf('D_disp L: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
+                            %fprintf('D_disp L: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
                             J{c, ph} = - D_disp.*op.Grad(xc);
                             %tmp1=J{c, ph};
                             %fprintf('J{c, ph} L: %16.8f ,  %16.8f \n',min(tmp1.val),max(tmp1.val));
@@ -145,10 +143,10 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                             %fprintf('uG: %8.4f ,  %8.4f \n',min(abs(uG).val),max(abs(uG).val));
                             % fprintf('u_G: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
                             D_disp = rho_ph.*model.alphaL(ph).*(abs(u_ph)+1.e-12);
-                            fprintf('D_disp G: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
+                            %fprintf('D_disp G: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
                             J{c, ph} = -D_disp.*op.Grad(yc);
-                            %tmp2=J{c, ph};
-                            %fprintf('J{c, ph} G: %16.8f ,  %16.8f \n',min(tmp2.val),max(tmp2.val));
+                            tmp2=J{c, ph};
+                            fprintf('J{c, ph} G: %16.8f ,  %16.8f \n',min(tmp2.val),max(tmp2.val));
 
                         end
                     end

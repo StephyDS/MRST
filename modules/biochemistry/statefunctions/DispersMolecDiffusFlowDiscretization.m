@@ -31,7 +31,11 @@ classdef DispersMolecDiffusFlowDiscretization < FlowDiscretization
             else
                 % Static transmissibilities already been set up by parent
             end
+            %Dispersion approximation par le flux de Darcy
+            %props = props.setStateFunction('DispersionPhaseFlux', ComponentDispersionPhaseFluxApprox(model));  
+            %Dispersion reconstruction de la vitesse de Darcy
             props = props.setStateFunction('DispersionPhaseFlux', ComponentDispersionPhaseFlux(model));  
+            %diffusion moleculaire
             props = props.setStateFunction('MolecularDiffPhaseFlux', ComponentMolecularDiffPhaseFlux(model));
            
 
