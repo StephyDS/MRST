@@ -30,7 +30,7 @@ mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on
 
 %% ============ Grid and Rock Properties =====================
-[nx, ny, nz] = deal(11, 11, 8);
+[nx, ny, nz] = deal(21, 21, 8);
 [Lx, Ly, Lz] = deal(1525, 1525, 50);
 
 G = cartGrid([nx, ny, nz], [Lx, Ly, Lz]);
@@ -132,7 +132,7 @@ nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ...
     'Benchmark_NoBacteria', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_nobact);
+simulatePackedProblem(problem_nobact, 'restartStep',1);
 [ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
 results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
@@ -177,15 +177,6 @@ C1_gain  = (abs(results_nobact.totMassC1 - results_nobact_moldiff.totMassC1) ./ 
 fprintf('Total H2 loss due to molecular diffusion: %.2f%%\n', H2_loss(end));
 fprintf('Total CO2 loss due to molecular diffusion: %.2f%%\n', CO2_loss(end));
 fprintf('Total C1 gain due to molecular diffusion:  %.2f%%\n', C1_gain(end));
-
-
-
-
-
-
-
-
-
 
 
 %% --- Simulation 2: With bacteria ---

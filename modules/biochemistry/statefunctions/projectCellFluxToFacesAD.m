@@ -31,11 +31,15 @@ function Jinternfaces = projectCellFluxToFacesAD(model, Jcell)
     % --- Moyenne cell -> face (AD-safe). Selon backends, faceAvg peut rendre nF ou nIF.
     Jvect_face = cell(1, dim);
     for d = 1:dim
-        tmp = op.faceAvg(Jcell{d});                % tailles possibles: nF×1 ou nIF×1
-        if size(tmp.val,1) ~= size(N,1)   % vérifier longueur réelle du vecteur
+         tmp = op.faceAvg(Jcell{d});
+        if isa(tmp, 'GenericAD') || isa(tmp, 'ADI')
+            nTmp = size(tmp.val,1);
+        else
+            nTmp = size(tmp,1);
+        end
+        if nTmp ~= size(N,1)
             tmp = tmp(intFaces);
         end
-
         Jvect_face{d} = tmp;                               % [nIF×1] AD/double
     end
 
