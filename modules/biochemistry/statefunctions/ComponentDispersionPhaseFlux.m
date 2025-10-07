@@ -41,6 +41,7 @@ classdef ComponentDispersionPhaseFlux < StateFunction
 
                 L_ix = model.getLiquidIndex();
                 V_ix = model.getVaporIndex();
+                poro= model.rock.poro;
                 Grad_face_p=op.Grad(pf);
                 Grad_cell_p=vectorCellGradient(model,Grad_face_p);
 
@@ -119,38 +120,13 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                         end
                         for di = 1:dim
                             for dj=1:dim
-                                Jcell_phc{di}=Jcell_phc{di}-rho{ph}.*Ddisp{di,dj}.*Grad_cell_c{dj}; % init AD-safe
+                                Jcell_phc{di}=Jcell_phc{di}-rho{ph}.*poro.*Ddisp{di,dj}.*Grad_cell_c{dj}; % init AD-safe
                             end
                         end
-                        %projection du flux dispersif (vectoriel par
-                        %cellule) sur les faces (scalaire) suivant la
-                        %normale sortante
+                        %projection du flux dispersif par cellule(vectoriel)
+                        %sur les faces(scalaire) suivant la normale sortante
                         Jvect_face_phc=projectCellFluxToFacesAD(model, Jcell_phc);
-                        %J{c, ph} =Jvect_face_phc;
-                        fprintf('ph= %16.2f, Jvect_face_phc: %16.8f ,  %16.8f \n',ph,...
-                            min(Jvect_face_phc.val),max(Jvect_face_phc.val));
-
-                        u_ph=Darcy_flux{ph}./(interior_areas.*Face_poro);
-                        rho_ph=op.faceUpstr(Darcy_flux{ph}, rho{ph});
-
-                        if (ph==L_ix)
-                            D_disp = rho_ph.*model.alphaL(ph).*(abs(u_ph)+1.e-12);
-                             %fprintf('u_L: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
-                            %fprintf('D_disp L: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
-                            J{c, ph} = - D_disp.*op.Grad(xc);
-                            %tmp1=J{c, ph};
-                            %fprintf('J{c, ph} L: %16.8f ,  %16.8f \n',min(tmp1.val),max(tmp1.val));
-
-                        elseif (ph==V_ix)
-                            %fprintf('uG: %8.4f ,  %8.4f \n',min(abs(uG).val),max(abs(uG).val));
-                            % fprintf('u_G: %16.8f ,  %16.8f \n',min(u_ph.val),max(u_ph.val));
-                            D_disp = rho_ph.*model.alphaL(ph).*(abs(u_ph)+1.e-12);
-                            %fprintf('D_disp G: %16.8f ,  %16.8f \n',min(D_disp.val),max(D_disp.val));
-                            J{c, ph} = -D_disp.*op.Grad(yc);
-                            tmp2=J{c, ph};
-                            fprintf('J{c, ph} G: %16.8f ,  %16.8f \n',min(tmp2.val),max(tmp2.val));
-
-                        end
+                        J{c, ph} =Jvect_face_phc;                       
                     end
                 end
             end

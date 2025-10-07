@@ -31,6 +31,7 @@ classdef ComponentDispersionPhaseFluxApprox < StateFunction
 
                 L_ix = model.getLiquidIndex();
                 V_ix = model.getVaporIndex();
+                
 
                 for c = 1:ncomp
                     if iscell(state.x)

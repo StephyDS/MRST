@@ -8,6 +8,7 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
         function gp = ComponentMolecularDiffPhaseFlux(model, varargin)
             gp@StateFunction(model);                
             gp = gp.dependsOn('Density', 'PVTPropertyFunctions');
+            gp = gp.dependsOn({'PoreVolume'}, 'PVTPropertyFunctions');%sds modif
              gp = gp.dependsOn('s', 'state');
              gp = gp.dependsOn('x', 'state');
              gp = gp.dependsOn('y', 'state');
@@ -25,7 +26,7 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
             if isfield(state,'x')
                nm = model.getPhaseNames();
                rho = prop.getEvaluatedExternals(model, state, 'Density'); 
-               [p, T] = model.getProps(state, 'pressure', 'temperature'); %SDS modeif
+               [p, T] = model.getProps(state, 'pressure', 'temperature'); 
                coeff1=T.^(1.5)./(9.869e-6.*p); %1.e5.*p en atm et p en Pa 
                Molmass=1.e3.*model.compFluid.molarMass;
                SigLJ=model.param_LJ(:,1);
@@ -36,7 +37,9 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                L_ix = model.getLiquidIndex();
                V_ix = model.getVaporIndex();
                
-
+                interior_faces = find(all(model.G.faces.neighbors ~= 0, 2));
+                interior_areas = model.G.faces.areas(interior_faces);
+                
                % Define diffusion coefficients in m²/s for liquid and gas phases
                % These are example values, please replace them with actual data as needed
                % Format: [liquid_diff gas_diff] for each component
@@ -48,7 +51,6 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                        sqrtMij(c,cj)=sqrt(2*Molmass(c)*Molmass(cj)/(Molmass(c)+Molmass(cj)));
                        sqrtEpsij(c,cj)=sqrt(EpsLJ(c)*EpsLJ(cj));
                        Sigij2(c,cj)=0.25*(SigLJ(c)+SigLJ(cj))*(SigLJ(c)+SigLJ(cj));
-
                    end
                end
                Dij=1.e-4.*0.001858./(sqrtMij.*Sigij2); %en m2/s
@@ -71,7 +73,8 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                        
                        if (ph==L_ix) 
                            D_diffl = avg(s.*rho{ph}.*model.mol_diff(c,ph).*tau_mq.*poro);%Millington and Quirk model
-                           J{c, ph} = - D_diffl.*model.operators.Grad(xc);
+                           %J{c, ph} = - D_diffl.*model.operators.Grad(xc);
+                           J{c, ph} = - D_diffl.*model.operators.Grad(xc).*interior_areas;
 
                        elseif (ph==V_ix)
                            %calcul des Dij
@@ -89,7 +92,8 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                            end
                            D_diffij=coeff1./D_diffij_inv;
                            D_diff = avg(s.*rho{ph}.*D_diffij.*tau_mq.*poro);%Millington and Quirk model
-                           J{c, ph} = - D_diff.*model.operators.Grad(yc);
+                           %J{c, ph} = - D_diff.*model.operators.Grad(yc);
+                           J{c, ph} = - D_diff.*model.operators.Grad(yc).*interior_areas;
                        end
                    end
                end
