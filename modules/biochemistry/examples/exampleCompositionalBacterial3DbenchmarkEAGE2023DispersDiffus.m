@@ -132,7 +132,7 @@ nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ...
     'Benchmark_NoBacteria', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_nobact, 'restartStep',1);
+simulatePackedProblem(problem_nobact); %, 'restartStep',1);
 [ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
 results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
@@ -140,7 +140,7 @@ results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nob
 %% --- Simulation 1: Without bacteria molecular diffusion---
 arg = {G, rock, fluid, compFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', false, 'moleculardiffusion',true,'dispersion',false,...
+    'bacteriamodel', false, 'moleculardiffusion',false,'dispersion',true,...
     'liquidPhase', 'O', 'vaporPhase', 'G'};
 
 model_nobact_moldiff = BiochemistryModel(arg{:});
@@ -222,18 +222,18 @@ H2_loss = (abs(results_nobact.totMassH2 - results_bact.totMassH2) ./ results_nob
 CO2_loss = (abs(results_nobact.totMassCO2 - results_bact.totMassCO2) ./ results_nobact.totMassCO2) * 100;
 C1_gain  = (abs(results_nobact.totMassC1 - results_bact.totMassC1) ./ results_nobact.totMassC1) * 100;
 
-fprintf('Total H2 loss due to bacteria: %.2f%%\n', H2_loss(end));
-fprintf('Total CO2 loss due to bacteria: %.2f%%\n', CO2_loss(end));
-fprintf('Total C1 gain due to bacteria:  %.2f%%\n', C1_gain(end));
+fprintf('Total H2 loss due to bacteria+diffusion: %.2f%%\n', H2_loss(end));
+fprintf('Total CO2 loss due to bacteria+diffusion: %.2f%%\n', CO2_loss(end));
+fprintf('Total C1 gain due to bacteria+diffusion:  %.2f%%\n', C1_gain(end));
 
 
 H2_loss_moldiff = (abs(results_nobact_moldiff.totMassH2 - results_bact.totMassH2) ./ results_nobact_moldiff.totMassH2) * 100;
 CO2_loss_moldiff = (abs(results_nobact_moldiff.totMassCO2 - results_bact.totMassCO2) ./ results_nobact_moldiff.totMassCO2) * 100;
 C1_gain_moldiff  = (abs(results_nobact_moldiff.totMassC1 - results_bact.totMassC1) ./ results_nobact_moldiff.totMassC1) * 100;
 
-fprintf('Total H2 loss due to bacteria and diffusion: %.2f%%\n', H2_loss_moldiff(end));
-fprintf('Total CO2 loss due to bacteria and diffusion: %.2f%%\n', CO2_loss_moldiff(end));
-fprintf('Total C1 gain due to bacteria and diffusion:  %.2f%%\n', C1_gain_moldiff(end));
+fprintf('Total H2 loss due to bacteria: %.2f%%\n', H2_loss_moldiff(end));
+fprintf('Total CO2 loss due to bacteria: %.2f%%\n', CO2_loss_moldiff(end));
+fprintf('Total C1 gain due to bacteria:  %.2f%%\n', C1_gain_moldiff(end));
 
 
 
