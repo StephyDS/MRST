@@ -40,7 +40,11 @@ classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization  %
         %-----------------------------------------------------------------%
         function [acc, flux, names, types] = componentConservationEquations(fd, model, state, state0, dt)
             % Call parent method for standard component conservation
-            [acc, flux, names, types] = componentConservationEquations@FlowDiscretization(fd, model, state, state0, dt);
+            %[acc, flux, names, types] =
+            %componentConservationEquations@FlowDiscretization(fd, model,
+            %state, state0, dt);%sds modif
+            [acc, flux, names, types] = componentConservationEquations@DispersMolecDiffusFlowDiscretization(fd, model, state, state0, dt);
+       
         end
 
         %-----------------------------------------------------------------%
