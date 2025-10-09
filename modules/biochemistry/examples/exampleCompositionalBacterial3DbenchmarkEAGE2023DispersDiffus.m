@@ -132,7 +132,7 @@ nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ...
     'Benchmark_NoBacteria', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_nobact);%, 'restartStep',1);
+simulatePackedProblem(problem_nobact, 'restartStep',1);
 [ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
 results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
@@ -140,7 +140,7 @@ results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nob
 %% --- Simulation 1: Without bacteria molecular diffusion---
 arg = {G, rock, fluid, compFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', false, 'moleculardiffusion',false,'dispersion',true,...
+    'bacteriamodel', false, 'moleculardiffusion',true,'dispersion',false,...
     'liquidPhase', 'O', 'vaporPhase', 'G'};
 
 model_nobact_moldiff = BiochemistryModel(arg{:});
@@ -154,7 +154,7 @@ nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact_moldiff = packSimulationProblem(state0_nobact_moldiff, model_nobact_moldiff, schedule, ...
     'Benchmark_NoBacteria_disp', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_nobact_moldiff);%, 'restartStep',1);
+simulatePackedProblem(problem_nobact_moldiff, 'restartStep',1);
 [ws_nobact_moldiff, states_nobact_moldiff] = getPackedSimulatorOutput(problem_nobact_moldiff);
 
 results_nobact_moldiff = postProcessResults(states_nobact_moldiff, ws_nobact_moldiff, model_nobact_moldiff, 'nobact');
@@ -186,6 +186,7 @@ arg = {G, rock, fluid, compFluid, true, backend, ...
     'liquidPhase', 'O', 'vaporPhase', 'G'};
 
 model_bact = BiochemistryModel(arg{:});
+
 model_bact.outputFluxes = false;
 model_bact.EOSModel = compEOS;
 
@@ -206,9 +207,15 @@ eff_nobact = calculateH2Efficiency(results_nobact.H2_well, ...
     nbuildUp, nrest, ninject, nidle, nprod, ncycles);
 fprintf('H2 Production Efficiency (No bacteria): %.2f%%\n', eff_nobact);
 
+eff_nobact_moldiff = calculateH2Efficiency(results_nobact_moldiff.H2_well, ...
+    nbuildUp, nrest, ninject, nidle, nprod, ncycles);
+fprintf('H2 Production Efficiency (No bacteria, With dispersion): %.2f%%\n', eff_nobact_moldiff);
+
+
+
 eff_bact = calculateH2Efficiency(results_bact.H2_well, ...
     nbuildUp, nrest, ninject, nidle, nprod, ncycles);
-fprintf('H2 Production Efficiency (With bacteria): %.2f%%\n', eff_bact);
+fprintf('H2 Production Efficiency (With bacteria, with dispersion): %.2f%%\n', eff_bact);
 
 % Component changes
 H2_loss = (abs(results_nobact.totMassH2 - results_bact.totMassH2) ./ results_nobact.totMassH2) * 100;
@@ -218,6 +225,19 @@ C1_gain  = (abs(results_nobact.totMassC1 - results_bact.totMassC1) ./ results_no
 fprintf('Total H2 loss due to bacteria: %.2f%%\n', H2_loss(end));
 fprintf('Total CO2 loss due to bacteria: %.2f%%\n', CO2_loss(end));
 fprintf('Total C1 gain due to bacteria:  %.2f%%\n', C1_gain(end));
+
+
+H2_loss_moldiff = (abs(results_nobact_moldiff.totMassH2 - results_bact.totMassH2) ./ results_nobact_moldiff.totMassH2) * 100;
+CO2_loss_moldiff = (abs(results_nobact_moldiff.totMassCO2 - results_bact.totMassCO2) ./ results_nobact_moldiff.totMassCO2) * 100;
+C1_gain_moldiff  = (abs(results_nobact_moldiff.totMassC1 - results_bact.totMassC1) ./ results_nobact_moldiff.totMassC1) * 100;
+
+fprintf('Total H2 loss due to bacteria and diffusion: %.2f%%\n', H2_loss_moldiff(end));
+fprintf('Total CO2 loss due to bacteria and diffusion: %.2f%%\n', CO2_loss_moldiff(end));
+fprintf('Total C1 gain due to bacteria and diffusion:  %.2f%%\n', C1_gain_moldiff(end));
+
+
+
+
 
 %% --- Plot Benchmark Results ---
 plotBenchmarckAEGE2023(numel(states_nobact), ...
