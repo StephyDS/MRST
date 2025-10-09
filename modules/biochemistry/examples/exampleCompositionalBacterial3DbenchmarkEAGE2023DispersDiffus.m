@@ -132,7 +132,7 @@ nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ...
     'Benchmark_NoBacteria', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_nobact, 'restartStep',1);
+simulatePackedProblem(problem_nobact);%, 'restartStep',1);
 [ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
 results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
@@ -154,7 +154,7 @@ nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact_moldiff = packSimulationProblem(state0_nobact_moldiff, model_nobact_moldiff, schedule, ...
     'Benchmark_NoBacteria_disp', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_nobact_moldiff, 'restartStep',1);
+simulatePackedProblem(problem_nobact_moldiff);%, 'restartStep',1);
 [ws_nobact_moldiff, states_nobact_moldiff] = getPackedSimulatorOutput(problem_nobact_moldiff);
 
 results_nobact_moldiff = postProcessResults(states_nobact_moldiff, ws_nobact_moldiff, model_nobact_moldiff, 'nobact');
@@ -180,10 +180,12 @@ fprintf('Total C1 gain due to molecular diffusion:  %.2f%%\n', C1_gain(end));
 
 
 %% --- Simulation 2: With bacteria ---
-model_bact = BiochemistryModel(G, rock, fluid, compFluid, true, backend, ...
+arg = {G, rock, fluid, compFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', true, ...
-    'liquidPhase', 'O', 'vaporPhase', 'G');
+    'bacteriamodel', true, 'moleculardiffusion',false,'dispersion',true,...
+    'liquidPhase', 'O', 'vaporPhase', 'G'};
+
+model_bact = BiochemistryModel(arg{:});
 model_bact.outputFluxes = false;
 model_bact.EOSModel = compEOS;
 

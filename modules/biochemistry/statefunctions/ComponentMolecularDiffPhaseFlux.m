@@ -36,9 +36,6 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                poro= model.rock.poro;
                L_ix = model.getLiquidIndex();
                V_ix = model.getVaporIndex();
-               
-                interior_faces = find(all(model.G.faces.neighbors ~= 0, 2));
-                interior_areas = model.G.faces.areas(interior_faces);
                 
                % Define diffusion coefficients in m²/s for liquid and gas phases
                % These are example values, please replace them with actual data as needed

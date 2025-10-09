@@ -8,7 +8,7 @@ classdef ComponentDispersionPhaseFlux < StateFunction
         function gp = ComponentDispersionPhaseFlux(model, varargin)
             gp@StateFunction(model);
             gp = gp.dependsOn('Density', 'PVTPropertyFunctions');
-            gp = gp.dependsOn('PhaseFlux', 'FlowDiscretization'); %flux linked to Darcy velocity
+            %gp = gp.dependsOn('PhaseFlux', 'FlowDiscretization'); %flux linked to Darcy velocity
             gp = gp.dependsOn('pressure', 'state');
             gp = gp.dependsOn('mobility', 'state');
 
@@ -25,23 +25,16 @@ classdef ComponentDispersionPhaseFlux < StateFunction
             J = cellfun(@(x) 0, J, 'UniformOutput', false);
             if isfield(state,'x')
                 rho = prop.getEvaluatedExternals(model, state, 'Density');
-                [Darcy_flux] = model.getProp(state, 'PhaseFlux'); %PhaseFlux linked to Darcy velocity
                 op = model.operators;
-                avg = model.operators.faceAvg;
-                interior_faces = find(all(model.G.faces.neighbors ~= 0, 2));
-                interior_areas = model.G.faces.areas(interior_faces);
                 dim=model.G.griddim;
                 ncells=model.G.cells.num;
 
-
                 [pf, mob] = model.getProps(state, 'pressure','mobility');    % {lambda_w, lambda_g}
-                Face_poro= avg(model.rock.poro); %average porosity on faces
                 Kcell= model.rock.perm; %permeabilities in cells
-
-
+                poro= model.rock.poro;
+                
                 L_ix = model.getLiquidIndex();
                 V_ix = model.getVaporIndex();
-                poro= model.rock.poro;
                 Grad_face_p=op.Grad(pf);
                 Grad_cell_p=vectorCellGradient(model,Grad_face_p);
 
@@ -80,6 +73,8 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                             unorm=unorm+uDarcy_ph{d}.^2;
                         end
                         unorm=unorm.^0.5;
+                        %fprintf('ph=%8.1f, unorm : %16.8f , %16.8f \n',...
+                        %                 ph,min(unorm.val),max(unorm.val));
                         uhat  = cell(1, dim);
                         for d = 1:dim
                             uhat{d} = uDarcy_ph{d} ./ (unorm + 1e-12);
