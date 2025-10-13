@@ -10,7 +10,7 @@ classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization  %
     methods
         %-----------------------------------------------------------------%
         function props = BiochemicalFlowDiscretization(model)
-            % Constructor: inherit base FlowDiscretization properties
+            % Constructor: inherit base DispersMolecDiffusFlowDiscretization properties
             %props = props@FlowDiscretization(model); SDS modif
             props = props@DispersMolecDiffusFlowDiscretization(model);
             if model.bacteriamodel
@@ -34,6 +34,7 @@ classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization  %
                 props = props.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 props = props.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
                 props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
+                props = props.setStateFunction('BactFlux', ComponentDiffusiveBactFlux(model));
             end
         end
 
@@ -53,12 +54,19 @@ classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization  %
             bactmass  = model.getProps(state, 'BacterialMass');
             bactmass0 = model.getProps(state0, 'BacterialMass');
 
+            %Microbial diffusive flux
+            flowState = fd.buildFlowState(model, state, state0, dt);
+            bflux = [];
+            if model.bactdiffusion
+                bflux = model.getProp(flowState, 'BactFlux');
+            end
+
             % Accumulation term
             acc = (bactmass - bactmass0) ./ dt;
 
             % Convert to cell arrays for AD framework
             acc   = {acc};
-            bflux = {[]};
+            bflux = {bflux};
 
             % Output variable names and types
             name = 'bacteria';

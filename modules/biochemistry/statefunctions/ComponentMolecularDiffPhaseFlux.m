@@ -1,5 +1,17 @@
 classdef ComponentMolecularDiffPhaseFlux < StateFunction
     % Flux of each component, in each phase
+    % Molecular diffusion flux : 
+    % Quirk-Millington model for both phases to evaluate the diffusion
+    % coefficients.
+    % For the gas phase, the binary diffusion coefficients are estimated 
+    % thanks to the  Stefan-Maxwell equation simplified by Blanc's law. 
+    % For the liquid phase, the binary diffusion coefficients comes from
+    % the literature.
+    % Author: [Stéphanie Delage Santacreu]
+    % Date: [16/09/2025]
+    % Organization: [Université de Pau et des Pays de l'Adour, E2S UPPA, CNRS, LFCR, UMR5150, Pau, France]
+    % ---------------------------------------------------------------------------
+
     properties
         
     end
@@ -38,8 +50,6 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                V_ix = model.getVaporIndex();
                 
                % Define diffusion coefficients in m²/s for liquid and gas phases
-               % These are example values, please replace them with actual data as needed
-               % Format: [liquid_diff gas_diff] for each component
                sqrtMij=zeros(ncomp,ncomp);
                sqrtEpsij=zeros(ncomp,ncomp);
                Sigij2=zeros(ncomp,ncomp);
@@ -95,3 +105,21 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
         end
     end
 end
+%{
+Copyright 2009-2025 SINTEF Digital, Mathematics & Cybernetics.
+
+This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
+
+MRST is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+MRST is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with MRST.  If not, see <http://www.gnu.org/licenses/>.
+%}

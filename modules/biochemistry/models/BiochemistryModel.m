@@ -47,12 +47,16 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         bacteriamodel = true;
         metabolicReaction = 'MethanogenicArchae';
 
-        %Molecular diffusion SDS
+        %Microbial diffusion
+        bactdiffusion = false;
+        bact_diff = 1.e-12;%m2/s coefficient de diffusion microbienne
+
+        %Molecular diffusion
         moleculardiffusion = false;
         mol_diff = [];
         param_LJ=[];
 
-        %Dispersion SDS
+        %Dispersion
         dispersion = false;
         alphaL=zeros(2,1);%Longitudinal dispersivity coefficient
         alphaT=zeros(2,1);%Transversal dispersivity coefficient
@@ -356,6 +360,9 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
                 beqs{1} = beqs{1} - src_growthdecay;
+                if any(model.bactdiffusion > 0) %microbial diffusion
+                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
+                end
             else
                 [beqs, bnames, btypes] = deal([]);
             end
