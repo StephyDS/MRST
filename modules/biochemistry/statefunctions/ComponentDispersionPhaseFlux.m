@@ -65,12 +65,15 @@ classdef ComponentDispersionPhaseFlux < StateFunction
                         if isvector(Kcell) && (numel(Kcell) == ncells)
                             % (1) Isotrope scalaire : u = -lam*K*grad p
                             for d = 1:dim
-                                uDarcy_ph{d} = -mob{ph}.* Kcell.*Grad_cell_p{d};
+                                %uDarcy_ph{d} = -mob{ph}.* Kcell.*Grad_cell_p{d}; %without gravity
+                                uDarcy_ph{d} = -mob{ph}.* Kcell.*(Grad_cell_p{d}-rho{ph}.*model.gravity(d));
                             end
+
                         elseif ismatrix(Kcell) && all(size(Kcell) == [ncells, dim])
                             % (2) Anisotrope diagonal : u_d = -lam*K(:,d)*grad_p_d
                             for d = 1:dim
-                                uDarcy_ph{d} = -mob{ph}.*Kcell(:,d).*Grad_cell_p{d};
+                                %uDarcy_ph{d} = -mob{ph}.*Kcell(:,d).*Grad_cell_p{d}; %without gravity
+                                uDarcy_ph{d} = -mob{ph}.*Kcell(:,d).*(Grad_cell_p{d}-rho{ph}.*model.gravity(d));
                             end
                         end
                         unorm=uDarcy_ph{1}.^2;

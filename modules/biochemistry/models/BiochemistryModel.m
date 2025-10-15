@@ -153,10 +153,10 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             if model.dispersion
                 L_i = model.getLiquidIndex();
                 V_i = model.getVaporIndex();
-                model.alphaL(L_i)=1.e-2; %Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
-                model.alphaL(V_i)=1.e-1; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
-                model.alphaT(L_i)=1.e-3; %Transversal dispersivity coefficient in water phase,  m 
-                model.alphaT(V_i)=1.e-2; %Transversal dispersivity coefficient in gas phase,  m 
+                model.alphaL(L_i)=5.e-3;%1.e-2; %Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
+                model.alphaL(V_i)=6.e-3; %1.e-1; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
+                model.alphaT(L_i)=5.e-4;%1.e-3; %Transversal dispersivity coefficient in water phase,  m 
+                model.alphaT(V_i)=6.e-4;%1.e-2; %Transversal dispersivity coefficient in gas phase,  m 
             end
 
 

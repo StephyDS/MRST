@@ -30,7 +30,7 @@ mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on
 
 %% ============ Grid and Rock Properties =====================
-[nx, ny, nz] = deal(21, 21, 8);
+[nx, ny, nz] = deal(31, 31, 8);
 [Lx, Ly, Lz] = deal(1525, 1525, 50);
 
 G = cartGrid([nx, ny, nz], [Lx, Ly, Lz]);
@@ -131,8 +131,8 @@ lsolve = selectLinearSolverAD(model_nobact);
 nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ...
-    'Benchmark_NoBacteria', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_nobact, 'restartStep',1);
+    'Benchmark_NoBacteria_6cycles_dispall', 'NonLinearSolver', nls);
+simulatePackedProblem(problem_nobact); %, 'restartStep',1);
 [ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
 results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
@@ -140,7 +140,7 @@ results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nob
 %% --- Simulation 1: Without bacteria molecular diffusion---
 arg = {G, rock, fluid, compFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', false, 'moleculardiffusion',true,'dispersion',false,...
+    'bacteriamodel', false, 'moleculardiffusion',true,'dispersion',true,...
     'liquidPhase', 'O', 'vaporPhase', 'G'};
 
 model_nobact_moldiff = BiochemistryModel(arg{:});
@@ -153,7 +153,7 @@ lsolve = selectLinearSolverAD(model_nobact_moldiff);
 nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact_moldiff = packSimulationProblem(state0_nobact_moldiff, model_nobact_moldiff, schedule, ...
-    'Benchmark_NoBacteria_disp', 'NonLinearSolver', nls);
+    'Benchmark_NoBacteria_disp_6cycles', 'NonLinearSolver', nls);
 simulatePackedProblem(problem_nobact_moldiff, 'restartStep',1);
 [ws_nobact_moldiff, states_nobact_moldiff] = getPackedSimulatorOutput(problem_nobact_moldiff);
 
@@ -182,8 +182,8 @@ fprintf('Total C1 gain due to molecular diffusion:  %.2f%%\n', C1_gain(end));
 %% --- Simulation 2: With bacteria ---
 arg = {G, rock, fluid, compFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', true, 'moleculardiffusion',false,'dispersion',false,...
-    'bactdiffusion',true,'liquidPhase', 'O', 'vaporPhase', 'G'};
+    'bacteriamodel', true, 'moleculardiffusion',true,'dispersion',true,...
+    'bactdiffusion',false,'liquidPhase', 'O', 'vaporPhase', 'G'};
 
 model_bact = BiochemistryModel(arg{:});
 
@@ -197,7 +197,7 @@ lsolve = selectLinearSolverAD(model_bact);
 nls.LinearSolver = lsolve;
 
 problem_bact = packSimulationProblem(state0_bact, model_bact, schedule, ...
-    'Benchmark_Bacteria', 'NonLinearSolver', nls);
+    'Benchmark_Bacteria_6cycles_dispall', 'NonLinearSolver', nls);
 simulatePackedProblem(problem_bact, 'restartStep',1);
 [ws_bact, states_bact] = getPackedSimulatorOutput(problem_bact);
 results_bact = postProcessResults(states_bact, ws_bact, model_bact, 'bact');
