@@ -52,7 +52,7 @@ classdef DispersMolecDiffusFlowDiscretization < FlowDiscretization
                 Jdisp = model.getProps(flowState, 'DispersionPhaseFlux');
                 for c = 1:ncomp
                     for ph = 1:nph                   
-                        flux{c} = flux{c} + Jdisp{c,ph};                     
+                        flux{c} = flux{c} + Jdisp{c,ph};    
                     end
                 end
             end            
@@ -60,13 +60,15 @@ classdef DispersMolecDiffusFlowDiscretization < FlowDiscretization
                 Jmoldiff = model.getProps(flowState, 'MolecularDiffPhaseFlux');
                 for c = 1:ncomp
                     for ph = 1:nph                   
-                        flux{c} = flux{c} + Jmoldiff{c,ph};                     
+                        flux{c} = flux{c} + Jmoldiff{c,ph};  
                     end
                 end
             end
-        end      
+        end
+
     end
-    
+
+
 end
 
 %{

@@ -95,7 +95,7 @@ classdef ComponentMolecularDiffPhaseFlux < StateFunction
                                    D_diffij_inv =  D_diffij_inv  +ycj./Dij(c,cj);
                                end
                            end
-                           D_diffij=coeff1./D_diffij_inv;
+                           D_diffij=coeff1./max(D_diffij_inv,1.e-16);
                            D_diff = avg(s.*rho{ph}.*D_diffij.*tau_mq.*poro);%Millington and Quirk model
                            J{c, ph} = - D_diff.*model.operators.Grad(yc);
                        end

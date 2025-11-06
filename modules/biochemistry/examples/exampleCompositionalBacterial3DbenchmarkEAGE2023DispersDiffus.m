@@ -30,7 +30,7 @@ mrstModule add biochemistry compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on
 
 %% ============ Grid and Rock Properties =====================
-[nx, ny, nz] = deal(31, 31, 8);
+[nx, ny, nz] = deal(11, 11, 8);
 [Lx, Ly, Lz] = deal(1525, 1525, 50);
 
 G = cartGrid([nx, ny, nz], [Lx, Ly, Lz]);
@@ -131,7 +131,7 @@ lsolve = selectLinearSolverAD(model_nobact);
 nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ...
-    'Benchmark_NoBacteria_6cycles_dispall', 'NonLinearSolver', nls);
+    'Benchmark_NoBacteria_6cycles_11', 'NonLinearSolver', nls);
 simulatePackedProblem(problem_nobact); %, 'restartStep',1);
 [ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
 results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
@@ -153,7 +153,7 @@ lsolve = selectLinearSolverAD(model_nobact_moldiff);
 nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact_moldiff = packSimulationProblem(state0_nobact_moldiff, model_nobact_moldiff, schedule, ...
-    'Benchmark_NoBacteria_disp_6cycles', 'NonLinearSolver', nls);
+    'Benchmark_NoBacteria_disp_6cycles_11', 'NonLinearSolver', nls);
 simulatePackedProblem(problem_nobact_moldiff, 'restartStep',1);
 [ws_nobact_moldiff, states_nobact_moldiff] = getPackedSimulatorOutput(problem_nobact_moldiff);
 
@@ -162,11 +162,11 @@ results_nobact_moldiff = postProcessResults(states_nobact_moldiff, ws_nobact_mol
 
 %% --- Efficiency and Comparison ---
 eff_nobact = calculateH2Efficiency(results_nobact.H2_well, ...
-    nbuildUp, nrest, ninject, nidle, nprod, ncycles);
+    nbuildUp, nrest, ninject, nidle, nprod, nidle1, ncycles);
 fprintf('H2 Production Efficiency (No bacteria): %.2f%%\n', eff_nobact);
 
 eff_nobact_moldiff = calculateH2Efficiency(results_nobact_moldiff.H2_well, ...
-    nbuildUp, nrest, ninject, nidle, nprod, ncycles);
+    nbuildUp, nrest, ninject, nidle, nprod, nidle1, ncycles);
 fprintf('H2 Production Efficiency (No bacteria, With molecular diffusion): %.2f%%\n', eff_nobact_moldiff);
 
 % Component changes
@@ -204,11 +204,11 @@ results_bact = postProcessResults(states_bact, ws_bact, model_bact, 'bact');
 
 %% --- Efficiency and Comparison ---
 eff_nobact = calculateH2Efficiency(results_nobact.H2_well, ...
-    nbuildUp, nrest, ninject, nidle, nprod, ncycles);
+    nbuildUp, nrest, ninject, nidle, nprod, nidle1, ncycles);
 fprintf('H2 Production Efficiency (No bacteria): %.2f%%\n', eff_nobact);
 
 eff_nobact_moldiff = calculateH2Efficiency(results_nobact_moldiff.H2_well, ...
-    nbuildUp, nrest, ninject, nidle, nprod, ncycles);
+    nbuildUp, nrest, ninject, nidle, nprod, nidle1, ncycles);
 fprintf('H2 Production Efficiency (No bacteria, With dispersion): %.2f%%\n', eff_nobact_moldiff);
 
 
@@ -306,7 +306,7 @@ results.caseType = caseType;
 end
 
 %% Efficiency Calculation Function
-function efficiency = calculateH2Efficiency(H2_well, nbuildUp, nrest, ninject, nidle, nprod, ncycles)
+function efficiency = calculateH2Efficiency(H2_well, nbuildUp, nrest, ninject, nidle, nprod, nidle1,ncycles)
 % Calculate H2 production efficiency
 %
 % Parameters:
@@ -315,7 +315,7 @@ function efficiency = calculateH2Efficiency(H2_well, nbuildUp, nrest, ninject, n
 %   ncycles - Number of cycles
 
 ndeb0 = nbuildUp + nrest;
-njcycle = ninject + nidle + nprod;
+njcycle = ninject + nidle + nprod+nidle1;
 
 mH2_injected = sum(H2_well(1:nbuildUp));
 mH2_produced = 0.0;
