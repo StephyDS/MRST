@@ -7,8 +7,8 @@ classdef ComponentDiffusiveBactFlux < StateFunction
         function gp = ComponentDiffusiveBactFlux(model, varargin)
             gp@StateFunction(model);
             gp = gp.dependsOn({'nbact'}, 'state');
-            gp = gp.dependsOn({'Density'}, 'PVTPropertyFunctions');
-
+            gp = gp.dependsOn({'PoreVolume', 'Density'}, 'PVTPropertyFunctions');
+            
             gp = gp.dependsOn({'s'}, 'state');
             gp.label = 'Flux_{bio}';
         end
@@ -21,8 +21,9 @@ classdef ComponentDiffusiveBactFlux < StateFunction
             L_ix = model.getLiquidIndex();
             rho = prop.getEvaluatedExternals(model, state, 'Density');
             poro= model.rock.poro;
-
-             fluxbact = model.AutoDiffBackend.initVariablesAD(zeros(model.G.cells.num, 1)); % AD-safe init
+            pv = model.PVTPropertyFunctions.get(model, state, 'PoreVolume');
+           
+           fluxbact = model.AutoDiffBackend.initVariablesAD(zeros(model.G.cells.num, 1)); % AD-safe init
            
 
             if model.bacteriamodel&& model.liquidPhase
@@ -34,13 +35,11 @@ classdef ComponentDiffusiveBactFlux < StateFunction
                     rhoL = rho(:, L_ix);
                 end
                 tau_mq=(sL.*poro).^(7/3).*poro.^(-2);
-                Diffb = avg(model.bact_diff.*tau_mq.*sL.*poro.*rhoL);
+                Diffb = avg(model.bact_diff.*tau_mq.*sL.*pv.*rhoL);
 
                 fluxbact = -Diffb.*model.operators.Grad(nbact);
             end
         end
-
-
     end
 end
 

@@ -35,6 +35,7 @@ classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization  %
                 props = props.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
                 props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
                 props = props.setStateFunction('BactFlux', ComponentDiffusiveBactFlux(model));
+                props = props.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
             end
         end
 
@@ -54,11 +55,15 @@ classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization  %
             bactmass  = model.getProps(state, 'BacterialMass');
             bactmass0 = model.getProps(state0, 'BacterialMass');
 
-            %Microbial diffusive flux
+            %Microbial diffusive flux and/or Chemotaxis 
             flowState = fd.buildFlowState(model, state, state0, dt);
             bflux = [];
-            if model.bactdiffusion
+            if (model.bactdiffusion) && ~(model.chemotaxisEffect)
                 bflux = model.getProp(flowState, 'BactFlux');
+            elseif ~(model.bactdiffusion) && (model.chemotaxisEffect)
+                bflux  = model.getProp(flowState, 'ChemoBactFlux');
+            elseif (model.bactdiffusion) && (model.chemotaxisEffect)
+                bflux  = model.getProp(flowState, 'ChemoBactFlux')+model.getProp(flowState, 'BactFlux');
             end
 
             % Accumulation term

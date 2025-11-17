@@ -44,7 +44,7 @@ min_pressure = 6 * mega * Pascal; % [Pa]
 max_pressure = 20 * mega * Pascal;% [Pa]
 nbp          = 15;               % Number of pressure points
 nbt          = 15;              % Number of temperature points
-ms           = 0;                 % Salt molality [mol/kg]
+ms           = 2;                 % Salt molality [mol/kg]
 outputDisplay = true;            % Set to true to display generated tables
 recompute = true;                 % recompuete solubility  tables
 
@@ -58,15 +58,6 @@ outputPath = fullfile(mrstOutputDirectory(), 'UHS_PVT', 'H2SolubilityTable');
 
 % This configuration prepares solubility data for the H2-brine system
 % under RK-EOS in the context of saline aquifer storage.
-
-% Generate H2O pure Component Table from NIST
-comp_name = 'H2O';
-disp(['Generating component table for: ', comp_name]);
-tab_H2O = generateComponentProperties('min_temp',min_temp, 'max_temp',max_temp, ...
-    'n_temp', nbt, 'min_press',min_pressure, 'max_press', max_pressure, ...
-    'n_press',nbp, 'comp_name', comp_name,'outputDisplay', outputDisplay, ...
-    'outputPath',outputPath);
-
 % Generate H2 pure Component Table from NIST
 pause(0.1);  % Ensure smooth execution between commands
 comp_name = 'H2';
@@ -79,8 +70,6 @@ tab_H2 = generateComponentProperties('min_temp',min_temp, 'max_temp',max_temp, .
 % We use the Redlich Kwong Eos to obtain the solubility
 disp('Generating solubility table for H2-brine mixture...');
 
-%[tab_sol, status_sol, file_path_sol] = generateSolubilityTable(min_temp, ... 
-% max_temp, min_pressure, max_pressure, nbp, nbt, ms, outputPath);
 
 tab_sol= generateH2WaterSolubilityTable('min_temp',min_temp, 'max_temp',max_temp, ...
     'n_temp', nbt,'min_press',min_pressure, 'max_press',max_pressure, ...
@@ -129,26 +118,6 @@ xliqH2sw=xsw(:,indH2);
 xliqH2pr=xpr(:,indH2);
 
 
-f21=figure('Name','solubility_H2','NumberTitle','off');
-f21.Position(3:4) = [900 700];
-
-plot(pressSWPR,xliqH2sw,'b o','MarkerSize',7,'LineWidth',2)
-hold on
-plot(pressSWPR,xliqH2pr,'k*','MarkerSize',7,'LineWidth',2)
-hold on
-plot(tab_sol.("pressure [Pa]"),tab_sol.x_H2,'r square','MarkerSize',8,'LineWidth',2)
-
-title('solubility in pure water PR vs SW','FontSize',16,'FontWeight','normal','Color','k')
-xlabel({'pressure (bar)'},'FontWeight','normal','Color','k')
-ylabel('molar fraction (-)','FontWeight','normal','Color','k')
-ax = gca;
-ax.FontSize = 16; 
-
-legend({'SW','PR','RK'},...
-    'FontSize',16,'TextColor','black',...
-    'Location','best')
-
-
 %% Solubility of H2 in Brine as a Function of Pressure and Temperature
 figure;
 hold on;
@@ -182,7 +151,7 @@ end
 xlabel('Temperature (K)', 'FontSize', 14);
 ylabel('x_{H2}', 'FontSize', 14);
 legend(legends, 'FontSize', 10, 'Location', 'best');
-title('H2 Solubility in Brine: SW-EoS vs. PR-EoS vs. RK-EoS vs ePC-SAFT', 'FontSize', 12);
+title('H2 Solubility in salt water: SW-EoS vs. PR-EoS vs. RK-EoS vs ePC-SAFT', 'FontSize', 12);
 hold off;
 
 
@@ -196,7 +165,7 @@ figure;
 contourf(temperature, convertTo(pressure, mega*Pascal), ...
     reshape(tab_sol.x_H2, [], n), 'LineStyle', 'none');
 colorbar; % Add a color bar for reference
-title('H2 Solubility in Water (RK eos)', 'FontSize', 14);
+title('H2 Solubility in salt Water (RK eos)', 'FontSize', 14);
 xlabel('Temperature (K)', 'FontSize', 14);
 ylabel('Pressure (MPa)', 'FontSize', 14);
 set(gca, 'FontSize', 12); % Set font size for axes
@@ -206,7 +175,7 @@ figure;
 contourf(temperature, convertTo(pressure, mega*Pascal), ...
     reshape(xliqH2sw, [], n), 'LineStyle', 'none');
 colorbar; % Add a color bar for reference
-title('H2 Solubility in Water (SW eos)', 'FontSize', 14);
+title('H2 Solubility in salt Water (SW eos)', 'FontSize', 14);
 xlabel('Temperature (K)', 'FontSize', 14);
 ylabel('Pressure (MPa)', 'FontSize', 14);
 set(gca, 'FontSize', 12); % Set font size for axes
@@ -216,7 +185,7 @@ figure;
 contourf(temperature, convertTo(pressure, mega*Pascal), ...
     reshape(xliqH2pr, [], n), 'LineStyle', 'none');
 colorbar; % Add a color bar for reference
-title('H2 Solubility in Water (PR eos)', 'FontSize', 14);
+title('H2 Solubility in salt Water (PR eos)', 'FontSize', 14);
 xlabel('Temperature (K)', 'FontSize', 14);
 ylabel('Pressure (MPa)', 'FontSize', 14);
 set(gca, 'FontSize', 12); % Set font size for axes

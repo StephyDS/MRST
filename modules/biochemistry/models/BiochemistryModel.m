@@ -52,6 +52,12 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         bactdiffusion = false;
         bact_diff = 1.e-12;%m2/s coefficient de diffusion microbienne
 
+        %Chemotaxis
+        chemotaxisEffect = false; 
+        Xch_max = 1.e-8;
+        Kch = 1.e-7;
+        xch_seuil=1.e-8;
+
         %Molecular diffusion
         moleculardiffusion = false;
         mol_diff = [];
@@ -365,9 +371,10 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
                 beqs{1} = beqs{1} - src_growthdecay;
-                if any(model.bactdiffusion > 0) %microbial diffusion
+                if any(model.bactdiffusion > 0) || any(model.chemotaxisEffect>0) %microbial diffusion or chemotaxis
                     beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
                 end
+                
             else
                 [beqs, bnames, btypes] = deal([]);
             end
