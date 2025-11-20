@@ -12,6 +12,9 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
         function props = BiochemicalFlowDiscretization(model)
             % Constructor: inherit base FlowDiscretization properties
             props = props@FlowDiscretization(model);
+
+            % Ensure Porosity exists in FlowDiscretization for diffusion (also when no clogging)
+            props = props.setStateFunction('Porosity', PorosityFromRock(model));
             if model.bacteriamodel
 
                 % Set up transmissibility and porosity functions
@@ -33,6 +36,7 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                 props = props.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 props = props.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
                 props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
+
             end
         end
 
