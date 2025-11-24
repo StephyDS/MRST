@@ -35,19 +35,29 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         compFluid
 
         % Physical quantities and bounds
-        Y_H2 = 3.90875e11;               % 1/mole(H2)
+        %For methanogenic archae or sulfate reducing bacteria
+        Y_H2 = [];               % 1/mole(H2)
         gammak   = [];                    % Stoichiometric coefficients
-        alphaH2  = 3.6e-7;
-        alphaCO2 = 1.98e-6;
+        gammak_SRB   = [];                    % Stoichiometric coefficients
+        alphaH2  = [];
+        alphaSubst  = []; %substrate For methanogenic archae or sulfate reducing bacteria
+        %alphaCO2 = [];
+        %alphaSO4 = [];
+        Psigrowthmax = [];         % 1/s
+        b_bact       = [];       % 1/s
+        % Y_H2 = 3.90875e11;               % 1/mole(H2)
+        % gammak   = [];                    % Stoichiometric coefficients
+        % alphaH2  = 3.6e-7;
+        % alphaCO2 = 1.98e-6;
+        % Psigrowthmax = 1.338e-4;         % 1/s
+        % b_bact       = 2.35148e-6;       % 1/s
 
-        Psigrowthmax = 1.338e-4;         % 1/s
-        b_bact       = 2.35148e-6;       % 1/s
-        nbactMax     = 1e9;              % 1/m^3
+       nbactMax     = 1e9;              % 1/m^3
 
         bacteriamodel = true;
         metabolicReaction = 'MethanogenicArchae';
-        % metabolicReaction = 'SulfurReducBact';
-
+        num_bioreact=1; %number of bioreactions
+        
         %Molecular diffusion
         moleculardiffusion = false;
         mol_diff = [];
@@ -144,19 +154,37 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             %% Set compositional fluid and EOS
             if isempty(compFluid)
                 if strcmp(model.metabolicReaction, 'MethanogenicArchae')
+                    model.Y_H2 = 3.90875e11;               % 1/mole(H2)
+                    model.alphaH2  = 3.6e-7;
+                    %model.alphaCO2 = 1.98e-6;
+                    model.alphaSubst= 1.98e-6;
+                    model.Psigrowthmax = 1.338e-4;         % 1/s
+                    model.b_bact       = 2.35148e-6;       % 1/s
                     compNames = {'Hydrogen', 'Water', 'Nitrogen', 'CarbonDioxide', 'Methane'};
                     compSymbols = {'H2', 'H2O', 'N2', 'CO2', 'C1'};
                     compFluid = TableCompositionalMixture(compNames, compSymbols);
                     model.gammak = [-4.0, 2.0, 0.0, -1.0, 1.0];  % Stoichiometric coefficients
                     model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
+                elseif strcmp(model.metabolicReaction, 'SulfurReducingBacteria')
+                    model.Y_H2 = 3.90875e11;               % 1/mole(H2)
+                    model.alphaH2  = 3.6e-7;
+                    model.alphaSubst= 1.98e-6;
+                    %model.alphaS04 = 1.98e-6;
+                    model.Psigrowthmax = 1.338e-4;         % 1/s
+                    model.b_bact       = 2.35148e-6;       % 1/s
+                    compNames = {'Hydrogen', 'Water', 'Nitrogen', 'HydrogenSulfide', 'SulfurDioxide'};
+                    compSymbols = {'H2', 'H2O', 'N2', 'H2S', 'SO4'};
+                    compFluid = TableCompositionalMixture(compNames, compSymbols);
+                    model.gammak_SRB = [-5.0, 4.0, 0.0, 1.0, -1.0];  % Stoichiometric coefficients
+                    model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
                 else
                     warning('MethanogenicArchae is the default; other reactions not implemented.');
                 end
             else
-                ncomp = compFluid.getNumberOfComponents();
-                model.gammak = zeros(1, ncomp);
+                ncomp = compFluid.getNumberOfComponents();  
+                namecp = compFluid.names;
                 if strcmp(model.metabolicReaction, 'MethanogenicArchae')
-                    namecp = compFluid.names;
+                    model.gammak = zeros(1, ncomp);    
                     indH2   = find(strcmp(namecp, 'H2'));
                     indH2O  = find(strcmp(namecp, 'H2O'));
                     indCO2  = find(strcmp(namecp, 'CO2'));
@@ -165,6 +193,29 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                     model.gammak(indH2O) =  2.0;
                     model.gammak(indCO2) = -1.0;
                     model.gammak(indC1)  =  1.0;
+                    model.Y_H2 = 3.90875e11;               % 1/mole(H2)
+                    model.alphaH2  = 3.6e-7;
+                    %model.alphaCO2 = 1.98e-6;
+                    model.alphaSubst= 1.98e-6;
+                    model.Psigrowthmax = 1.338e-4;         % 1/s
+                    model.b_bact       = 2.35148e-6;       % 1/s
+                elseif strcmp(model.metabolicReaction, 'SulfurReducingBacteria')
+                    model.gammak_SRB = zeros(1, ncomp);
+                    %namecp = compFluid.names;
+                    indH2   = find(strcmp(namecp, 'H2'));
+                    indH2O  = find(strcmp(namecp, 'H2O'));
+                    indH2S  = find(strcmp(namecp, 'H2S'));
+                    indSO4   = find(strcmp(namecp, 'SO4'));
+                    model.gammak(indH2)  = -5.0;
+                    model.gammak(indH2O) =  4.0;
+                    model.gammak(indH2S) = 1.0;
+                    model.gammak(indSO4)  =  -1.0;
+                    model.Y_H2 = 3.90875e11;               % 1/mole(H2)
+                    model.alphaH2  = 3.6e-7;
+                    model.alphaSubst= 1.98e-6;
+                    %model.alphaS04 = 1.98e-6;
+                    model.Psigrowthmax = 1.338e-4;         % 1/s
+                    model.b_bact       = 2.35148e-6;       % 1/s
                 end
                 model.compFluid = compFluid;
                 model.EOSModel = EquationOfStateModel([], compFluid, 'sw');

@@ -88,7 +88,8 @@ classdef BactConvertionRate < StateFunction
 
                 % Get model parameters
                 alphaH2 = rm.alphaH2;
-                alphaCO2 = rm.alphaCO2;
+                alphaCO2 = rm.alphaSubst;
+                %alphaCO2 = rm.alphaCO2;
                 Psigrowthmax = rm.Psigrowthmax;
                 Y_H2 = rm.Y_H2;
                 gammak = rm.gammak;

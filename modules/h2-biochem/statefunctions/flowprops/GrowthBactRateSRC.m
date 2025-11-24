@@ -99,7 +99,8 @@ classdef GrowthBactRateSRC < StateFunction
 
             % Get growth parameters
             alphaH2 = rm.alphaH2;
-            alphaCO2 = rm.alphaCO2;
+            %alphaCO2 = rm.alphaCO2;
+            alphaCO2 = rm.alphaSubst;
             Psigrowthmax = rm.Psigrowthmax;
 
             % Calculate Monod terms for H2 and CO2
