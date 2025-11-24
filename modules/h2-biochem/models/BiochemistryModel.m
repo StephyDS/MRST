@@ -46,6 +46,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
         bacteriamodel = true;
         metabolicReaction = 'MethanogenicArchae';
+        % metabolicReaction = 'SulfurReducBact';
 
         %Molecular diffusion
         moleculardiffusion = false;
