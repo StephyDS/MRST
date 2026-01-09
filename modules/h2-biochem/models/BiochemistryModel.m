@@ -225,8 +225,12 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
             if model.bacteriamodel
                 nbact = model.getProps(state, 'bacteriamodel');
-                names = [{'pressure'}, cnames(2:end), {'nbact'}, enames];
+                nbact = expandMatrixToCell(nbact);
+                bactnames = model.biochemFluid.bactnames;
+            
+                names = [{'pressure'}, cnames(2:end), bactnames, enames];
                 vars  = [p, z(2:end), nbact, evars];
+
             else
                 names = [{'pressure'}, cnames(2:end), enames];
                 vars  = [p, z(2:end), evars];
@@ -277,7 +281,10 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
-                beqs{1} = beqs{1} - src_growthdecay;
+                nbioreact=model.biochemFluid.nbioreact;
+                for i=1:nbioreact
+                    beqs{i} = beqs{i} - src_growthdecay{i};
+                end
             else
                 [beqs, bnames, btypes] = deal([]);
             end
@@ -303,12 +310,26 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             if model.bacteriamodel
 
                 isP = strcmp(names, 'pressure');
-                isB = strcmp(names, 'nbact');
+                %isB = strcmp(names, 'nbact');
                 isAD = any(cellfun(@(x) isa(x, 'ADI'), vars));
                 state = model.setProp(state, 'pressure', vars{isP});
-                state = model.setProp(state, 'nbact', vars{isB});
+                %state = model.setProp(state, 'nbact', vars{isB});
 
-                removed = isP | isB;
+                removed = isP ;%| isB;
+
+                bactnames=model.biochemFluid.bactnames;
+                nbioreact=model.biochemFluid.nbioreact;
+                nbact=cell(1, nbioreact);
+                for i = 1:nbioreact
+                    name = bactnames{i};
+                    sub = strcmp(names, name);
+                    nbact{i} = vars{sub};
+                    removed(sub) = true;
+                end
+                state = model.setProp(state, 'nbact', nbact);
+
+
+
 
                 cnames = model.EOSModel.getComponentNames();
                 ncomp = numel(cnames);
@@ -398,17 +419,28 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         function [v_eqs, tolerances, names] = getConvergenceValues(model, problem, varargin)
             % Get values for convergence check
             [v_eqs, tolerances, names] = getConvergenceValues@ReservoirModel(model, problem, varargin{:});
-            bacteriaIndex = find(strcmp(names, 'bacteria (cell)'));
-            tolerances(bacteriaIndex) = 5.0e-2;
+           
             if model.bacteriamodel
+                nbioreact=model.biochemFluid.nbioreact;
+                %bacteriaIndex = find(strcmp(names, 'bacteria (cell)'));
+                bacteriaIndex=zeros(nbioreact,1);
+                for i=1:nbioreact
+                    bact=strcat(model.biochemFluid.bactnames{i},' (cell)');
+                    bacteriaIndex(i) = find(strcmp(names, bact));
+                    tolerances(bacteriaIndex(i)) = 5.0e-2;
+                end
+
                 scale = model.getEquationScaling(problem.equations, problem.equationNames, problem.state, problem.dt);
                 ix    = ~cellfun(@isempty, scale);
                 v_eqs(ix) = cellfun(@(scale, x) norm(scale.*value(x), inf), scale(ix), problem.equations(ix));
                 % Reduce Tolerance
                 iter = problem.iterationNo;
                 maxIter = model.EOSNonLinearSolver.LinearSolver.maxIterations;
-                if (v_eqs(bacteriaIndex) > tolerances(bacteriaIndex) && (iter+5>maxIter))
+                for i=1:nbioreact
+                    if (v_eqs(bacteriaIndex(i)) > tolerances(bacteriaIndex(i)) && (iter+5>maxIter))
+                    end
                 end
+
             end
         end
 
@@ -442,11 +474,15 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 scale{ix} = scaleMass;
             end
             if model.bacteriamodel
-                ix = strcmpi(names, 'bacteria');
-                if any(ix)
-                    scaleChemistry = dt./max(chemistry, dt);
-                    scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
-                    scale{ix} = scaleChemistry;
+                nbioreact=model.biochemFluid.nbioreact;
+                for i=1:nbioreact
+                    %ix = strcmpi(names, 'bacteria');
+                    ix = strcmpi(names, model.biochemFluid.bactnames{i});
+                    if any(ix)
+                        scaleChemistry = dt./max(chemistry, dt);
+                        scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
+                        scale{ix} = scaleChemistry;
+                    end
                 end
             end
 
@@ -464,8 +500,15 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                     index = ':';
                     fn = 'nbact';
                 otherwise
-                    % This will throw an error for us
-                    [fn, index] = getVariableField@OverallCompositionCompositionalModel(model, name, varargin{:});
+                    bactnames = model.biochemFluid.bactnames;
+                    sub = strcmpi(bactnames, name);
+                    if any(sub)
+                        fn = 'nbact';
+                        index = find(sub);
+                    else
+                        % This will throw an error for us
+                        [fn, index] = getVariableField@OverallCompositionCompositionalModel(model, name, varargin{:});
+                    end                    
             end
         end
 

@@ -69,7 +69,13 @@ classdef BiochemistryGenericFacilityModel < GenericFacilityModel
             bmass     = model.getProps(flowState, 'BacterialMass');
 
             % Net source term for bacterial population
-            src_growthdecay = (psigrowth - psidecay) - reg .* bmass;
+            %src_growthdecay = (psigrowth - psidecay) - reg .* bmass;
+            nbioreact=model.ReservoirModel.biochemFluid.nbioreact;
+            src_growthdecay = cell(1,nbioreact);
+            [src_growthdecay{:}] = deal(0);
+            for i=1:nbioreact
+                src_growthdecay{i} = (psigrowth{i} - psidecay{i}) - reg .* bmass{i};
+            end
         end
 
         %-----------------------------------------------------------------%

@@ -16,10 +16,12 @@ classdef TableBioChemMixture
         Psigrowthmax %  Maximum growth rate
         b_bact %  Constant decay rate
         nbactMax  %  Maximum number of microorganisms per volume
+        bactnames %name of bacteria
+        nbioreact %number of metabolic reactions
     end
 
     methods
-        function biochemmix = TableBioChemMixture(metabolicReactions)
+        function biochemmix = TableBioChemMixture(cnames, bactnames)
             % Create fluid biochemical reaction from metabolicReaction name
             %
             % SYNOPSIS:
@@ -30,12 +32,30 @@ classdef TableBioChemMixture
             %              valid names.
             %              (optional).
             % RETURNS:
-            %   biochemmix - Initialized compositional mixture.
-            if ischar(metabolicReactions)
-                metabolicReactions = {metabolicReactions};
+            %   biochemmix - Initialized bacteria mixture.
+            if ischar(cnames)
+                cnames = {cnames};
+            end
+            if nargin == 1
+                bactnames = cnames;
+            else
+                if ischar(bactnames)
+                    bactnames = {bactnames};
+                end
+                assert(numel(cnames) == numel(bactnames))
             end
 
-            nbioreact = numel(metabolicReactions);
+
+            for i = 1:numel(bactnames)
+                cts = sum(strcmp(bactnames{i}, bactnames));
+                if cts > 1
+                    warning(['bacteria ', num2str(i), ': ', bactnames{i}, ' occurs multiple times.']);
+                end
+            end
+            
+
+
+            nbioreact = numel(cnames);
             [metabolicReaction,rH2,rsub,pH2O,p2]=deal(strings(1,nbioreact));
             [gamrH2,gamrsub,gampH2O,gamp2,Y_H2,alphaH2,alphasub,...
                 Psigrowthmax,b_bact,nbactMax] = deal(zeros(1, nbioreact));
@@ -44,16 +64,16 @@ classdef TableBioChemMixture
             biochemfluids = bioChemFluidsStructs();
             validChoices = TableBioChemMixture.getFluidList();
 
-            ok = ismember(lower(metabolicReactions), lower(validChoices));
+            ok = ismember(lower(cnames), lower(validChoices));
 
             if ~all(ok)
                 s ='Unable to create bioreaction paramaters. The following names were not known: ';
-                msg = [s, sprintf('%s ', metabolicReactions{~ok})];
+                msg = [s, sprintf('%s ', cnames{~ok})];
                 error(msg);
             end
 
-            for i = 1:numel(metabolicReactions)
-                isF = strcmpi(metabolicReactions{i}, validChoices);
+            for i = 1:numel(cnames)
+                isF = strcmpi(cnames{i}, validChoices);
                 str = biochemfluids(isF);
                 metabolicReaction(i)=str.metabolicReaction;
                 rH2(i)=str.rH2;
@@ -89,21 +109,20 @@ classdef TableBioChemMixture
             biochemmix.Psigrowthmax=Psigrowthmax;
             biochemmix.b_bact=b_bact ;
             biochemmix.nbactMax=nbactMax;
-
-
-
-
-        end
+            biochemmix.bactnames=bactnames;
+            biochemmix.nbioreact=nbioreact;
+         end
     end
+
     methods (Static)
         function varargout = getFluidList()
             biochemfluids = bioChemFluidsStructs();
-            metabolicReactions = {biochemfluids.metabolicReaction};
+            cnames = {biochemfluids.metabolicReaction};
             if nargout > 0
-                varargout{1} = metabolicReactions;
+                varargout{1} = cnames;
             else
                 disp('Possible biochemfluids choices are:');
-                fprintf('%s\n', metabolicReactions{:});
+                fprintf('%s\n', cnames{:});
             end
         end
     end

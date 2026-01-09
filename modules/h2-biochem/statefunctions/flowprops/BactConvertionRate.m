@@ -56,26 +56,23 @@ classdef BactConvertionRate < StateFunction
 
             % Get component indices
             compNames = rm.EOSModel.getComponentNames();
-            idxH2  = find(strcmpi(compNames, bcrm.rH2));
-            idxsub = find(strcmpi(compNames, bcrm.rsub));
-            
+            %idxH2  = find(strcmpi(compNames, bcrm.rH2));
+            %idxsub = find(strcmpi(compNames, bcrm.rsub));
+            nbioreact=bcrm.nbioreact;
 
             % Validate required components
-            if strcmp(bcrm.metabolicReaction, 'MethanogenicArchae') || ...
-                    strcmp(bcrm.metabolicReaction, 'AcetogenicBacteria')
-                idxCO2 = find(strcmpi(compNames, 'CO2'), 1);
-                if isempty(idxH2) || isempty(idxCO2)
-                    warning('Bacterial model requires H2 and CO2 components');
-                    return;
+            for i=1:nbioreact
+                if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
+                        strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
+                    idCO2 = find(strcmpi(compNames,  bcrm.rsub(i)), 1);
+                    idH2 = find(strcmpi(compNames, bcrm.rH2(i)), 1);
+                    if isempty(idH2) || isempty(idCO2)
+                        warning('Bacterial model requires H2 and CO2 components');
+                        return;
+                    end
                 end
             end
-            % if strcmp(bcrm.metabolicReaction, 'SulfateReducingBacteria')
-            %     idxSO4 = find(strcmpi(compNames, 'SO4'), 1);
-            %     if isempty(idxH2) || isempty(idxSO4)
-            %         warning('Bacterial model requires H2 and SO4(2-) components');
-            %         return;
-            %     end
-            % end
+           
             try
                 % Get required state variables
                 pv = rm.PVTPropertyFunctions.get(model.ReservoirModel, state, 'PoreVolume');
@@ -83,40 +80,57 @@ classdef BactConvertionRate < StateFunction
                 nbact = rm.getProp(state, 'nbact');
                 L_ix = rm.getLiquidIndex();
                 x = rm.getProp(state, 'x');
+                
 
-                % Extract liquid phase properties
-                if iscell(x)
-                    xH2 = x{idxH2};
-                    xsub = x{idxsub};
-                    sL = s{L_ix};
-                else
-                    xH2 = x(:, idxH2);
-                    xsub = x(:, idxsub);
-                    sL = s(:, L_ix);
-                end
+                for i=1:nbioreact
+                    idxH2  = find(strcmpi(compNames, bcrm.rH2(i)));
+                    idxsub = find(strcmpi(compNames, bcrm.rsub(i)));
 
-                % Ensure non-zero liquid saturation
-                sL = max(value(sL), 1.0e-8);
+                    % Extract liquid phase properties
+                    if iscell(x)
+                        xH2 = x{idxH2};
+                        xsub = x{idxsub};
+                        %nbacti=nbact{i};
+                    else
+                        xH2 = x(:, idxH2);
+                        xsub = x(:, idxsub);
+                        %nbacti=nbact(:,i);
+                    end
+                    if iscell(x)
+                        sL = s{L_ix};
+                    else
+                       sL = s(:, L_ix);
+                    end
+                    if iscell(nbact)
+                        nbacti=nbact{i};
+                    else
+                         nbacti=nbact(:,i);
+                    end
 
-                % Get model parameters
-                alphaH2 = bcrm.alphaH2;
-                alphasub = bcrm.alphasub;
-                Psigrowthmax = bcrm.Psigrowthmax;
-                Y_H2 = bcrm.Y_H2;
-                gammak = rm.gammak;
-                nbactMax = bcrm.nbactMax;
-                mc = rm.EOSModel.CompositionalMixture.molarMass;
+                    % Ensure non-zero liquid saturation
 
-                % Calculate growth rate using Monod kinetics
-                axH2 = xH2 ./ (alphaH2 + xH2);
-                axsub = xsub ./ (alphasub + xsub);
+                    sL = max(value(sL), 1.0e-8);
 
-                Psigrowth = pv .* Psigrowthmax .* axH2 .* axsub .* nbact .* sL;
+                    % Get model parameters
+                    alphaH2 = bcrm.alphaH2(i);
+                    alphasub = bcrm.alphasub(i);
+                    Psigrowthmax = bcrm.Psigrowthmax(i);
+                    Y_H2 = bcrm.Y_H2(i);
+                    gammak = rm.gammak(i,:);
+                    nbactMax = bcrm.nbactMax(i);
+                    mc = rm.EOSModel.CompositionalMixture.molarMass;
 
-                % Calculate conversion rates for all components
-                qbiot_temp = Psigrowth ./ Y_H2 ./ abs(gammak(idxH2));
-                for c = 1:ncomp
-                    qbiot{c} = gammak(c) .* qbiot_temp .* mc(c) .* nbactMax;
+                    % Calculate growth rate using Monod kinetics
+                    axH2 = xH2 ./ (alphaH2 + xH2);
+                    axsub = xsub ./ (alphasub + xsub);
+
+                    Psigrowth = pv .* Psigrowthmax .* axH2 .* axsub .* nbacti .* sL;
+
+                    % Calculate conversion rates for all components
+                    qbiot_temp = Psigrowth ./ Y_H2 ./ abs(gammak(idxH2));
+                    for c = 1:ncomp
+                        qbiot{c} = qbiot{c}+ gammak(c) .* qbiot_temp .* mc(c) .* nbactMax;
+                    end
                 end
 
             catch ME

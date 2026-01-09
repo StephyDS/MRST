@@ -51,15 +51,24 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization  %MolecDiffusFlowDis
             bactmass0 = model.getProps(state0, 'BacterialMass');
 
             % Accumulation term
-            acc = (bactmass - bactmass0) ./ dt;
+            nbioreact=model.biochemFluid.nbioreact;
+            acc=cell(1,nbioreact);
+            [acc{:}] = deal(0);
+            for i=1:nbioreact
+                acc{i} = (bactmass{i} - bactmass0{i}) ./ dt;
+            end
+            %acc = (bactmass - bactmass0) ./ dt;
 
             % Convert to cell arrays for AD framework
-            acc   = {acc};
-            bflux = {[]};
-
+            %acc   = {acc};
+            %bflux = {[]};
+            bflux =cell(1,nbioreact);
+            
             % Output variable names and types
-            name = 'bacteria';
-            type = 'cell';
+            name = model.biochemFluid.bactnames;%'bacteria';
+            type=cell(1,nbioreact);
+            [type{:}] = deal('cell');
+            %type = 'cell';
         end
 
         %-----------------------------------------------------------------%

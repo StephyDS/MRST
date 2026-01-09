@@ -57,36 +57,42 @@ classdef GrowthBactRateSRC < StateFunction
             %   Psigrowth - Bacterial growth rate per cell [1/s]
 
             % Initialize with zero growth rate
-            Psigrowth = 0;
+            %Psigrowth = 0;
 
             % Get component names and indices
             rm = model.ReservoirModel;
             bcrm=rm.biochemFluid;
             namecp = rm.getComponentNames();
-            idx_H2 = find(strcmpi(namecp, bcrm.rH2), 1);     % Case-insensitive search
-            idx_sub = find(strcmpi(namecp, bcrm.rsub), 1);   % Case-insensitive search
-            
+            nbioreact=bcrm.nbioreact;
+
+            Psigrowth=cell(1,nbioreact);
+            [Psigrowth{:}] = deal(0);
+
+            %idx_H2 = find(strcmpi(namecp, bcrm.rH2), 1);     % Case-insensitive search
+            %idx_sub = find(strcmpi(namecp, bcrm.rsub), 1);   % Case-insensitive search
+
             % Check if bacterial modeling is active and components exist
-           %if ~(rm.bacteriamodel && rm.liquidPhase && ~isempty(idx_H2) && ~isempty(idx_sub))
+            %if ~(rm.bacteriamodel && rm.liquidPhase && ~isempty(idx_H2) && ~isempty(idx_sub))
             %    return;
             %end
 
             if ~(rm.bacteriamodel && rm.liquidPhase)
                 return;
             end
-            if strcmp(bcrm.metabolicReaction, 'MethanogenicArchae') || ...
-                    strcmp(bcrm.metabolicReaction, 'AcetogenicBacteria')
-                idx_CO2 = find(strcmpi(namecp, 'CO2'), 1);
-                if ~(~isempty(idx_H2) && ~isempty(idx_CO2))
-                    return;
+
+
+            for i=1:nbioreact
+                idx_H2 = find(strcmpi(namecp, bcrm.rH2(i)), 1);     % Case-insensitive search
+                idx_sub = find(strcmpi(namecp, bcrm.rsub(i)), 1);   % Case-insensitive search
+
+                if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
+                        strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
+                    if ~(~isempty(idx_H2) && ~isempty(idx_sub))
+                        return;
+                    end
                 end
             end
-            % if strcmp(bcrm.metabolicReaction, 'SulfateReducingBacteria')
-            %     idx_SO4 = find(strcmpi(namecp, 'SO4'), 1);
-            %     if ~(~isempty(idx_H2) && ~isempty(idx_SO4))
-            %         return;
-            %     end
-            % end
+
             % Get required properties
             pv = rm.PVTPropertyFunctions.get(rm, state, 'PoreVolume');
             rho = rm.PVTPropertyFunctions.get(rm, state, 'Density');
@@ -95,43 +101,55 @@ classdef GrowthBactRateSRC < StateFunction
             x = rm.getProp(state, 'x');
             L_ix = rm.getLiquidIndex();
 
-            % Extract liquid phase properties
-            if iscell(x)
-                xH2 = x{idx_H2};
-                xsub = x{idx_sub};
-                sL = s{L_ix};
-                rhoL = rho{L_ix};
-            else
-                xH2 = x(:, idx_H2);
-                xsub = x(:, idx_sub);
-                sL = s(:, L_ix);
-                rhoL = rho(:, L_ix);
+            for i=1:nbioreact
+                idx_H2 = find(strcmpi(namecp, bcrm.rH2(i)), 1);     % Case-insensitive search
+                idx_sub = find(strcmpi(namecp, bcrm.rsub(i)), 1);   % Case-insensitive search
+                % Extract liquid phase properties
+                if iscell(x)
+                    xH2 = x{idx_H2};
+                    xsub = x{idx_sub};
+                else
+                    xH2 = x(:, idx_H2);
+                    xsub = x(:, idx_sub);
+                end
+                if iscell(s)
+                    sL = s{L_ix};
+                    rhoL = rho{L_ix};
+                else
+                    sL = s(:, L_ix);
+                    rhoL = rho(:, L_ix);
+                end
+                if iscell(nbact)
+                    nbacti=nbact{i};
+                else
+                    nbacti=nbact(:,i);
+                end
+
+                % Calculate effective volume with safeguards
+                if iscell(sL)
+                    Voln = max(sL{1}, 1.0e-8) .* rhoL{1};
+                else
+                    Voln = max(sL, 1.0e-8) .* rhoL;
+                end
+                Voln = max(Voln, 1.0e-8);
+
+                % Get growth parameters
+                alphaH2 = bcrm.alphaH2(i);
+                alphasub = bcrm.alphasub(i);
+                Psigrowthmax = bcrm.Psigrowthmax(i);
+
+                % Calculate Monod terms for H2 and CO2
+                axH2 = xH2 ./ (alphaH2 + xH2);
+                axsub = xsub ./ (alphasub + xsub);
+
+                % Compute growth rate
+                Psigrowth{i} = pv .* Psigrowthmax .* axH2 .* axsub .* nbacti .* Voln;
             end
-
-            % Calculate effective volume with safeguards
-            if iscell(sL)
-                Voln = max(sL{1}, 1.0e-8) .* rhoL{1};
-            else
-                Voln = max(sL, 1.0e-8) .* rhoL;
-            end
-            Voln = max(Voln, 1.0e-8);
-
-            % Get growth parameters
-            alphaH2 = bcrm.alphaH2;
-            alphasub = bcrm.alphasub;
-            Psigrowthmax = bcrm.Psigrowthmax;
-
-            % Calculate Monod terms for H2 and CO2
-            axH2 = xH2 ./ (alphaH2 + xH2);
-            axsub = xsub ./ (alphasub + xsub);
-
-            % Compute growth rate
-            Psigrowth = pv .* Psigrowthmax .* axH2 .* axsub .* nbact .* Voln;
         end
     end
 end
 
-%{
+    %{
 Copyright 2009-2025 SINTEF Digital, Mathematics & Cybernetics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
@@ -148,4 +166,4 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with MRST.  If not, see <http://www.gnu.org/licenses/>.
-%}
+    %}

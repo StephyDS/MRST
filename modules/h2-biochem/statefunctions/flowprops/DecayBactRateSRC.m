@@ -54,13 +54,17 @@ classdef DecayBactRateSRC < StateFunction
             %   Psidecay - Bacterial decay rate per cell [1/s]
 
             % Initialize with zeros
-            Psidecay = 0;
+            %Psidecay = 0;
 
             % Get model parameters
             rm = model.ReservoirModel;
             bcrm=rm.biochemFluid;
-            bbact = bcrm.b_bact;
-            nbMax = bcrm.nbactMax;
+            nbioreact=bcrm.nbioreact;
+            
+            
+            % Initialize with zeros
+            Psidecay=cell(1,nbioreact);
+            [Psidecay{:}] = deal(0);
 
             % Check if bacterial modeling is active
             if ~(rm.bacteriamodel && rm.liquidPhase)
@@ -69,22 +73,19 @@ classdef DecayBactRateSRC < StateFunction
 
             % Get component names and indices
             namecp = rm.getComponentNames();
-            idx_H2 = find(strcmpi(namecp, bcrm.rH2), 1);
-            
+
             % Validate required components
-            if strcmp(bcrm.metabolicReaction, 'MethanogenicArchae') || ...
-                    strcmp(bcrm.metabolicReaction, 'AcetogenicBacteria')
-                idx_CO2 = find(strcmpi(namecp, 'CO2'), 1);
-                if isempty(idx_H2) || isempty(idx_CO2)
-                    return;
+            for i=1:nbioreact
+                idx_H2 = find(strcmpi(namecp, bcrm.rH2(i)), 1);     % Case-insensitive search
+                idx_sub = find(strcmpi(namecp, bcrm.rsub(i)), 1);   % Case-insensitive search
+                if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
+                        strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
+                    if isempty(idx_H2) || isempty(idx_sub)
+                        return;
+                    end
                 end
             end
-            % if strcmp(bcrm.metabolicReaction, 'SulfateReducingBacteria')
-            %     idx_SO4 = find(strcmpi(namecp, 'SO4'), 1);
-            %     if isempty(idx_H2) || isempty(idx_SO4)
-            %         return;
-            %     end
-            % end
+
 
             % Get required state variables
             pv = rm.PVTPropertyFunctions.get(rm, state, 'PoreVolume');
@@ -93,27 +94,37 @@ classdef DecayBactRateSRC < StateFunction
             nbact = rm.getProp(state, 'nbact');
             L_ix = rm.getLiquidIndex();
 
-            % Extract liquid phase properties
-            if iscell(s)
-                sL = s{L_ix};
-                rhoL = rho{L_ix};
-            else
-                sL = s(:, L_ix);
-                rhoL = rho(:, L_ix);
+            for i=1:nbioreact
+                % Extract liquid phase properties
+                if iscell(s)
+                    sL = s{L_ix};
+                    rhoL = rho{L_ix};
+                else
+                    sL = s(:, L_ix);
+                    rhoL = rho(:, L_ix);
+                end
+                if iscell(nbact)
+                    nbacti=nbact{i};
+                else
+                    nbacti=nbact(:,i);
+                end
+
+                % Calculate effective volume with safeguards
+                if iscell(sL)
+                    Voln = max(sL{1}, 1.0e-8) .* rhoL{1};
+                else
+                    Voln = max(sL, 1.0e-8) .* rhoL;
+                end
+
+                % Compute decay rate
+                bbact = bcrm.b_bact(i);
+                %Psidecay = pv .* bbact .* nbact .* (nbact .* Voln);
+                Psidecay{i} = pv .* bbact .* nbacti .* (nbacti .* Voln);
+
+                % Handle negative bacterial concentrations
+                %Psidecay(nbact < 0) = -Psidecay(nbact < 0);
+                Psidecay{i}(nbacti < 0) = -Psidecay{i}(nbacti < 0);
             end
-
-            % Calculate effective volume with safeguards
-            if iscell(sL)
-                Voln = max(sL{1}, 1.0e-8) .* rhoL{1};
-            else
-                Voln = max(sL, 1.0e-8) .* rhoL;
-            end
-
-            % Compute decay rate
-            Psidecay = pv .* bbact .* nbact .* (nbact .* Voln);
-
-            % Handle negative bacterial concentrations
-            Psidecay(nbact < 0) = -Psidecay(nbact < 0);
         end
     end
 end
