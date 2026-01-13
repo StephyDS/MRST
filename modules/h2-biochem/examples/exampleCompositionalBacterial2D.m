@@ -44,7 +44,7 @@ compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Me
     {'H2O', 'H2', 'CO2', 'C1'});
 
 %% Define Metabolic reaction parameters
-biochemFluid = TableBioChemMixture({'MethanogenicArchae'});
+biochemFluid = TableBioChemMixture({'MethanogenicArchae'},{'nbact'});
 
 %% EOS model
 EOS = EquationOfStateModel([], compFluid, 'sw');

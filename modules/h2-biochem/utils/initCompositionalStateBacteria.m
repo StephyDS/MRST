@@ -65,23 +65,6 @@ if model.bacteriamodel
     else
         state.nbact = repmat(nbact0, G.cells.num, 1);
     end
-
-    % if model.biochemFluid.nbioreact==1
-    %     if size(nbact0, 1) == G.cells.num
-    %         state.nbact = nbact0;
-    %     else
-    %         state.nbact = repmat(nbact0, G.cells.num, 1);
-    %     end
-    % end
-    % if model.biochemFluid.nbioreact==2
-    %     if size(nbact0, 1) == G.cells.num
-    %         state.nbact = nbact0(:,1);
-    %         state.nbactA = nbact0(:,2);
-    %     else
-    %         state.nbact = repmat(nbact0(1), G.cells.num, 1);
-    %         state.nbactA = repmat(nbact0(2), G.cells.num, 1);
-    %     end
-    % end
 end
 %================================================
 nls = getDefaultFlashNonLinearSolver();
