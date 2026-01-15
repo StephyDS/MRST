@@ -78,21 +78,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 end
             end
             
-            % model.compFluid = compFluid;
-            % model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
-            % ncomp = compFluid.getNumberOfComponents();
-            % model.gammak = zeros(1, ncomp);
-            % namecp = compFluid.names;
-            % indH2   = find(strcmp(namecp, model.biochemFluid.rH2));
-            % indH2O  = find(strcmp(namecp, model.biochemFluid.pH2O));
-            % indsub  = find(strcmp(namecp, model.biochemFluid.rsub));
-            % indprod   = find(strcmp(namecp, model.biochemFluid.p2));
-            % model.gammak(indH2)  = model.biochemFluid.gamrH2;
-            % model.gammak(indH2O) =  model.biochemFluid.gampH2O;
-            % model.gammak(indsub) = model.biochemFluid.gamrsub;
-            % model.gammak(indprod)  = model.biochemFluid.gamp2;
-
-
             model.compFluid = compFluid;
             model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
             ncomp = compFluid.getNumberOfComponents();
@@ -143,8 +128,14 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 % Assign dummy transmissibilities to appease
                 % model.setupOperators
                 drock = rock;
-                nbact0 = 0;
-                drock.perm = rock.perm(1*barsa(),nbact0);
+                if nargin(drock.perm)<3
+                    nbact0 = 0;
+                    drock.perm = rock.perm(1*barsa(),nbact0);
+                elseif nargin(drock.perm)==3
+                    nbact0 = [0,0];
+                    drock.perm = rock.perm(1*barsa(),nbact0(1),nbact0(2));
+                end
+
             end
 
             if model.dynamicFlowPv()
@@ -152,9 +143,15 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 % model.setupOperators
                 if ~model.dynamicFlowTrans()
                     drock = rock;
-                    nbact0 = 0;
                 end
-                drock.poro = rock.poro(1*barsa(),nbact0);
+                if nargin(drock.poro)<3
+                    nbact0 = 0;
+                    drock.poro = rock.poro(1*barsa(),nbact0);
+                elseif nargin(drock.poro)==3
+                    nbact0 = [0,0];
+                    drock.poro = rock.poro(1*barsa(),nbact0(1),nbact0(2));
+                end
+                %drock.poro = rock.poro(1*barsa(),nbact0);
             end
             % Let reservoir model set up operators
             model = setupOperators@ReservoirModel(model, G, drock, varargin{:});
