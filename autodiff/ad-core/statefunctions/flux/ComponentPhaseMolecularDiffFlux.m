@@ -109,10 +109,35 @@ classdef ComponentPhaseMolecularDiffFlux < StateFunction
                EpsLJ=param_LJ(:,2);
 
                avg = model.operators.faceAvg;
-               poro= model.rock.poro;
+               %bioclogging
+               if model.dynamicFlowPv()
+                   if model.bacteriamodel
+                       nbioreact=model.biochemFluid.nbioreact;
+                       nbact=state.nbact;
+                       if nbioreact==1
+                           if iscell(nbact)
+                               poro = model.rock.poro(p, nbact{1}); % Apply both modifications
+                           else
+                               poro = model.rock.poro(p, nbact); % Apply both modifications
+                           end
+                       elseif nbioreact==2
+                           if iscell(nbact)
+                               poro = model.rock.poro(p, nbact{1}, nbact{2}); % Apply both modifications
+                           else
+                               poro = model.rock.poro(p, nbact(:,1), nbact(:,2)); % Apply both modifications
+                           end
+                       end
+                   else
+                       poro=model.rock.poro(p);
+                   end
+               else
+                   poro= model.rock.poro;
+               end
+
+               %poro= model.rock.poro;
                L_ix = model.getLiquidIndex();
                V_ix = model.getVaporIndex();
-                
+
                % Define diffusion coefficients in m²/s for liquid and gas phases
                sqrtMij=zeros(ncomp,ncomp);
                sqrtEpsij=zeros(ncomp,ncomp);
