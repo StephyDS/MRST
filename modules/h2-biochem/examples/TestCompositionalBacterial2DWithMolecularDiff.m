@@ -147,5 +147,5 @@ nls.LinearSolver = lsolve;
 
 % Pack + run
 problem = packSimulationProblem(state0, model, schedule, caseName, 'NonLinearSolver', nls);
-simulatePackedProblem(problem);
+simulatePackedProblem(problem, 'RestartStep', 1);
 end
