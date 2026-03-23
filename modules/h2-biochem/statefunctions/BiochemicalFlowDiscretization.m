@@ -33,6 +33,8 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                 props = props.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 props = props.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
                 props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
+                props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
+                props = props.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
             end
         end
 
@@ -51,12 +53,34 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             % Accumulation term
             acc = (bactmass - bactmass0) ./ dt;
 
+            % Add microbial diffusion contributions if present
+            bflux=[];
+            if (model.bactdiffusion) && ~(model.chemotaxisEffect)
+                flowState = fd.buildFlowState(model, state, state0, dt);
+                bflux = model.getProp(flowState, 'BactFlux');
+            elseif ~(model.bactdiffusion) && (model.chemotaxisEffect)
+                flowState = fd.buildFlowState(model, state, state0, dt);
+                bflux  = model.getProp(flowState, 'ChemoBactFlux');
+            elseif (model.bactdiffusion) && (model.chemotaxisEffect)
+                flowState = fd.buildFlowState(model, state, state0, dt);
+                bflux  = model.getProp(flowState, 'ChemoBactFlux')+model.getProp(flowState, 'BactFlux');
+            end
+
+            % if model.bactdiffusion
+            %     flowState = fd.buildFlowState(model, state, state0, dt);
+            %     bflux = model.getProps(flowState, 'BactFlux');
+            % else
+            %     bflux=[];
+            % end
+
             % Convert to cell arrays for AD framework
             acc   = {acc};
-            bflux = {[]};
+            bflux = {bflux};
+
+           
 
             % Output variable names and types
-            name = 'bacteria';
+            name = model.biochemFluid.bactnames; %name = 'bacteria';
             type = 'cell';
         end
 

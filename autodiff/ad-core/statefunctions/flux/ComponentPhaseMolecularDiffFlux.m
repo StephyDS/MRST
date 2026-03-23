@@ -61,6 +61,7 @@ coeff1 = T.^(1.5) ./ p_atm;
 % Phase indices
 L_ix = model.getLiquidIndex();
 V_ix = model.getVaporIndex();
+%poro=pv./model.G.cells.volumes;
 
 % Calculate fluxes
 for c = 1:ncomp
@@ -176,7 +177,7 @@ SigLJ = param_LJ(:, 1);
 Dij = zeros(ncomp);
 for i = 1:ncomp
     for j = 1:ncomp
-        sqrtMij = sqrt(2 * Molmass(i) * Molmass(j) / (Molmass(i) + Molmass(j)));
+        sqrtMij = sqrt(Molmass(i) * Molmass(j) / (Molmass(i) + Molmass(j)));
         Sigij2 = 0.25 * (SigLJ(i) + SigLJ(j))^2;
         Dij(i, j) = 1.e-4 * 0.001858 / (sqrtMij * Sigij2); % m²/s
     end
@@ -209,7 +210,8 @@ function flux = calculateLiquidDiffusionFlux(model, s, rho, xc, D_mol, poro)
 op = model.operators;
 
 % Millington-Quirk tortuosity
-tau_mq = (s .* poro).^(7/3) .* poro.^(-2);
+poro0=poro./model.G.cells.volumes;
+tau_mq = (s .* poro0).^(7/3) .* poro0.^(-2);
 
 % Effective diffusivity
 D_eff = op.faceAvg(s .* rho .* D_mol .* tau_mq .* poro);
@@ -224,7 +226,8 @@ ncomp = model.getNumberOfComponents();
 y = model.getProps(state, 'y');
 
 % Millington-Quirk tortuosity
-tau_mq = (s .* poro).^(7/3) .* poro.^(-2);
+poro0=poro./model.G.cells.volumes;
+tau_mq = (s .* poro0).^(7/3) .* poro0.^(-2);
 
 % Blanc's law for effective binary diffusion
 D_diffij_inv = zeros(size(yc));
