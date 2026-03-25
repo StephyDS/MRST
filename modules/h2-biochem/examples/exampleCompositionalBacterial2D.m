@@ -42,6 +42,7 @@ state0 = convertBlackOilStateToCompositional(modelBo, state0Bo);
 %% Define compositional fluid (H2, H2O, CO2, CH4)
 compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Methane'}, ...
     {'H2O', 'H2', 'CO2', 'C1'});
+biochemFluid = TableBioChemMixture({'MethanogenicArchae'},{'nbactM'});
 
 %% EOS model
 EOS = EquationOfStateModel([], compFluid, 'sw');
@@ -66,7 +67,7 @@ else
 end
 %% Setup model
 diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
-arg = {model.G, model.rock, model.fluid, compFluid,...
+arg = {model.G, model.rock, model.fluid, compFluid, biochemFluid,...
     false, diagonal_backend, 'oil', true, 'gas', true, ... % Define phases for water-oil system
     'bacteriamodel', bacteriamodel,'molecularDiffusion', true, 'liquidPhase', 'O', ...
     'vaporPhase', 'G'}; % Set phases and EOS model
@@ -122,7 +123,7 @@ modelNoClogging = model;
 modelNoClogging.rock.perm = perm0;
 modelNoClogging.rock.poro = poro0;
 modelNoClogging.fluid.pvMultR = @(p, nbact) 1;
-modelNoClogging = BiochemistryModel(modelNoClogging.G, modelNoClogging.rock, modelNoClogging.fluid, compFluid,...
+modelNoClogging = BiochemistryModel(modelNoClogging.G, modelNoClogging.rock, modelNoClogging.fluid, compFluid, biochemFluid,...
     false, DiagonalAutoDiffBackend('modifyOperators', true), 'oil', true, 'gas', true, ...
     'bacteriamodel', true, 'molecularDiffusion', false,'liquidPhase', 'O', 'vaporPhase', 'G');
 state0NoClogging = state0;
@@ -135,7 +136,7 @@ modelNoBact = model;
 modelNoBact.rock.perm = perm0;
 modelNoBact.rock.poro = poro0;
 modelNoBact.fluid.pvMultR = @(p, nbact) 1;
-modelNoBact = BiochemistryModel(modelNoBact.G, modelNoBact.rock, modelNoBact.fluid, compFluid, ...
+modelNoBact = BiochemistryModel(modelNoBact.G, modelNoBact.rock, modelNoBact.fluid, compFluid, biochemFluid, ...
     false, DiagonalAutoDiffBackend('modifyOperators', true), 'oil', true, 'gas', true, ...
     'bacteriamodel', false,'molecularDiffusion', false, 'liquidPhase', 'O', 'vaporPhase', 'G');
 state0NoBact = state0;

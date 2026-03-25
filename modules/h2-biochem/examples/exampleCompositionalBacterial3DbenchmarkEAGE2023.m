@@ -43,6 +43,7 @@ rock = makeRock(G, perm, 0.2);
 %% Fluid Properties
 compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Methane'}, ...
                                       {'H2O', 'H2', 'CO2', 'C1'});
+biochemFluid = TableBioChemMixture({'MethanogenicArchae'},{'nbactM'});
 
 [rhow, rhog]   = deal(999.7 * kilogram/meter^3, 1.2243 * kilogram/meter^3);
 [viscow, viscog] = deal(1.3059 * centi*poise, 0.01763 * centi*poise);
@@ -116,7 +117,7 @@ s0 = [0.2, 0.8];
 z0 = [0.7, 0.0, 0.02, 0.28];
 
 %% --- Simulation 1: Without bacteria ---
-arg = {G, rock, fluid, compFluid, true, backend, ...
+arg = {G, rock, fluid, compFluid, biochemFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
     'bacteriamodel', false, 'moleculardiffusion', true,...
     'liquidPhase', 'O', 'vaporPhase', 'G'};
@@ -137,14 +138,14 @@ simulatePackedProblem(problem_nobact);
 results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
 %% --- Simulation 2: With bacteria ---
-model_bact = BiochemistryModel(G, rock, fluid, compFluid,  true, backend, ...
+model_bact = BiochemistryModel(G, rock, fluid, compFluid, biochemFluid,  true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
     'bacteriamodel', true, 'moleculardiffusion', true,...
     'liquidPhase', 'O', 'vaporPhase', 'G');
 model_bact.outputFluxes = false;
 model_bact.EOSModel = compEOS;
 
-nbact0 = 1; model_bact.nbactMax = 1e8;
+nbact0 = 1; model_bact.biochemFluid.nbactMax = 1e8;
 state0_bact = initCompositionalStateBacteria(model_bact, P0, T0, s0, z0, nbact0, compEOS);
 
 lsolve = selectLinearSolverAD(model_bact);

@@ -45,7 +45,7 @@ classdef ChemotaxisBactFlux < StateFunction
 
                 %deltaChiBact=max(0.0, xH2-bcrm.xch_seuil);
                 %ChiBact=bcrm.Xch_max.*deltaChiBact ./ (bcrm.Kch+deltaChiBact);
-                ChiBact=1.e-8; %bcrm.Xch_max;
+                ChiBact=bcrm.xch_seuil;
                 Diffch = op.faceAvg(ChiBact.*sL.*pv.*rhoL.*nbact.*(1.0-nbact));
                 fluxchemobact = Diffch.*model.operators.Grad(xH2);
             else

@@ -37,20 +37,10 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         %parameters for biochemical reactions
         biochemFluid
 
-
         % Physical quantities and bounds
-        %Y_H2 = 3.90875e11;               % 1/mole(H2)
         gammak   = [];                    % Stoichiometric coefficients
-        % alphaH2  = 3.6e-7;
-        % alphaCO2 = 1.98e-6;
-        % 
-        % Psigrowthmax = 1.338e-4;         % 1/s
-        % b_bact       = 2.35148e-6;       % 1/s
-        % nbactMax     = 1e9;              % 1/m^3
-
         bacteriamodel = true;
-        %metabolicReaction = 'MethanogenicArchae';
-         %Microbial diffusion
+        %Microbial diffusion
         bactdiffusion = false;
         %Chemotaxis
         chemotaxisEffect = false;
@@ -82,31 +72,13 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
             %% Set compositional fluid and EOS
             if isempty(compFluid)
-                if strcmp(model.metabolicReaction, 'MethanogenicArchae')
+                if strcmp(model.biochemFluid.metabolicReaction, 'MethanogenicArchae')
                     compNames = {'Hydrogen', 'Water', 'Nitrogen', 'CarbonDioxide', 'Methane'};
                     compSymbols = {'H2', 'H2O', 'N2', 'CO2', 'C1'};
                     compFluid = TableCompositionalMixture(compNames, compSymbols);
-                    %model.gammak = [-4.0, 2.0, 0.0, -1.0, 1.0];  % Stoichiometric coefficients
-                    %model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
                 else
                     warning('MethanogenicArchae is the default; other reactions not implemented.');
                 end
-            % else
-            %     ncomp = compFluid.getNumberOfComponents();
-            %     model.gammak = zeros(1, ncomp);
-            %     if strcmp(model.metabolicReaction, 'MethanogenicArchae')
-            %         namecp = compFluid.names;
-            %         indH2   = find(strcmp(namecp, 'H2'));
-            %         indH2O  = find(strcmp(namecp, 'H2O'));
-            %         indCO2  = find(strcmp(namecp, 'CO2'));
-            %         indC1   = find(strcmp(namecp, 'C1'));
-            %         model.gammak(indH2)  = -4.0;
-            %         model.gammak(indH2O) =  2.0;
-            %         model.gammak(indCO2) = -1.0;
-            %         model.gammak(indC1)  =  1.0;
-            %     end
-            %     model.compFluid = compFluid;
-            %     model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
             end
 
             model.compFluid = compFluid;
@@ -196,12 +168,17 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 flowprops = flowprops.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('PsiDecayRate',  DecayBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('BactConvRate',  BactConvertionRate(model));
+                flowprops = flowprops.setStateFunction('ComponentPhaseMolecularDiffFlux', ...
+                    ComponentPhaseMolecularDiffFlux(model));
+                flowprops = flowprops.setStateFunction('ComponentTotalMolecularDiffFlux', ...
+                    ComponentTotalMolecularDiffFlux(model));
+
                 if model.bactdiffusion
-                   flowprops = flowprops.setStateFunction('BactFlux',  DiffusiveBactFlux(model)); 
-                end 
+                    flowprops = flowprops.setStateFunction('BactFlux',  DiffusiveBactFlux(model));
+                end
                 if model.chemotaxisEffect
-                   flowprops = flowprops.setStateFunction('ChemoBactFlux',  ChemotaxisBactFlux(model)); 
-                end 
+                    flowprops = flowprops.setStateFunction('ChemoBactFlux',  ChemotaxisBactFlux(model));
+                end
             end
 
             pvt = pvtprops.getRegionPVT(model);
@@ -243,7 +220,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 nbact = model.getProps(state, 'bacteriamodel');
                 bactnames = model.biochemFluid.bactnames;
                 names = [{'pressure'}, cnames(2:end), bactnames, enames];
-                %names = [{'pressure'}, cnames(2:end), {'nbact'}, enames];
                 vars  = [p, z(2:end), nbact, evars];
             else
                 names = [{'pressure'}, cnames(2:end), enames];
@@ -326,7 +302,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 isP = strcmp(names, 'pressure');
                 bactnames=model.biochemFluid.bactnames;
                 isB = strcmp(names, bactnames);
-                %isB = strcmp(names, 'nbact');
                 isAD = any(cellfun(@(x) isa(x, 'ADI'), vars));
                 state = model.setProp(state, 'pressure', vars{isP});
                 state = model.setProp(state, 'nbact', vars{isB});
@@ -421,8 +396,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         function [v_eqs, tolerances, names] = getConvergenceValues(model, problem, varargin)
             % Get values for convergence check
             [v_eqs, tolerances, names] = getConvergenceValues@ReservoirModel(model, problem, varargin{:});
-            %bacteriaIndex = find(strcmp(names, 'bacteria (cell)'));
-            %tolerances(bacteriaIndex) = 1.0e-2;
             if model.bacteriamodel
                 bact=strcat(model.biochemFluid.bactnames,' (cell)');
                 bacteriaIndex = find(strcmp(names, bact));
@@ -468,7 +441,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 scale{ix} = scaleMass;
             end
             if model.bacteriamodel
-                %ix = strcmpi(names, 'bacteria');
                 ix = strcmpi(names, model.biochemFluid.bactnames);
                 if any(ix)
                     scaleChemistry = dt./max(chemistry, dt);
@@ -491,7 +463,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                     index = ':';
                     fn = 'nbact';
                 otherwise
-                     bactnames = model.biochemFluid.bactnames;
+                    bactnames = model.biochemFluid.bactnames;
                     sub = strcmpi(bactnames, name);
                     if any(sub)
                         fn = 'nbact';
@@ -500,8 +472,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                         % This will throw an error for us
                         [fn, index] = getVariableField@OverallCompositionCompositionalModel(model, name, varargin{:});
                     end
-                    % This will throw an error for us
-                    %[fn, index] = getVariableField@OverallCompositionCompositionalModel(model, name, varargin{:});
             end
         end
 
@@ -560,25 +530,26 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
             % Identify component indices
             namecp = model.EOSModel.getComponentNames();
-            idx_H2 = find(strcmp(namecp, 'H2'));
-            idx_CO2 = find(strcmp(namecp, 'CO2'));
+            bcrm=model.biochemFluid;
+            idxH2  = find(strcmpi(namecp, bcrm.rH2));
+            idxsub = find(strcmpi(namecp, bcrm.rsub));
 
             % Extract values
             L_ix = model.getLiquidIndex();
-            xH2 = x(:, idx_H2);
-            xCO2 = x(:, idx_CO2);
+            xH2 = x(:, idxH2);
+            xsub = x(:, idxsub);
             sL = s(:, L_ix);
 
             % Model parameters
-            aH2 = model.alphaH2;
-            aCO2 = model.alphaCO2;
-            PsigrowthMax = model.Psigrowthmax;
-            nbMax = model.nbactMax;
-            bbact = model.b_bact;
+            aH2 = brcm.alphaH2;
+            asub = bcrm.alphasub;
+            PsigrowthMax = brcm.Psigrowthmax;
+            nbMax = brcm.nbactMax;
+            bbact = brcm.b_bact;
             dt = 288; % Time step (5 seconds)
 
             % Compute coefficients for the quadratic equation
-            A = PsigrowthMax .* (xH2 ./ (aH2 + xH2)) .* (xCO2 ./ (aCO2 + xCO2));
+            A = PsigrowthMax .* (xH2 ./ (aH2 + xH2)) .* (xsub ./ (asub + xsub));
             B = bbact ./ nbMax;
 
             % Quadratic equation: nbact_new - (1 + dt * A) * nbact + dt * B * nbact^2 = 0

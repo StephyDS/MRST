@@ -58,8 +58,7 @@ classdef DecayBactRateSRC < StateFunction
 
             % Get model parameters
             rm = model.ReservoirModel;
-            bbact = rm.b_bact;
-            nbMax = rm.nbactMax;
+            bcrm=rm.biochemFluid;
 
             % Check if bacterial modeling is active
             if ~(rm.bacteriamodel && rm.liquidPhase)
@@ -68,11 +67,11 @@ classdef DecayBactRateSRC < StateFunction
 
             % Get component names and indices
             namecp = rm.getComponentNames();
-            idx_H2 = find(strcmpi(namecp, 'H2'), 1);
-            idx_CO2 = find(strcmpi(namecp, 'CO2'), 1);
+            idxH2 = find(strcmpi(namecp, bcrm.rH2), 1);
+            idxsub = find(strcmpi(namecp, bcrm.rsub), 1);
 
             % Validate required components
-            if isempty(idx_H2) || isempty(idx_CO2)
+            if isempty(idxH2) || isempty(idxsub)
                 return;
             end
 
@@ -100,6 +99,7 @@ classdef DecayBactRateSRC < StateFunction
             end
 
             % Compute decay rate
+            bbact = bcrm.bbact;
             Psidecay = pv .* bbact .* nbact .* (nbact .* Voln);
 
             % Handle negative bacterial concentrations

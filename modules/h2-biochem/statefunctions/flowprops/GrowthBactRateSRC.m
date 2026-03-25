@@ -60,12 +60,13 @@ classdef GrowthBactRateSRC < StateFunction
 
             % Get component names and indices
             rm = model.ReservoirModel;
+            bcrm=rm.biochemFluid;            
             namecp = rm.getComponentNames();
-            idx_H2 = find(strcmpi(namecp, 'H2'), 1);     % Case-insensitive search
-            idx_CO2 = find(strcmpi(namecp, 'CO2'), 1);   % Case-insensitive search
+            idxH2 = find(strcmpi(namecp, bcrm.rH2), 1);     % Case-insensitive search
+            idxsub = find(strcmpi(namecp, bcrm.rsub), 1);   % Case-insensitive search
 
             % Check if bacterial modeling is active and components exist
-            if ~(rm.bacteriamodel && rm.liquidPhase && ~isempty(idx_H2) && ~isempty(idx_CO2))
+            if ~(rm.bacteriamodel && rm.liquidPhase && ~isempty(idxH2) && ~isempty(idxsub))
                 return;
             end
 
@@ -78,14 +79,14 @@ classdef GrowthBactRateSRC < StateFunction
             L_ix = rm.getLiquidIndex();
 
             % Extract liquid phase properties
-            if iscell(x)
-                xH2 = x{idx_H2};
-                xCO2 = x{idx_CO2};
+           if iscell(x)
+                xH2 = x{idxH2};
+                xsub = x{idxsub};
                 sL = s{L_ix};
                 rhoL = rho{L_ix};
             else
-                xH2 = x(:, idx_H2);
-                xCO2 = x(:, idx_CO2);
+                xH2 = x(:, idxH2);
+                xsub = x(:, idxsub);
                 sL = s(:, L_ix);
                 rhoL = rho(:, L_ix);
             end
@@ -99,16 +100,16 @@ classdef GrowthBactRateSRC < StateFunction
             Voln = max(Voln, 1.0e-8);
 
             % Get growth parameters
-            alphaH2 = rm.alphaH2;
-            alphaCO2 = rm.alphaCO2;
-            Psigrowthmax = rm.Psigrowthmax;
+            alphaH2 = bcrm.alphaH2;
+            alphasub = bcrm.alphasub;
+            Psigrowthmax = bcrm.Psigrowthmax;
 
             % Calculate Monod terms for H2 and CO2
             axH2 = xH2 ./ (alphaH2 + xH2);
-            axCO2 = xCO2 ./ (alphaCO2 + xCO2);
+            axsub = xsub ./ (alphasub + xsub);
 
             % Compute growth rate
-            Psigrowth = pv .* Psigrowthmax .* axH2 .* axCO2 .* nbact .* Voln;
+            Psigrowth = pv .* Psigrowthmax .* axH2 .* axsub .* nbact .* Voln;
         end
     end
 end
