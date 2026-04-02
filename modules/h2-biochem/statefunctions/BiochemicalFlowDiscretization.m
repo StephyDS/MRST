@@ -78,6 +78,7 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             % Add microbial diffusion contributions if present
             bflux =cell(1,nbioreact);
             [bflux{:}] = deal(0);
+
             if (model.bactdiffusion) && ~(model.chemotaxisEffect)
                 flowState = fd.buildFlowState(model, state, state0, dt);
                 bflux = model.getProp(flowState, 'BactFlux');
@@ -88,11 +89,13 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                 flowState = fd.buildFlowState(model, state, state0, dt);
                 bflux  = model.getProp(flowState, 'ChemoBactFlux')+model.getProp(flowState, 'BactFlux');
             end
+           
 
-            % Output variable names and types
+           % Output variable names and types
             name = model.biochemFluid.bactnames;
             type=cell(1,nbioreact);
             [type{:}] = deal('cell');
+
 
         end
 
