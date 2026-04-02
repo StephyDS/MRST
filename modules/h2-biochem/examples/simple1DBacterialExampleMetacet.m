@@ -57,8 +57,8 @@ model.fluid = modifyRelPermForResidualSaturations( ...
 
 %% Initial conditions
 %--------------------------------------------------------------------------
-% Default initial overall composition [H2O, H2, C1, CO2]
-initComp  = [0.90, 0.045, 0.005, 0.05];
+% Default initial overall composition [H2O, H2, C1, CO2, CH3COOH]
+initComp  = [0.90, 0.045, 0.005, 0.05, 0.0];
 
 % Alternative: test with higher hydrogen content
 % initComp = [0.40, 0.445, 0.055, 0.10];
@@ -67,26 +67,37 @@ initComp  = [0.90, 0.045, 0.005, 0.05];
 initTemp  = 273.15 + 40;   % Absolute temperature [K]
 initPress = 82*barsa;      % Pressure [Pa]
 
+% Metabolic reaction
+ %biochemFluid = TableBioChemMixture({'MethanogenicArchae'},{'nbactM'});
+ biochemFluid = TableBioChemMixture({'MethanogenicArchae','AcetogenicBacteria'},{'nbactM','nbactA'});
+
 %% Bio-clogging model
-initBact  = 9;             % Normalized bacteria concentration
-nc = 180; % critical bacteria concentration
-cp = 0.0; % scaling cofficient
-[model, poro0, perm0] = setupBioCloggingModel(model, initBact,nc, cp);
+nbioreact=biochemFluid.nbioreact;
+if nbioreact==2
+    initBact  = [9,9];             % Normalized bacteria concentration
+    nc = [180,180]; % critical bacteria concentration
+    cp = [0.0,0.0]; % scaling cofficient
+    [model, poro0, perm0] = setupBioCloggingModel2bacts(model, initBact,nc, cp);
+elseif nbioreact==1
+    initBact  = 9;             % Normalized bacteria concentration
+    nc = 180; % critical bacteria concentration
+    cp = 0.0; % scaling cofficient
+    [model, poro0, perm0] = setupBioCloggingModel(model, initBact,nc, cp);
+end
 
 %% Biochemistry model wrapper
 compFluid = TableCompositionalMixture( ...
-    {'Water','Hydrogen','Methane','CarbonDioxide'}, ...
-    {'H2O','H2','C1','CO2'});
-biochemFluid = TableBioChemMixture({'MethanogenicArchae'},{'nbactM'});
+    {'Water','Hydrogen','Methane','CarbonDioxide','AceticAcid'}, ...
+    {'H2O','H2','C1','CO2','CH3COOH'});
 
 backend = DiagonalAutoDiffBackend('modifyOperators', true);
 model   = BiochemistryModel(model.G, model.rock, model.fluid, compFluid,...
-    true, backend, 'water', false, 'oil', true, 'gas', true,...
-    'bacteriamodel', true, 'molecularDiffusion', true,'liquidPhase','O','vaporPhase','G');
+    biochemFluid, true, backend, 'water', false, 'oil', true, 'gas', true, ...
+    'bacteriamodel', true,'moleculardiffusion', true, 'liquidPhase','O','vaporPhase','G');
 
 %% Shut Wells
-schedule.control.W(1).components = [0.001, 0.958, 0.001, 0.05];
-schedule.control.W(2).components = [0.001, 0.998, 0.001, 0.05];
+schedule.control.W(1).components = [0.001, 0.958, 0.001, 0.05,0.0];
+schedule.control.W(2).components = [0.001, 0.998, 0.001, 0.05,0.0];
 schedule.control.W(1).type = 'rate'; schedule.control.W(1).val = 0;
 schedule.control.W(2).type = 'rate'; schedule.control.W(2).val = 0;
 
@@ -95,17 +106,23 @@ state0 = initCompositionalStateBacteria(model, initPress, initTemp, [0,1], ...
     initComp, initBact, model.EOSModel);
 
 %% Scenario 1: with bacterial clogging
-prob1 = packSimulationProblem(state0, model, schedule, 'bio_clogging');
+prob1 = packSimulationProblem(state0, model, schedule, 'bio_cloggingMA');
 prob1.SimulatorSetup.model.OutputStateFunctions{end} = 'ComponentPhaseMass';
-simulatePackedProblem(prob1, 'RestartStep',1);
+simulatePackedProblem(prob1);
 [ws1, st1] = getPackedSimulatorOutput(prob1);
 
 %% Scenario 2: bacteria but no clogging
 model2 = model;
 model2.rock.perm = perm0;
 model2.rock.poro = poro0;
-model2.fluid.pvMultR = @(p,nb) 1;
-prob2 = packSimulationProblem(state0, model2, schedule, 'bio_no_clog');
+if nbioreact==2
+    model2.fluid.pvMultR = @(p,nb,nb1) 1;
+elseif nbioreact==1
+    model2.fluid.pvMultR = @(p,nb) 1;
+end
+
+%model2.fluid.pvMultR = @(p,nb) 1;
+prob2 = packSimulationProblem(state0, model2, schedule, 'bio_no_clogMA');
 prob2.SimulatorSetup.model.OutputStateFunctions{end} = 'ComponentPhaseMass';
 simulatePackedProblem(prob2);
 [ws2, st2] = getPackedSimulatorOutput(prob2);
@@ -113,7 +130,7 @@ simulatePackedProblem(prob2);
 %% Scenario 3: abiotic (no bacteria)
 model3 = model2; model3.bacteriamodel = false;
 state3 = state0; % same state without bacteria effects
-prob3 = packSimulationProblem(state3, model3, schedule, 'no_bacteria');
+prob3 = packSimulationProblem(state3, model3, schedule, 'no_bacteriaMA');
 prob3.SimulatorSetup.model.OutputStateFunctions{end} = 'ComponentPhaseMass';
 simulatePackedProblem(prob3);
 [ws3, st3] = getPackedSimulatorOutput(prob3);

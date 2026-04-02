@@ -16,19 +16,34 @@ classdef DiffusiveBactFlux < StateFunction
             % Get dependencies
             op=model.operators;
             bcrm=model.biochemFluid;
+            nbioreact=bcrm.nbioreact;
             nbact = model.getProps(state, 'nbact');
             s = model.getProps(state, 's');
             L_ix = model.getLiquidIndex();
             pv = model.PVTPropertyFunctions.get(model, state, 'PoreVolume');
             rho = model.PVTPropertyFunctions.get(model, state, 'Density');
 
-            if model.bacteriamodel&& model.liquidPhase
+           % Initialize with zero growth rate
+            fluxbact=cell(1,nbioreact);
+            [fluxbact{:}] = deal(0);
+ 
+           % Check if bacterial modeling is active and components exist
+            if ~(model.bacteriamodel && model.liquidPhase)
+                return;
+            end
+            
+            for i=1:nbioreact       
                 if iscell(s)
                     sL = s{L_ix};
                     rhoL = rho{L_ix};
                 else
                     sL = s(:, L_ix);
                     rhoL = rho(:, L_ix);
+                end
+                 if iscell(nbact)
+                    nbacti=nbact{i};
+                else
+                    nbacti=nbact(:,i);
                 end
 
                 % Calculate effective volume with safeguards
@@ -39,10 +54,11 @@ classdef DiffusiveBactFlux < StateFunction
                 end
                 Voln = max(Voln, 1.0e-8);
                 
-                Diffb = op.faceAvg(bcrm.bactdiff.*pv.*Voln);
+                Diffb = op.faceAvg(bcrm.bactdiff(i).*pv.*Voln);
 
-                fluxbact = -Diffb.*op.Grad(nbact);
+                fluxbact{i} = -Diffb.*op.Grad(nbacti);
             end
+            
         end
 
 

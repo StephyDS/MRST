@@ -13,9 +13,22 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             % Constructor: inherit base FlowDiscretization properties
             props = props@FlowDiscretization(model);
 
-            % Ensure Porosity exists in FlowDiscretization for diffusion (also when no clogging)
-            props = props.setStateFunction('Porosity', PorosityFromRock(model));
             if model.bacteriamodel
+
+                % Ensure Porosity exists in FlowDiscretization for diffusion (also when no clogging)
+                props = props.setStateFunction('Porosity', PorosityFromRock(model));
+                useMolDiff = isprop(model, 'molecularDiffusion') && model.molecularDiffusion;
+                if useMolDiff
+                    props = props.setStateFunction('ComponentTotalFlux', ...
+                        ComponentTotalFluxMolecularDiffusion(model));
+                else
+                    props = props.setStateFunction('ComponentTotalFlux', ComponentTotalFlux(model));
+                end
+
+                props = props.setStateFunction('ComponentPhaseMolecularDiffFlux', ...
+                    ComponentPhaseMolecularDiffFlux(model));
+                props = props.setStateFunction('ComponentTotalMolecularDiffFlux', ...
+                    ComponentTotalMolecularDiffFlux(model));
 
                 % Set up transmissibility and porosity functions
                 if model.dynamicFlowTrans
@@ -36,7 +49,7 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                 props = props.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 props = props.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
                 props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
-                 props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
+                props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
                 props = props.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
 
             end
@@ -55,10 +68,18 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             bactmass0 = model.getProps(state0, 'BacterialMass');
 
             % Accumulation term
-            acc = (bactmass - bactmass0) ./ dt;
-
-              % Add microbial diffusion contributions if present
-            bflux=[];
+            nbioreact=model.biochemFluid.nbioreact;
+            acc=cell(1,nbioreact);
+            [acc{:}] = deal(0);
+            for i=1:nbioreact
+                acc{i} = (bactmass{i} - bactmass0{i}) ./ dt;
+            end
+          
+            % Add microbial diffusion contributions if present
+            bflux =cell(1,nbioreact);
+            [bflux{:}] = deal(0);
+            for i=1:nbioreact
+                %A debuguer
             if (model.bactdiffusion) && ~(model.chemotaxisEffect)
                 flowState = fd.buildFlowState(model, state, state0, dt);
                 bflux = model.getProp(flowState, 'BactFlux');
@@ -69,14 +90,16 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                 flowState = fd.buildFlowState(model, state, state0, dt);
                 bflux  = model.getProp(flowState, 'ChemoBactFlux')+model.getProp(flowState, 'BactFlux');
             end
+            end
 
             % Convert to cell arrays for AD framework
-            acc   = {acc};
-            bflux = {bflux};
+            %acc   = {acc};
+           % bflux = {bflux};
 
             % Output variable names and types
-            name = 'bacteria';
-            type = 'cell';
+            name = model.biochemFluid.bactnames;
+             type=cell(1,nbioreact);
+            [type{:}] = deal('cell');
         end
 
         %-----------------------------------------------------------------%

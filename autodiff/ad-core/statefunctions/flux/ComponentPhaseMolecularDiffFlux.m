@@ -54,8 +54,26 @@ nm    = model.getPhaseNames();
 % --- Porosity (dimensionless) from rock (static or dynamic)
 
 if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
-    [p, nbact] = model.getProps(state, 'pressure', 'nbact');
-    phi = model.rock.poro(p, nbact);
+    if model.bacteriamodel
+        [p, nbact] = model.getProps(state, 'pressure', 'nbact');
+        nbioreact=model.biochemFluid.nbioreact;
+        if nbioreact==1
+            if iscell(nbact)
+                phi = model.rock.poro(p, nbact{1}); % Apply both modifications
+            else
+                phi = model.rock.poro(p, nbact); % Apply both modifications
+            end
+        elseif nbioreact==2
+            if iscell(nbact)
+                phi = model.rock.poro(p, nbact{1}, nbact{2}); % Apply both modifications
+            else
+                phi = model.rock.poro(p, nbact(:,1), nbact(:,2)); % Apply both modifications
+            end
+        end
+    else
+        p = model.getProp(state, 'pressure');
+        phi=model.rock.poro(p);
+    end
 else
     phi = model.rock.poro;
 end

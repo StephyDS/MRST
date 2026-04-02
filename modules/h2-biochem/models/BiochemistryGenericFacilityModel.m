@@ -28,6 +28,11 @@ classdef BiochemistryGenericFacilityModel < GenericFacilityModel
             ffd = ffd.setStateFunction('BactConvRate', BactConvertionRate(model));
             ffd = ffd.setStateFunction('BactFlux', DiffusiveBactFlux(model));
             ffd = ffd.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
+
+
+            ffd = ffd.setStateFunction('ComponentTotalMolecularDiffFlux', ComponentTotalMolecularDiffFlux(model));
+            ffd = ffd.setStateFunction('ComponentPhaseMolecularDiffFlux', ComponentPhaseMolecularDiffFlux(model));
+
             model.FacilityFlowDiscretization = ffd;
         end
 
@@ -71,7 +76,12 @@ classdef BiochemistryGenericFacilityModel < GenericFacilityModel
             bmass     = model.getProps(flowState, 'BacterialMass');
 
             % Net source term for bacterial population
-            src_growthdecay = (psigrowth - psidecay) - reg .* bmass;
+            nbioreact=model.ReservoirModel.biochemFluid.nbioreact;
+            src_growthdecay = cell(1,nbioreact);
+            [src_growthdecay{:}] = deal(0);
+            for i=1:nbioreact
+                src_growthdecay{i} = (psigrowth{i} - psidecay{i}) - reg .* bmass{i};
+            end
         end
 
         %-----------------------------------------------------------------%
