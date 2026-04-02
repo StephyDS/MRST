@@ -26,37 +26,61 @@ classdef ChemotaxisBactFlux < StateFunction
             rho = model.PVTPropertyFunctions.get(model, state, 'Density');
 
             namecp = model.getComponentNames();
-            indH2= find(strcmpi(namecp, bcrm.rH2), 1);
+            nbioreact=bcrm.nbioreact;
+            % Initialize with zero growth rate
+            fluxchemobact=cell(1,nbioreact);
+            [fluxchemobact{:}] = deal(0);
 
-            if model.liquidPhase && (~isempty(indH2))
-                if iscell(s)
-                    sL = s{L_ix};
-                    rhoL = rho{L_ix};
-                else
-                    sL = s(:, L_ix);
-                    rhoL = rho(:, L_ix);
-                end
-
-                if iscell(x)
-                    xH2=x{indH2};
-                else
-                    xH2=x(:,indH2);
-                end
-
-                %deltaChiBact=max(0.0, xH2-bcrm.xch_seuil);
-                %ChiBact=bcrm.Xch_max.*deltaChiBact ./ (bcrm.Kch+deltaChiBact);
-                ChiBact=bcrm.xch_seuil;
-                Diffch = op.faceAvg(ChiBact.*sL.*pv.*rhoL.*nbact.*(1.0-nbact));
-                fluxchemobact = Diffch.*model.operators.Grad(xH2);
-            else
-                fluxchemobact =0;
+            % Check if bacterial modeling is active and components exist
+            if ~(model.bacteriamodel && model.liquidPhase)
+                return;
             end
 
+
+            for i=1:nbioreact
+                indH2= find(strcmpi(namecp, bcrm.rH2(i)), 1);
+
+                if model.liquidPhase && (~isempty(indH2))
+                    if iscell(s)
+                        sL = s{L_ix};
+                        rhoL = rho{L_ix};
+                    else
+                        sL = s(:, L_ix);
+                        rhoL = rho(:, L_ix);
+                    end
+
+                    if iscell(x)
+                        xH2=x{indH2};
+                    else
+                        xH2=x(:,indH2);
+                    end
+                    if iscell(nbact)
+                        nbacti=nbact{i};
+                    else
+                        nbacti=nbact(:,i);
+                    end
+
+                    % Calculate effective volume with safeguards
+                    if iscell(sL)
+                        Voln = max(sL{1}, 1.0e-8) .* rhoL{1};
+                    else
+                        Voln = max(sL, 1.0e-8) .* rhoL;
+                    end
+                    Voln = max(Voln, 1.0e-8);
+
+
+                    %deltaChiBact=max(0.0, xH2-bcrm.xch_seuil(i));
+                    %ChiBact=bcrm.Xch_max(i).*deltaChiBact ./ (bcrm.Kch(i)+deltaChiBact);
+                    ChiBact=bcrm.xch_seuil(i);
+                    Diffch = op.faceAvg(ChiBact.*pv.*Voln.*nbacti.*(1.0-nbacti));
+                    fluxchemobact{i} = Diffch.*model.operators.Grad(xH2);            
+                end
+            end
         end
     end
 end
 
-%{
+    %{
 Copyright 2009-2023 SINTEF Digital, Mathematics & Cybernetics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
@@ -73,4 +97,4 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with MRST.  If not, see <http://www.gnu.org/licenses/>.
-%}
+    %}

@@ -72,10 +72,20 @@ classdef BacterialMass < StateFunction & ComponentProperty
             Voln = max(Voln, 1.0e-8);
 
             % Compute bacterial mass
-            mb = pv .* nbact .* Voln;
-
-            % Ensure minimum derivatives for stability
-            mb = ensureMinimumDerivatives(prop,model, mb);
+            bcm=model.biochemFluid;
+            nbioreact=bcm.nbioreact;
+            mb=cell(1,nbioreact);
+            [mb{:}] = deal(0);
+            for i=1:nbioreact
+                if iscell(nbact)
+                    nbacti=nbact{i};
+                else
+                    nbacti=nbact(:,i);
+                end
+                mb{i}=pv .* nbacti .* Voln;
+                % Ensure minimum derivatives for stability
+                mb{i} = ensureMinimumDerivatives(prop,model, mb{i});
+            end
         end
 
         function prop = setMinimumDerivatives(prop, der)

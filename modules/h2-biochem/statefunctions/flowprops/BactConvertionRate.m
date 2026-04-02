@@ -57,57 +57,81 @@ classdef BactConvertionRate < StateFunction
 
             % Get component indices
             compNames = rm.EOSModel.getComponentNames();
-            idxH2  = find(strcmpi(compNames, bcrm.rH2));
-            idxsub = find(strcmpi(compNames, bcrm.rsub));
+            nbioreact=bcrm.nbioreact;
+
 
             % Validate required components
-            if isempty(idxH2) || isempty(idxsub)
-                warning('Bacterial model requires H2 and CO2 components');
-                return;
+            for i=1:nbioreact
+                if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
+                        strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
+                    idCO2 = find(strcmpi(compNames,  bcrm.rsub(i)), 1);
+                    idH2 = find(strcmpi(compNames, bcrm.rH2(i)), 1);
+                    if isempty(idH2) || isempty(idCO2)
+                        warning('Bacterial model requires H2 and CO2 components');
+                        return;
+                    end
+                end
             end
 
             try
-                % Get required state variables
                 pv = rm.PVTPropertyFunctions.get(model.ReservoirModel, state, 'PoreVolume');
                 s  =  rm.getProp(state, 's');
                 nbact = rm.getProp(state, 'nbact');
                 L_ix = rm.getLiquidIndex();
                 x = rm.getProp(state, 'x');
-
-                % Extract liquid phase properties
-                if iscell(x)
-                    xH2 = x{idxH2};
-                    xsub = x{idxsub};
-                    sL = s{L_ix};
-                else
-                    xH2 = x(:, idxH2);
-                    xsub = x(:, idxsub);
-                    sL = s(:, L_ix);
-                end
-
-                % Ensure non-zero liquid saturation
-                sL = max(value(sL), 1.0e-8);
-
-                % Get model parameters
-                alphaH2 = bcrm.alphaH2;
-                alphasub = bcrm.alphasub;
-                Psigrowthmax = bcrm.Psigrowthmax;
-                Y_H2 = bcrm.Y_H2;
-                gammak = rm.gammak;
-                nbactMax = bcrm.nbactMax;
-                mc = rm.EOSModel.CompositionalMixture.molarMass;
-
-                % Calculate growth rate using Monod kinetics
-                axH2 = xH2 ./ (alphaH2 + xH2);
-                axsub = xsub ./ (alphasub + xsub);
-
-                Psigrowth = pv .* Psigrowthmax .* axH2 .* axsub .* nbact .* sL;
                 
-                % Calculate conversion rates for all components
-                qbiot_temp = Psigrowth ./ Y_H2 ./ abs(gammak(idxH2));
-                for c = 1:ncomp
-                    qbiot{c} = gammak(c) .* qbiot_temp .* mc(c) .* nbactMax;
+                % Get required state variables
+                for i=1:nbioreact
+                    idxH2  = find(strcmpi(compNames, bcrm.rH2(i)));
+                    idxsub = find(strcmpi(compNames, bcrm.rsub(i)));
+
+                    % Extract liquid phase properties
+                    if iscell(x)
+                        xH2 = x{idxH2};
+                        xsub = x{idxsub};
+                        %nbacti=nbact{i};
+                    else
+                        xH2 = x(:, idxH2);
+                        xsub = x(:, idxsub);
+                        %nbacti=nbact(:,i);
+                    end
+                    if iscell(x)
+                        sL = s{L_ix};
+                    else
+                        sL = s(:, L_ix);
+                    end
+                    if iscell(nbact)
+                        nbacti=nbact{i};
+                    else
+                        nbacti=nbact(:,i);
+                    end
+
+                    % Ensure non-zero liquid saturation
+
+                    sL = max(value(sL), 1.0e-8);
+
+                    % Get model parameters
+                    alphaH2 = bcrm.alphaH2(i);
+                    alphasub = bcrm.alphasub(i);
+                    Psigrowthmax = bcrm.Psigrowthmax(i);
+                    Y_H2 = bcrm.Y_H2(i);
+                    gammak = rm.gammak(i,:);
+                    nbactMax = bcrm.nbactMax(i);
+                    mc = rm.EOSModel.CompositionalMixture.molarMass;
+
+                    % Calculate growth rate using Monod kinetics
+                    axH2 = xH2 ./ (alphaH2 + xH2);
+                    axsub = xsub ./ (alphasub + xsub);
+
+                    Psigrowth = pv .* Psigrowthmax .* axH2 .* axsub .* nbacti .* sL;
+
+                    % Calculate conversion rates for all components
+                    qbiot_temp = Psigrowth ./ Y_H2 ./ abs(gammak(idxH2));
+                    for c = 1:ncomp
+                        qbiot{c} = qbiot{c}+ gammak(c) .* qbiot_temp .* mc(c) .* nbactMax;
+                    end
                 end
+
 
             catch ME
                 warning('Bacterial conversion rate calculation failed: %s', ME.message);

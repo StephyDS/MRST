@@ -81,19 +81,37 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 end
             end
 
+            % model.compFluid = compFluid;
+            % model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
+            % ncomp = compFluid.getNumberOfComponents();
+            % model.gammak = zeros(1, ncomp);
+            % namecp = compFluid.names;
+            % indH2   = find(strcmp(namecp, model.biochemFluid.rH2));
+            % indH2O  = find(strcmp(namecp, model.biochemFluid.pH2O));
+            % indsub  = find(strcmp(namecp, model.biochemFluid.rsub));
+            % indprod   = find(strcmp(namecp, model.biochemFluid.p2));
+            % model.gammak(indH2)  = model.biochemFluid.gamrH2;
+            % model.gammak(indH2O) =  model.biochemFluid.gampH2O;
+            % model.gammak(indsub) = model.biochemFluid.gamrsub;
+            % model.gammak(indprod)  = model.biochemFluid.gamp2;
+
             model.compFluid = compFluid;
             model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
             ncomp = compFluid.getNumberOfComponents();
-            model.gammak = zeros(1, ncomp);
+            nbioreact = numel(model.biochemFluid.metabolicReaction);
             namecp = compFluid.names;
-            indH2   = find(strcmp(namecp, model.biochemFluid.rH2));
-            indH2O  = find(strcmp(namecp, model.biochemFluid.pH2O));
-            indsub  = find(strcmp(namecp, model.biochemFluid.rsub));
-            indprod   = find(strcmp(namecp, model.biochemFluid.p2));
-            model.gammak(indH2)  = model.biochemFluid.gamrH2;
-            model.gammak(indH2O) =  model.biochemFluid.gampH2O;
-            model.gammak(indsub) = model.biochemFluid.gamrsub;
-            model.gammak(indprod)  = model.biochemFluid.gamp2;
+            model.gammak = zeros(nbioreact, ncomp);
+
+            for i=1:nbioreact
+                indH2   = find(strcmp(namecp, model.biochemFluid.rH2(i)));
+                indH2O  = find(strcmp(namecp, model.biochemFluid.pH2O(i)));
+                indsub  = find(strcmp(namecp, model.biochemFluid.rsub(i)));
+                indprod   = find(strcmp(namecp, model.biochemFluid.p2(i)));
+                model.gammak(i,indH2)  = model.biochemFluid.gamrH2(i);
+                model.gammak(i,indH2O) =  model.biochemFluid.gampH2O(i);
+                model.gammak(i,indsub) = model.biochemFluid.gamrsub(i);
+                model.gammak(i,indprod)  = model.biochemFluid.gamp2(i);
+            end
 
             % Validate bacterial formulation
             assert(any(strcmpi(model.bacterialFormulation, {'bacterialmodel'})), ...
@@ -125,8 +143,13 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 % Assign dummy transmissibilities to appease
                 % model.setupOperators
                 drock = rock;
-                nbact0 = 0;
-                drock.perm = rock.perm(1*barsa(),nbact0);
+                if nargin(drock.perm)<3
+                    nbact0 = 0;
+                    drock.perm = rock.perm(1*barsa(),nbact0);
+                elseif nargin(drock.perm)==3
+                    nbact0 = [0,0];
+                    drock.perm = rock.perm(1*barsa(),nbact0(1),nbact0(2));
+                end
             end
 
             if model.dynamicFlowPv()
@@ -134,9 +157,15 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 % model.setupOperators
                 if ~model.dynamicFlowTrans()
                     drock = rock;
-                    nbact0 = 0;
+                    %nbact0 = 0;
                 end
-                drock.poro = rock.poro(1*barsa(),nbact0);
+                if nargin(drock.poro)<3
+                    nbact0 = 0;
+                    drock.poro = rock.poro(1*barsa(),nbact0);
+                elseif nargin(drock.poro)==3
+                    nbact0 = [0,0];
+                    drock.poro = rock.poro(1*barsa(),nbact0(1),nbact0(2));
+                end
             end
             % Let reservoir model set up operators
             model = setupOperators@ReservoirModel(model, G, drock, varargin{:});
@@ -218,6 +247,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
             if model.bacteriamodel
                 nbact = model.getProps(state, 'bacteriamodel');
+                nbact = expandMatrixToCell(nbact);
                 bactnames = model.biochemFluid.bactnames;
                 names = [{'pressure'}, cnames(2:end), bactnames, enames];
                 vars  = [p, z(2:end), nbact, evars];
@@ -271,10 +301,15 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
-                beqs{1} = beqs{1} - src_growthdecay;
-                if (model.bactdiffusion || model.chemotaxisEffect)
-                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});% Assemble equations
+
+                nbioreact=model.biochemFluid.nbioreact;
+                for i=1:nbioreact
+                    beqs{i} = beqs{i} - src_growthdecay{i};
+                    if (model.bactdiffusion || model.chemotaxisEffect)
+                        beqs{i} = model.operators.AccDiv(beqs{i}, bflux{i});% Assemble equations
+                    end
                 end
+
             else
                 [beqs, bnames, btypes] = deal([]);
             end
@@ -299,14 +334,26 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         function state = initStateAD(model, state, vars, names, origin)
             if model.bacteriamodel
 
-                isP = strcmp(names, 'pressure');
-                bactnames=model.biochemFluid.bactnames;
-                isB = strcmp(names, bactnames);
+                isP = strcmp(names, 'pressure');  
                 isAD = any(cellfun(@(x) isa(x, 'ADI'), vars));
                 state = model.setProp(state, 'pressure', vars{isP});
-                state = model.setProp(state, 'nbact', vars{isB});
+                
+                removed = isP;
 
-                removed = isP | isB;
+                bactnames=model.biochemFluid.bactnames;
+                nbioreact=model.biochemFluid.nbioreact;
+                nbact=cell(1, nbioreact);
+
+                for i = 1:nbioreact
+                    name = bactnames{i};
+                    sub = strcmp(names, name);
+                    nbact{i} = vars{sub};
+                    removed(sub) = true;
+                end
+                state = model.setProp(state, 'nbact', nbact);
+
+
+
 
                 cnames = model.EOSModel.getComponentNames();
                 ncomp = numel(cnames);
@@ -397,16 +444,24 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             % Get values for convergence check
             [v_eqs, tolerances, names] = getConvergenceValues@ReservoirModel(model, problem, varargin{:});
             if model.bacteriamodel
-                bact=strcat(model.biochemFluid.bactnames,' (cell)');
-                bacteriaIndex = find(strcmp(names, bact));
-                tolerances(bacteriaIndex) = 1.0e-2;
+                nbioreact=model.biochemFluid.nbioreact;
+                bacteriaIndex=zeros(nbioreact,1);
+                for i=1:nbioreact
+                    bact=strcat(model.biochemFluid.bactnames{i},' (cell)');
+                    bacteriaIndex(i) = find(strcmp(names, bact));
+                    tolerances(bacteriaIndex(i)) = 1.0e-2;
+                end
+
                 scale = model.getEquationScaling(problem.equations, problem.equationNames, problem.state, problem.dt);
                 ix    = ~cellfun(@isempty, scale);
                 v_eqs(ix) = cellfun(@(scale, x) norm(scale.*value(x), inf), scale(ix), problem.equations(ix));
                 % Reduce Tolerance
                 iter = problem.iterationNo;
                 maxIter = model.EOSNonLinearSolver.LinearSolver.maxIterations;
-                if (v_eqs(bacteriaIndex) > tolerances(bacteriaIndex) && (iter+5>maxIter))
+
+                for i=1:nbioreact
+                    if (v_eqs(bacteriaIndex(i)) > tolerances(bacteriaIndex(i)) && (iter+5>maxIter))
+                    end
                 end
             end
         end
@@ -441,11 +496,14 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 scale{ix} = scaleMass;
             end
             if model.bacteriamodel
-                ix = strcmpi(names, model.biochemFluid.bactnames);
-                if any(ix)
-                    scaleChemistry = dt./max(chemistry, dt);
-                    scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
-                    scale{ix} = scaleChemistry;
+                nbioreact=model.biochemFluid.nbioreact;
+                for i=1:nbioreact
+                    ix = strcmpi(names, model.biochemFluid.bactnames{i});
+                    if any(ix)
+                        scaleChemistry = dt./max(chemistry, dt);
+                        scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
+                        scale{ix} = scaleChemistry;
+                    end
                 end
             end
 
@@ -488,7 +546,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         function [state, report] = updateState(model, state, problem, dz, drivingForces)
             [state, report] = updateState@GenericOverallCompositionModel(model, state, problem, dz, drivingForces);
             if model.bacteriamodel
-                state = model.capProperty(state, 'nbact', 1.0, 120);
+                state = model.capProperty(state, 'nbact', 1.e-2, 120);
 
                 state = model.capProperty(state, 's', 1.0e-8, 1);
                 state.components = ensureMinimumFraction(state.components, model.EOSModel.minimumComposition);

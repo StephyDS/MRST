@@ -33,7 +33,11 @@ classdef BactTransmissibility < StateFunction
                 % Get pressure and temperature
                 [p, nbact] = model.getProps(state, 'pressure', 'nbact');
                 p      = model.operators.faceAvg(p);
-                nbact      = model.operators.faceAvg(nbact);
+                if iscell(nbact)
+                    nbact      = model.operators.faceAvg(nbact{1});
+                else
+                    nbact      = model.operators.faceAvg(nbact);
+                end
                 % Apply multiplier
                 transMult = trans.evaluateFluid(model, mname, p, nbact);
                 Tb        = transMult.*Tb;
