@@ -81,20 +81,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 end
             end
 
-            % model.compFluid = compFluid;
-            % model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
-            % ncomp = compFluid.getNumberOfComponents();
-            % model.gammak = zeros(1, ncomp);
-            % namecp = compFluid.names;
-            % indH2   = find(strcmp(namecp, model.biochemFluid.rH2));
-            % indH2O  = find(strcmp(namecp, model.biochemFluid.pH2O));
-            % indsub  = find(strcmp(namecp, model.biochemFluid.rsub));
-            % indprod   = find(strcmp(namecp, model.biochemFluid.p2));
-            % model.gammak(indH2)  = model.biochemFluid.gamrH2;
-            % model.gammak(indH2O) =  model.biochemFluid.gampH2O;
-            % model.gammak(indsub) = model.biochemFluid.gamrsub;
-            % model.gammak(indprod)  = model.biochemFluid.gamp2;
-
             model.compFluid = compFluid;
             model.EOSModel = EquationOfStateModel([], compFluid, 'sw');
             ncomp = compFluid.getNumberOfComponents();
