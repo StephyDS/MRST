@@ -89,13 +89,11 @@ classdef BactConvertionRate < StateFunction
                     if iscell(x)
                         xH2 = x{idxH2};
                         xsub = x{idxsub};
-                        %nbacti=nbact{i};
                     else
                         xH2 = x(:, idxH2);
                         xsub = x(:, idxsub);
-                        %nbacti=nbact(:,i);
                     end
-                    if iscell(x)
+                    if iscell(s)
                         sL = s{L_ix};
                     else
                         sL = s(:, L_ix);
