@@ -1,5 +1,43 @@
 classdef DiffusiveBactFlux < StateFunction
-    % bacterial diffusive flux
+    % Bacterial diffusive flux computation for compositional simulations
+    %
+    % SYNOPSIS:
+    %   jbactdiff = DiffusiveBactFlux(model, 'property1', value1, ...)
+    %
+    %Jbactdiff = - Kdiffbact * Grad(nbact)
+    %
+    % DESCRIPTION:
+    %   Computes the bacterial Chemotaxis flux in each grid cell, accounting for:
+    %   - Bacterial concentration (nbact)
+    %   - Liquid phase saturation
+    %   - Pore volume
+    %   - Phase densities
+    %   - Presence of required components H2
+    %   - displacement along with the bacterial concentration gradient
+    %
+    % REQUIRED PARAMETERS:
+    %   model - Reservoir model with bacterial modeling enabled
+    %
+    % OPTIONAL PARAMETERS:
+    %   None
+    %
+    % RETURNS:
+    %   Class instance ready for use in simulation
+    %
+    % SEE ALSO:
+    %   CompositionalModel, EquationsCompositional
+    %
+    %Sources:
+    % 1/ Phd thesis of Noura Eddaoui, Patterns in bioreactive transport 
+    % in underground storage of hydrogen : impact of natural and induced
+    % heterogeneity
+    % 2/ Underground hydrogen storage: A comprehensive review, Davood
+    % Zivar,https://doi.org/10.1016/j.ijhydene.2020.08.138
+    %1/Impact of hydrogen on the hydrodynamic and bio-chemical
+    % behavior, Hagemann & al., DOI 10.1007/s10596-015-9515-6
+
+
+
     properties
     end
 

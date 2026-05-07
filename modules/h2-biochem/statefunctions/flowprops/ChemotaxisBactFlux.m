@@ -2,7 +2,10 @@ classdef ChemotaxisBactFlux < StateFunction
     % Bacterial chemotaxis flux computation for compositional simulations
     %
     % SYNOPSIS:
-    %   decay = ChemotaxisBactFlux(model, 'property1', value1, ...)
+    %   Jchemotaxis = ChemotaxisBactFlux(model, 'property1', value1, ...)
+    %
+    % Jchemotaxis = Kchemo * nbact *(1 - nbact) * Grad(xH2)
+    % (volume-filling effect, generalized Keller-Segel model)
     %
     % DESCRIPTION:
     %   Computes the bacterial Chemotaxis flux in each grid cell, accounting for:
@@ -25,7 +28,7 @@ classdef ChemotaxisBactFlux < StateFunction
     % SEE ALSO:
     %   CompositionalModel, EquationsCompositional
     %
-    %Sourceshttps://www.academia.edu/73073165/Syst%C3%A8mes_d%C3%A9quations_aux_d%C3%A9riv%C3%A9es_partielles_pour_la_biologie_mod%C3%A8les_analyse_num%C3%A9rique_et_simulations
+    %Sources: https://www.cirm-math.fr/RepOrga/2260/Slides/cours_Ribot.pdf
 
     properties
 
