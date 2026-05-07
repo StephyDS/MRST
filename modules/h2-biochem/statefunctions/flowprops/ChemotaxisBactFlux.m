@@ -1,5 +1,32 @@
 classdef ChemotaxisBactFlux < StateFunction
-    % bacterial Chemotaxis flux
+    % Bacterial chemotaxis flux computation for compositional simulations
+    %
+    % SYNOPSIS:
+    %   decay = ChemotaxisBactFlux(model, 'property1', value1, ...)
+    %
+    % DESCRIPTION:
+    %   Computes the bacterial Chemotaxis flux in each grid cell, accounting for:
+    %   - Bacterial concentration (nbact)
+    %   - Liquid phase saturation
+    %   - Pore volume
+    %   - Phase densities
+    %   - Presence of required components H2
+    %   - displacement along with the H2 concentration gradient
+    %
+    % REQUIRED PARAMETERS:
+    %   model - Reservoir model with bacterial modeling enabled
+    %
+    % OPTIONAL PARAMETERS:
+    %   None
+    %
+    % RETURNS:
+    %   Class instance ready for use in simulation
+    %
+    % SEE ALSO:
+    %   CompositionalModel, EquationsCompositional
+    %
+    %Sourceshttps://www.academia.edu/73073165/Syst%C3%A8mes_d%C3%A9quations_aux_d%C3%A9riv%C3%A9es_partielles_pour_la_biologie_mod%C3%A8les_analyse_num%C3%A9rique_et_simulations
+
     properties
 
     end

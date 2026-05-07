@@ -1,37 +1,14 @@
-classdef ComponentPhaseMolecularDiffFlux < StateFunction
-    % Molecular diffusion and/or dispersion flux for each component/phase.
-    % J_{i,alpha} = Jdiff_{i,alpha} + Jdisp_{i,alpha} 
+classdef ComponentPhaseMolecularDiffFluxApprox < StateFunction
+    % Molecular diffusion flux for each component/phase.
     %
-    % Molecular diffusion flux
-    % Jdiff_{i,alpha} = - K_{i,alpha} * Grad(z_{i,alpha})
+    % J_{i,alpha} = - K_{i,alpha} * Grad(z_{i,alpha})
     % K_{i,alpha} = (phi*S_alpha*tau_MQ) * rho_alpha * D_{i,alpha}
     %
     % Millington-Quirk:
     %   (phi*S)*tau_MQ = (phi*S)^(7/3) / phi^2
-    %
-    %
-    % Molecular dispersion flux 
-    % Jdisp_{i,alpha} = - Kdisp_{i,alpha} * Grad(z_{i,alpha})
-    % Kdisp_{i,alpha} = alpha_T * norm(v_Darcy) + 
-    % (alpha_L-alpha_T)*v_Darcy * Transpose(v_Darcy)/norm(v_Darcy)
-    %
-    % alphaL is the Longitudinal dispersivity coefficient
-    % alphaT is the Transversal dispersivity coefficient
-    % v_Darcy is the Darcy velocity
-    %
-    % Sources:
-    % 1/Impact of hydrogen on the hydrodynamic and bio-chemical
-    % behavior, Hagemann & al., DOI 10.1007/s10596-015-9515-6
-    % 2/A. E. Scheidegger, 
-    % The physics of ﬂow through porous media, The MacMillan Company, 
-    % New York, 1957.
-    %3/ Bear-Scheiddeger model, and J. Bear and Y. Bachmat, Introduction to modeling 
-    % of transport phenomena in porous media, Springer-Verlag,
-    % New York, 1990.
-
 
     methods
-        function sf = ComponentPhaseMolecularDiffFlux(model, varargin)
+        function sf = ComponentPhaseMolecularDiffFluxApprox(model, varargin)
             sf@StateFunction(model, varargin{:});
 
             % Core dependencies
@@ -51,8 +28,8 @@ classdef ComponentPhaseMolecularDiffFlux < StateFunction
             sf = sf.dependsOn('y', 'state');
             sf = sf.dependsOn('pressure', 'state');
             sf = sf.dependsOn('temperature', 'state');
-            sf = sf.dependsOn('mobility', 'state');
-
+            sf = sf.dependsOn('PhaseFlux', 'FlowDiscretization'); %flux linked to Darcy velocity
+            
             sf.label = 'J_{i,\\alpha}';
         end
 
@@ -158,99 +135,37 @@ if (model.molecularDiffusion)
                 J{c, ph} = -Kf .* op.Grad(yc{c});
             end
         end
-    end
+    end   
 end
 
 if (model.molecularDispersion)
-    dim=model.G.griddim;
-    ncells=model.G.cells.num;
+    [Darcy_flux] = model.getProp(state, 'PhaseFlux'); %PhaseFlux linked to Darcy velocity
+    avg = model.operators.faceAvg;
+    interior_faces = find(all(model.G.faces.neighbors ~= 0, 2));
+    interior_areas = model.G.faces.areas(interior_faces);
+    Face_poro= avg(phi_safe); %average porosity on faces
+
     alphaL=zeros(2,1);%Longitudinal dispersivity coefficient
-    alphaT=zeros(2,1);%Transversal dispersivity coefficient
-    alphaL(L_ix)=1.e-2; %5.e-3;%Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
-    alphaT(L_ix)=1.e-3;%5.e-4;%Transversal dispersivity coefficient in water phase,  m
-    alphaL(V_ix)=5.e-2; %1.e-2;  %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
-    alphaT(V_ix)=5.e-3;%1.e-3;%Transversal dispersivity coefficient in gas phase,  m
-    % Gas properties
-    [pf, mob] = model.getProps(state, 'pressure', 'mobility');
-    Kcell= model.rock.perm; %permeabilities in cells
-    Grad_cell_p=vectorCellGradient(model,op.Grad(pf));
-    uDarcy_ph = cell(1, dim);
-    for d = 1:dim
-        uDarcy_ph{d} = Grad_cell_p{d}*0; % init AD-safe
-    end
+    alphaL(L_ix)=5.e-3;%1.e-2; %Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
+    alphaL(V_ix)=1.e-2;  %5.e-2; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
 
     for c = 1:ncomp
         for ph = 1:nph
+            u_ph=Darcy_flux{ph}./(interior_areas.*Face_poro);
             if iscell(rho)
-                rho_ph = rho{ph};
+                rho_ph = op.faceUpstr(Darcy_flux{ph}, rho{ph});
             else
-                rho_ph = rho(:,ph);
+                rho_ph = op.faceUpstr(Darcy_flux{ph}, rho(:,ph));
             end
-            if isvector(Kcell) && (numel(Kcell) == ncells)
-                % (1) Isotrope scalaire : u = -lam*K*grad p
-                for d = 1:dim
-                    %uDarcy_ph{d} = -mob{ph}.* Kcell.*Grad_cell_p{d}; %without gravity
-                    uDarcy_ph{d} = -mob{ph}.* Kcell.*(Grad_cell_p{d}-rho_ph.*model.gravity(d));
-                end
-
-            elseif ismatrix(Kcell) && all(size(Kcell) == [ncells, dim])
-                % (2) Anisotrope diagonal : u_d = -lam*K(:,d)*grad_p_d
-                for d = 1:dim
-                    %uDarcy_ph{d} = -mob{ph}.*Kcell(:,d).*Grad_cell_p{d}; %without gravity
-                    uDarcy_ph{d} = -mob{ph}.*Kcell(:,d).*(Grad_cell_p{d}-rho_ph.*model.gravity(d));
-                end
-            end
-
-            unorm=uDarcy_ph{1}.^2;
-            for d = 2:dim
-                unorm=unorm+uDarcy_ph{d}.^2;
-            end
-            unorm=unorm.^0.5;
-
-
-            %fprintf('ph=%8.1f, unorm : %16.8f , %16.8f \n',...
-            %                 ph,min(unorm.val),max(unorm.val));
-            uhat  = cell(1, dim);
-
-            for d = 1:dim
-                uhat{d} = uDarcy_ph{d} ./ (unorm + 1e-12);
-            end
-
-            coef1=alphaT(ph).*unorm;
-            coef2=alphaL(ph).*unorm-coef1;
-
-            Ddisp=cell(dim,dim); %rho*Ddisp par phase dim*dim cell
-            for di=1:dim
-                for dj=1:dim
-                    Ddisp{di,dj}=coef1.*0;
-                end
-            end
-            for di=1:dim
-                Ddisp{di,di}= coef1;
-                for dj=1:dim
-                    Ddisp{di,dj}=Ddisp{di,dj}+coef2.*uhat{di}.*uhat{dj};
-                end
-            end
-
-            Jcell_phc = cell(1, dim);
-            for d = 1:dim
-                Jcell_phc{d}=uDarcy_ph{d}.*0; % init AD-safe
-            end
-
             if (ph==L_ix)
-                Grad_cell_c=vectorCellGradient(model,op.Grad(xc{c}));%calcul gradient par cellule
+                D_disp = rho_ph.*alphaL(ph).*(abs(u_ph)+1.e-12);
+               J{c, ph} = J{c, ph}- D_disp.*op.Grad(xc{c});
+               
             elseif (ph==V_ix)
-                Grad_cell_c=vectorCellGradient(model,op.Grad(yc{c})); %calcul gradient par cellule
+                D_disp = rho_ph.*alphaL(ph).*(abs(u_ph)+1.e-12);
+                J{c, ph} = J{c, ph}-D_disp.*op.Grad(yc{c});
+              
             end
-            for di = 1:dim
-                for dj=1:dim
-                    Jcell_phc{di}=Jcell_phc{di}-rho{ph}.*phi_safe.*Ddisp{di,dj}.*Grad_cell_c{dj}; % init AD-safe
-                end
-            end
-            %projection du flux dispersif par cellule(vectoriel)
-            %sur les faces(scalaire) suivant la normale sortante
-            Jvect_face_phc=projectCellFluxToFacesAD(model, Jcell_phc);
-            J{c, ph} =J{c, ph}+Jvect_face_phc;
         end
     end
 end

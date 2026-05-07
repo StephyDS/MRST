@@ -18,7 +18,8 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                 % Ensure Porosity exists in FlowDiscretization for diffusion (also when no clogging)
                 props = props.setStateFunction('Porosity', PorosityFromRock(model));
                 useMolDiff = isprop(model, 'molecularDiffusion') && model.molecularDiffusion;
-                if useMolDiff
+                useMolDisp = isprop(model, 'molecularDispersion') && model.molecularDispersion;
+                if  (useMolDiff||useMolDisp)
                     props = props.setStateFunction('ComponentTotalFlux', ...
                         ComponentTotalFluxMolecularDiffusion(model));
                 else
