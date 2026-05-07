@@ -51,7 +51,8 @@ classdef FlowDiscretization < StateFunctionGrouping
             props = props.setStateFunction('PhaseFlux', PhaseFlux(model));
 
             useMolDiff = isprop(model, 'molecularDiffusion') && model.molecularDiffusion;
-            if useMolDiff
+            useMolDisp = isprop(model, 'molecularDispersion') && model.molecularDispersion;
+            if (useMolDiff||useMolDisp)
                 props = props.setStateFunction('ComponentTotalFlux', ...
                     ComponentTotalFluxMolecularDiffusion(model));
             else

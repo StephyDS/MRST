@@ -28,7 +28,8 @@ classdef ComponentPhaseMolecularDiffFlux < StateFunction
             sf = sf.dependsOn('y', 'state');
             sf = sf.dependsOn('pressure', 'state');
             sf = sf.dependsOn('temperature', 'state');
-
+            sf = sf.dependsOn('PhaseFlux', 'FlowDiscretization'); %flux linked to Darcy velocity
+            
             sf.label = 'J_{i,\\alpha}';
         end
 
@@ -85,53 +86,86 @@ rho = sf.getEvaluatedExternals(model, state, 'Density');
 % Mole fractions
 [xc, yc] = localGetMoleFractions(model, state);
 
-% Diffusion parameters
-[Dliq_ref, paramLJ] = localLoadDiffusionDatabase(model);
-Dij_ref = localBinaryDiffusionReference(model, paramLJ);
-
-% Gas scaling
-[p, T] = model.getProps(state, 'pressure', 'temperature');
-Tref = 273.15 + 40;
-pref = atm;
-p_safe = max(p, 1e-8*barsa);
-gasScale = (T./Tref).^1.75 .* (pref./p_safe);
-
 % Initialize
 J = cell(ncomp, nph);
 [J{:}] = deal(0);
-
 L_ix = model.getLiquidIndex();
 V_ix = model.getVaporIndex();
 
-for ph = 1:nph
-    s = model.getProp(state, ['s', nm(ph)]);
+if (model.molecularDiffusion)
+    % Diffusion parameters
+    [Dliq_ref, paramLJ] = localLoadDiffusionDatabase(model);
+    Dij_ref = localBinaryDiffusionReference(model, paramLJ);
 
-    % (phi*S)*tau_MQ
-    phiS = phi .* s;
-    geom = (phiS).^(7/3) .* (phi_safe).^(-2);
+    % Gas scaling
+    [p, T] = model.getProps(state, 'pressure', 'temperature');
+    Tref = 273.15 + 40;
+    pref = atm;
+    p_safe = max(p, 1e-8*barsa);
+    gasScale = (T./Tref).^1.75 .* (pref./p_safe);
 
-    if ph == L_ix
-        for c = 1:ncomp
-            Kc = geom .* rho{ph} .* Dliq_ref(c);
-            Kf = localFaceHarmonicAvg(op, Kc);
-            J{c, ph} = -Kf .* op.Grad(xc{c});
-        end
+    for ph = 1:nph
+        s = model.getProp(state, ['s', nm(ph)]);
 
-    elseif ph == V_ix
-        yAll = model.getProps(state, 'y');
-        for c = 1:ncomp
-            invDi = 0;
-            for j = 1:ncomp
-                if j == c, continue; end
-                yj  = localGetComponentVector(yAll, j);
-                Dij = Dij_ref(c, j) .* gasScale;
-                invDi = invDi + yj ./ max(Dij, 1e-30);
+        % (phi*S)*tau_MQ
+        phiS = phi .* s;
+        geom = (phiS).^(7/3) .* (phi_safe).^(-2);
+
+        if ph == L_ix
+            for c = 1:ncomp
+                Kc = geom .* rho{ph} .* Dliq_ref(c);
+                Kf = localFaceHarmonicAvg(op, Kc);
+                J{c, ph} = -Kf .* op.Grad(xc{c});
             end
-            Di_mix = 1 ./ max(invDi, 1e-30);
 
-            Kc = geom .* rho{ph} .* Di_mix;
-            Kf = localFaceHarmonicAvg(op, Kc);
-            J{c, ph} = -Kf .* op.Grad(yc{c});
+        elseif ph == V_ix
+            yAll = model.getProps(state, 'y');
+            for c = 1:ncomp
+                invDi = 0;
+                for j = 1:ncomp
+                    if j == c, continue; end
+                    yj  = localGetComponentVector(yAll, j);
+                    Dij = Dij_ref(c, j) .* gasScale;
+                    invDi = invDi + yj ./ max(Dij, 1e-30);
+                end
+                Di_mix = 1 ./ max(invDi, 1e-30);
+
+                Kc = geom .* rho{ph} .* Di_mix;
+                Kf = localFaceHarmonicAvg(op, Kc);
+                J{c, ph} = -Kf .* op.Grad(yc{c});
+            end
+        end
+    end   
+end
+
+if (model.molecularDispersion)
+    [Darcy_flux] = model.getProp(state, 'PhaseFlux'); %PhaseFlux linked to Darcy velocity
+    avg = model.operators.faceAvg;
+    interior_faces = find(all(model.G.faces.neighbors ~= 0, 2));
+    interior_areas = model.G.faces.areas(interior_faces);
+    Face_poro= avg(phi_safe); %average porosity on faces
+
+    alphaL=zeros(2,1);%Longitudinal dispersivity coefficient
+    alphaL(L_ix)=5.e-3;%1.e-2; %Longitudinal dispersivity coefficient in water phase,  m (0.01->1m)
+    alphaL(V_ix)=1.e-2;  %5.e-2; %Longitudinal dispersivity coefficient in gas phase,  m (0.1->5m)
+
+    for c = 1:ncomp
+        for ph = 1:nph
+            u_ph=Darcy_flux{ph}./(interior_areas.*Face_poro);
+            if iscell(rho)
+                rho_ph = op.faceUpstr(Darcy_flux{ph}, rho{ph});
+            else
+                rho_ph = op.faceUpstr(Darcy_flux{ph}, rho(:,ph));
+            end
+            if (ph==L_ix)
+                D_disp = rho_ph.*alphaL(ph).*(abs(u_ph)+1.e-12);
+               J{c, ph} = J{c, ph}- D_disp.*op.Grad(xc{c});
+               
+            elseif (ph==V_ix)
+                D_disp = rho_ph.*alphaL(ph).*(abs(u_ph)+1.e-12);
+                J{c, ph} = J{c, ph}-D_disp.*op.Grad(yc{c});
+              
+            end
         end
     end
 end
@@ -217,3 +251,91 @@ for i = 1:ncomp
 end
 Dij_ref = 0.5*(Dij_ref + Dij_ref.');
 end
+
+function gradCell = vectorCellGradient(model, faceGrad)
+G  = model.G;
+op = model.operators;
+
+% Dimension spatiale
+dim = size(G.faces.normals, 2);
+
+% --- Sélection des faces internes pour être compatible avec op.Grad ---
+% internalConn est [nF×1] logique ; true pour faces internes
+intFaces = find(op.internalConn);
+% On aura: length(intFaces) == length(faceGrad) == size(op.N,1)
+
+% --- Normales unitaires alignées avec la convention de N(:,1)->N(:,2) ---
+n_all   = G.faces.normals(intFaces, :);    % [nIF × dim]
+A_all   = G.faces.areas(intFaces);         % [nIF × 1]
+n_unit  = n_all ./ A_all;                  % [nIF × dim]
+
+% Aligne l’orientation des normales avec la direction i->j de N
+N   = op.N; % [nIF × 2]
+ci  = G.cells.centroids(N(:,1), :);
+cj  = G.cells.centroids(N(:,2), :);
+rij = cj - ci;                             % vecteur de i vers j
+sgn = sign(sum(n_unit .* rij, 2));         % +1 si déjà aligné, -1 sinon
+n_unit = n_unit .* sgn;                    % oriente correctement
+% (A_all est positif, n_unit est maintenant orienté comme N)
+
+% --- Calcul du gradient par composante via une "divergence" pondérée ---
+% Idée: (∇p)_d ≈ (1/Vc) * Σ_f  (A_f * n_f,d * (∂p/∂n)_f)  avec la même
+% convention d’orientation que op.Div/op.N.
+gradCell = cell(1, dim);
+for d = 1:dim
+    % flux artificiel pour la composante d : A * n_d * (∂p/∂n)_f
+    flux_d = faceGrad .* (A_all .* n_unit(:, d));   % [nIF × 1] AD/double
+
+    % op.Div somme correctement (avec signes) sur les faces internes vers cellules
+    div_d  = op.Div(flux_d);                        % [nC × 1] AD/double
+
+    % Normalisation par volume cellule → (∇p)_d
+    gradCell{d} = div_d ./ G.cells.volumes;         % [nC × 1]
+end
+end
+
+function Jinternfaces = projectCellFluxToFacesAD(model, Jcell)
+% This function projects a vectorial flux per cell on the internal faces.
+G   = model.G;
+op  = model.operators;
+dim = G.griddim;
+
+% --- Faces internes uniquement (cohérent avec op.N, op.Grad, etc.)
+intFaces = find(op.internalConn);             % indices faces internes (longueur nIF)
+
+% --- Normales *aire* restreintes aux faces internes
+n_all  = G.faces.normals(intFaces, :);         % [nIF×dim], contient n_f * A_f
+A_int  = G.faces.areas(intFaces);              % [nIF×1]
+n_unit = n_all ./ A_int;                       % normales unitaires
+
+% --- Aligner l'orientation des normales avec le sens i->j de N
+N        = op.N;                               % [nIF×2] indices cellules (i->j)
+ci  = G.cells.centroids(N(:,1), :);
+cj  = G.cells.centroids(N(:,2), :);
+rij = cj - ci;                                 % vecteur de i vers j
+sgn = sign(sum(n_unit .* rij, 2));             % +1 si déjà aligné, -1 sinon
+n_oriented = n_all .* sgn;                     % contient (n_f * A_f) orienté comme N
+
+% --- Moyenne cell -> face (AD-safe). Selon backends, faceAvg peut rendre nF ou nIF.
+Jvect_face = cell(1, dim);
+for d = 1:dim
+    tmp = op.faceAvg(Jcell{d});
+    if isa(tmp, 'GenericAD') || isa(tmp, 'ADI')
+        nTmp = size(tmp.val,1);
+    else
+        nTmp = size(tmp,1);
+    end
+    if nTmp ~= size(N,1)
+        tmp = tmp(intFaces);
+    end
+    Jvect_face{d} = tmp;                               % [nIF×1] AD/double
+end
+
+% --- Projection: flux normal intégré sur la face (orienté i->j)
+Jinternfaces = Jvect_face{1} .* n_oriented(:,1);
+for d = 2:dim
+    Jinternfaces = Jinternfaces + Jvect_face{d} .* n_oriented(:,d);
+end
+end
+
+

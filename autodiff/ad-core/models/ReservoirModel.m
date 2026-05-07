@@ -59,6 +59,8 @@ properties
     FlowDiscretization % Grouping for flux discretization
     Components = {};
     molecularDiffusion = false % Molecular diffusion
+    molecularDispersion = false % Molecular dispersion
+
 end
 
 methods
