@@ -47,6 +47,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         bacteriamodel = true;
         metabolicReaction = 'MethanogenicArchae';
         molecularDiffusion = false;
+        molecularDispersion = false;
     end
 
     methods
@@ -104,7 +105,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             if model.bacteriamodel
                 model.FlowDiscretization = BiochemicalFlowDiscretization(model);
             else
-                model.FlowDiscretization = FlowDiscretization(model);
+                model.FlowDiscretization = DispersMolecDiffusFlowDiscretization(model);
             end
         end
 

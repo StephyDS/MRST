@@ -1,4 +1,4 @@
-classdef BiochemicalFlowDiscretization < FlowDiscretization
+classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization
     % BiochemicalFlowDiscretization
     % Discretization and state function grouping for bio-chemical flow
     % within a compositional model with microbial growth.
@@ -11,23 +11,11 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
         %-----------------------------------------------------------------%
         function props = BiochemicalFlowDiscretization(model)
             % Constructor: inherit base FlowDiscretization properties
-            props = props@FlowDiscretization(model);
+            props = props@DispersMolecDiffusFlowDiscretization(model);
             if model.bacteriamodel
-
                 % Ensure Porosity exists in FlowDiscretization for diffusion (also when no clogging)
                 props = props.setStateFunction('Porosity', PorosityFromRock(model));
-                useMolDiff = isprop(model, 'molecularDiffusion') && model.molecularDiffusion;
-                if useMolDiff
-                    props = props.setStateFunction('ComponentTotalFlux', ...
-                        ComponentTotalFluxMolecularDiffusion(model));
-                    props = props.setStateFunction('ComponentPhaseMolecularDiffFlux', ...
-                        ComponentPhaseMolecularDiffFlux(model));
-                    props = props.setStateFunction('ComponentTotalMolecularDiffFlux', ...
-                        ComponentTotalMolecularDiffFlux(model));
-                else
-                    props = props.setStateFunction('ComponentTotalFlux', ComponentTotalFlux(model));
-                end
-
+               
                 % Set up transmissibility and porosity functions
                 if model.dynamicFlowTrans
                     % Dynamic transmissibility computed each nonlinear iteration
