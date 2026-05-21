@@ -102,11 +102,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
             % Set output state functions
             model.OutputStateFunctions = {'ComponentTotalMass', 'Density'};
-            if model.bacteriamodel
-                model.FlowDiscretization = BiochemicalFlowDiscretization(model);
-            else
-                model.FlowDiscretization = DispersMolecDiffusFlowDiscretization(model);
-            end
+            model.FlowDiscretization = BiochemicalFlowDiscretization(model);
         end
 
         function containers = getStateFunctionGroupings(model)

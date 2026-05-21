@@ -1,4 +1,4 @@
-classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization
+classdef BiochemicalFlowDiscretization < FlowDiscretization
     % BiochemicalFlowDiscretization
     % Discretization and state function grouping for bio-chemical flow
     % within a compositional model with microbial growth.
@@ -11,11 +11,29 @@ classdef BiochemicalFlowDiscretization < DispersMolecDiffusFlowDiscretization
         %-----------------------------------------------------------------%
         function props = BiochemicalFlowDiscretization(model)
             % Constructor: inherit base FlowDiscretization properties
-            props = props@DispersMolecDiffusFlowDiscretization(model);
+            props = props@FlowDiscretization(model);
+            props = props.setStateFunction('ComponentTotalFlux', ...
+                ComponentTotalFluxForBio(model));
+
+            % Optionally register dispersion state functions
+            if isprop(model, 'molecularDispersion') && model.molecularDispersion
+                props = props.setStateFunction('ComponentPhaseMolecularDispFlux', ...
+                    ComponentPhaseMolecularDispFlux(model));
+                props = props.setStateFunction('ComponentTotalMolecularDispFlux', ...
+                    ComponentTotalMolecularDispFlux(model));
+            end
+
+            % Optionally register diffusion state functions
+            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
+                props = props.setStateFunction('ComponentPhaseMolecularDiffFlux', ...
+                    ComponentPhaseMolecularDiffFlux(model));
+                props = props.setStateFunction('ComponentTotalMolecularDiffFlux', ...
+                    ComponentTotalMolecularDiffFlux(model));
+            end
             if model.bacteriamodel
                 % Ensure Porosity exists in FlowDiscretization for diffusion (also when no clogging)
                 props = props.setStateFunction('Porosity', PorosityFromRock(model));
-               
+
                 % Set up transmissibility and porosity functions
                 if model.dynamicFlowTrans
                     % Dynamic transmissibility computed each nonlinear iteration
