@@ -15,9 +15,9 @@ classdef ComponentTotalFluxForBio < ComponentTotalFlux
             if isprop(model, 'molecularDispersion') && model.molecularDispersion
                 sf = sf.dependsOn('ComponentTotalMolecularDispFlux');
             end
-            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
-                sf = sf.dependsOn('ComponentTotalMolecularDiffFlux');
-            end
+            % if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
+            %     sf = sf.dependsOn('ComponentTotalMolecularDiffFlux');
+            % end
 
             sf.label = 'V_i';
         end
@@ -39,14 +39,14 @@ classdef ComponentTotalFluxForBio < ComponentTotalFlux
             end
 
             % 3. Optionally add molecular diffusion
-            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
-                Jdiff = sf.getEvaluatedDependencies(state, 'ComponentTotalMolecularDiffFlux');
-                for c = 1:ncomp
-                    if numel(Jdiff) >= c && ~isempty(Jdiff{c})
-                        v{c} = v{c} + Jdiff{c};
-                    end
-                end
-            end
+            % if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
+            %     Jdiff = sf.getEvaluatedDependencies(state, 'ComponentTotalMolecularDiffFlux');
+            %     for c = 1:ncomp
+            %         if numel(Jdiff) >= c && ~isempty(Jdiff{c})
+            %             v{c} = v{c} + Jdiff{c};
+            %         end
+            %     end
+            % end
         end
     end
 end

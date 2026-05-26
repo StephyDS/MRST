@@ -21,6 +21,8 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                     ComponentPhaseMolecularDispFlux(model));
                 props = props.setStateFunction('ComponentTotalMolecularDispFlux', ...
                     ComponentTotalMolecularDispFlux(model));
+                props = props.setStateFunction('ComponentPhaseHydrodynamicDispFlux', ...
+                    ComponentPhaseHydrodynamicDispFlux(model));
             end
 
             % Optionally register diffusion state functions

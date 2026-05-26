@@ -27,8 +27,10 @@ classdef ComponentPhaseMolecularDispFlux < StateFunction
     properties
         minPorosity = 1e-12;
         % Default values if not provided by model
-        alphaL_water = 5.0e-2; alphaT_water = 5.0e-3;
-        alphaL_gas   = 1.5e-1; alphaT_gas   = 1.5e-2;
+        % alphaL_water = 5.0e-2; alphaT_water = 5.0e-3;
+        % alphaL_gas   = 1.5e-1; alphaT_gas   = 1.5e-2;
+        alphaL_water = 1.0e-1; alphaT_water = 1.0e-2;
+        alphaL_gas   = 3.0e-1; alphaT_gas   = 3.0e-2;
     end
 
     methods
@@ -114,7 +116,7 @@ classdef ComponentPhaseMolecularDispFlux < StateFunction
                 end
 
                 % 2. Darcy Velocity Vector and Norm
-                unorm_sq = 1e-12; % smoothing to prevent div by zero in AD
+                unorm_sq = 1e-6; % smoothing to prevent div by zero in AD
                 u_face = cell(1, dim);
                 for d = 1:dim
                     u_face{d} = (u_vol ./ A_int) .* n_unit(:, d);
