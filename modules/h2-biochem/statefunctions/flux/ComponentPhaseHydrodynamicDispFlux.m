@@ -13,10 +13,10 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
     properties
         minPorosity = 1e-12;
         % --- Mechanical dispersion parameters ---
-        alphaL_water = 1.0e-2;   % [m]
-        alphaT_water = 1.0e-3;
-        alphaL_gas   = 3.0e-2;
-        alphaT_gas   = 3.0e-3;
+        alphaL_water = 1.0e-3;   % [m]
+        alphaT_water = 1.0e-4;
+        alphaL_gas   = 3.0e-3;
+        alphaT_gas   = 3.0e-4;
 
         % --- Molecular diffusion parameters ---
         Tref = 273.15 + 40;               % [K]
