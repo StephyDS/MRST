@@ -84,13 +84,13 @@ state0 = initCompositionalStateBacteria(model_00, state0.pressure, T0, state0.s,
 prob_00  = packSimulationProblem(state0, model_00, schedule, ...
     [baseName '_noDiff_noDisp'], 'NonLinearSolver', nls);
 simulatePackedProblem(prob_00);
-[ws00, states00] = getPackedSimulatorOutput(prob_00);
+%[ws00, states00] = getPackedSimulatorOutput(prob_00);
 
 % % 6.2 Diffusion only
 model_D  = createModel(true, false);
 prob_D   = packSimulationProblem(state0, model_D, schedule, ...
     [baseName '_diffOnly'], 'NonLinearSolver', nls);
-simulatePackedProblem(prob_D,'RestartStep',123);
+simulatePackedProblem(prob_D,'RestartStep',1);
 [wsD, statesD] = getPackedSimulatorOutput(prob_D);
 % 
 % % 6.3 Dispersion only

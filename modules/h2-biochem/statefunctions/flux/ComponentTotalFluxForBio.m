@@ -15,9 +15,9 @@ classdef ComponentTotalFluxForBio < ComponentTotalFlux
             if isprop(model, 'molecularDispersion') && model.molecularDispersion
                 sf = sf.dependsOn('ComponentTotalMolecularDispFlux');
             end
-            % if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
-            %     sf = sf.dependsOn('ComponentTotalMolecularDiffFlux');
-            % end
+            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
+                sf = sf.dependsOn('ComponentTotalMolecularDiffFlux');
+            end
 
             sf.label = 'V_i';
         end
