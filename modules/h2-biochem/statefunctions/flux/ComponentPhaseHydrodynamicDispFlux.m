@@ -226,6 +226,7 @@ function Dij_ref = localBinaryDiffusionReference(sf, model, paramLJ)
     % --- Fixed: Changed from 1.858e-3 (cm²/s) to 1.858e-7 (m²/s) ---
     const = 1.858e-7;
     Dij_ref = zeros(ncomp);
+    fTref = sf.Tref^1.75;   % temperature factor at reference conditions
     for i = 1:ncomp
         for j = 1:ncomp
             if i == j, Dij_ref(i,j) = inf; continue; end
@@ -234,7 +235,7 @@ function Dij_ref = localBinaryDiffusionReference(sf, model, paramLJ)
             
             % --- Fixed: Correct Chapman-Enskog mass relationship: sqrt(1/Mi + 1/Mj) ---
             sqrtMass = sqrt((1.0 / Molmass(i)) + (1.0 / Molmass(j)));
-            Dij_ref(i,j) = const * sqrtMass / sigma_ij2;
+            Dij_ref(i,j) = const * fTref*sqrtMass / sigma_ij2;
         end
     end
     Dij_ref = 0.5 * (Dij_ref + Dij_ref.');
