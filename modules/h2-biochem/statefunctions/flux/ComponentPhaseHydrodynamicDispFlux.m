@@ -159,7 +159,7 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                             D_i = tau_MQ .* Di_mix;                % no rho
                         end
                         D_i = max(D_i, sf.minDiffusivity);
-                        D_n = D_n + op.faceAvg(D_i)./phi_f;
+                        D_n = D_n + op.faceAvg(D_i);
                         D_n = D_n;
                     end
                     % Final face flux – rho applied once
