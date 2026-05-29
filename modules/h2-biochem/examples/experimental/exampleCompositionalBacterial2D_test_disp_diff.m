@@ -128,6 +128,11 @@ subplot(2,2,3); plotCellData(model0.G, statesDp{end}.rock.poro); title('Dispersi
 subplot(2,2,4); plotCellData(model0.G, statesDD{end}.rock.poro); title('Both Diff & Disp');
 sgtitle('Final Porosity');
 
+%% 9. Loss
+plotH2Loss(model_00, schedule, states00,ws00);
+plotH2Loss(model_D, schedule, statesD,wsD);
+plotH2Loss(model_Dp, schedule, statesDp,wsDp);
+plotH2Loss(model_DD, schedule, statesDD,wsDD);
 %% Copyright notice
 % <html>
 % <p><font size="-1">
