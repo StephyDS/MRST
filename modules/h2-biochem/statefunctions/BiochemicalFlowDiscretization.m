@@ -15,21 +15,16 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             props = props.setStateFunction('ComponentTotalFlux', ...
                 ComponentTotalFluxForBio(model));
 
-            % Optionally register dispersion state functions
-            if isprop(model, 'molecularDispersion') && model.molecularDispersion
+            % Optionally register dispersion or diffusion state functions
+            dispEffects = (isprop(model, 'molecularDispersion') && model.molecularDispersion)||...
+                (isprop(model, 'molecularDiffusion') && model.molecularDiffusion);
+            if dispEffects
                 props = props.setStateFunction('ComponentTotalMolecularDispFlux', ...
                     ComponentTotalMolecularDispFlux(model));
                 props = props.setStateFunction('ComponentPhaseHydrodynamicDispFlux', ...
                     ComponentPhaseHydrodynamicDispFlux(model));
             end
 
-            % Optionally register diffusion state functions
-            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
-                props = props.setStateFunction('ComponentTotalMolecularDispFlux', ...
-                    ComponentTotalMolecularDispFlux(model));
-                props = props.setStateFunction('ComponentPhaseHydrodynamicDispFlux', ...
-                    ComponentPhaseHydrodynamicDispFlux(model));
-            end
             if model.bacteriamodel
                 % Ensure Porosity exists in FlowDiscretization for diffusion (also when no clogging)
                 props = props.setStateFunction('Porosity', PorosityFromRock(model));

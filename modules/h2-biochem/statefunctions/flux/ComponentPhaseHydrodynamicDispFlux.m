@@ -100,12 +100,15 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
             end
             % --- Output initialisation ------------------------------------------
             J = cell(ncomp, nph); [J{:}] = deal(0);
+            Jdiff = cell(ncomp, nph); [Jdiff{:}] = deal(0);
+            Jdisp = cell(ncomp, nph); [Jdisp{:}] = deal(0);
+            
             % --- Phase loop ----------------------------------------------------
             for ph = 1:nph
                 rho_f = op.faceAvg(ifcell(rho, ph));
                 s = model.getProp(state, ['s', nm(ph)]);
                 % >>> DISPERSION PART <<<
-                D_disp = 0;   % face‑wise dispersion coefficient
+                %D_disp = 0;   % face‑wise dispersion coefficient
                 if isprop(model, 'molecularDispersion') && model.molecularDispersion
                     u_vol_full = ifcell(phase_flux, ph);
                     if size(u_vol_full, 1) == G.faces.num
@@ -139,7 +142,7 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                 for c = 1:ncomp
                     z = pick_mole_frac(ph, L_ix, V_ix, xc{c}, yc{c});
                     grad_z_n = op.Grad(z) ./ dist_ij;   % Δz/Δx
-                    D_n = D_disp;
+                    %D_n = D_disp;
                     if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
                         if ph == L_ix
                             D_i = tau_MQ .* Dliq_ref(c);          % no rho
@@ -159,11 +162,16 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                             D_i = tau_MQ .* Di_mix;                % no rho
                         end
                         D_i = max(D_i, sf.minDiffusivity);
-                        D_n = D_n + op.faceAvg(D_i)./phi_f;
-                        D_n = D_n;
+                        D_n = op.faceAvg(D_i);
+                        %D_n = D_n + op.faceAvg(D_i);
+                        %D_n = D_n;
+                        Jdiff{c, ph} = - rho_f.* A_int .* D_n .* grad_z_n;
+                    end
+                    if isprop(model, 'molecularDispersion') && model.molecularDispersion
+                        Jdisp{c, ph} = - rho_f .* phi_f .* A_int .* D_disp .* grad_z_n;
                     end
                     % Final face flux – rho applied once
-                    J{c, ph} = - rho_f .* phi_f .* A_int .* D_n .* grad_z_n;
+                    J{c, ph} = Jdiff{c, ph} + Jdisp{c, ph};
                 end
             end
         end

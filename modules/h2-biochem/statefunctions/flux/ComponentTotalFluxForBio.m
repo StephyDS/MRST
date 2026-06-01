@@ -12,13 +12,11 @@ classdef ComponentTotalFluxForBio < ComponentTotalFlux
             sf = sf@ComponentTotalFlux(model, varargin{:});
 
             % Add optional dependencies for the extra physics
-            if isprop(model, 'molecularDispersion') && model.molecularDispersion
+            dispEffects = (isprop(model, 'molecularDispersion') && model.molecularDispersion)||...
+                (isprop(model, 'molecularDiffusion') && model.molecularDiffusion);
+            if dispEffects
                 sf = sf.dependsOn('ComponentTotalMolecularDispFlux');
             end
-            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
-                sf = sf.dependsOn('ComponentTotalMolecularDispFlux');
-            end
-
             sf.label = 'V_i';
         end
 
@@ -28,26 +26,17 @@ classdef ComponentTotalFluxForBio < ComponentTotalFlux
 
             ncomp = numel(v);   % number of components
 
-            % 2. Optionally add mechanical dispersion
-            dispEffects = (isprop(model, 'molecularDispersion') && model.molecularDispersion)||(isprop(model, 'molecularDiffusion') && model.molecularDiffusion);
+            % 2. Optionally add mechanical dispersion or diffusion
+            dispEffects = (isprop(model, 'molecularDispersion') && model.molecularDispersion)||...
+                (isprop(model, 'molecularDiffusion') && model.molecularDiffusion);
             if dispEffects
-                Jdisp = sf.getEvaluatedDependencies(state, 'ComponentTotalMolecularDispFlux');
+                Jdispdiff = sf.getEvaluatedDependencies(state, 'ComponentTotalMolecularDispFlux');
                 for c = 1:ncomp
-                    if numel(Jdisp) >= c && ~isempty(Jdisp{c})
-                        v{c} = v{c} + Jdisp{c};
+                    if numel(Jdispdiff) >= c && ~isempty(Jdispdiff{c})
+                        v{c} = v{c} + Jdispdiff{c};
                     end
                 end
             end
-
-            % 3. Optionally add molecular diffusion
-            % if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
-            %     Jdiff = sf.getEvaluatedDependencies(state, 'ComponentTotalMolecularDiffFlux');
-            %     for c = 1:ncomp
-            %         if numel(Jdiff) >= c && ~isempty(Jdiff{c})
-            %             v{c} = v{c} + Jdiff{c};
-            %         end
-            %     end
-            % end
         end
     end
 end
