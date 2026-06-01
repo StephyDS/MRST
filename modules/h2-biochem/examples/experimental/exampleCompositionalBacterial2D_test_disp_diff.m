@@ -90,14 +90,14 @@ simulatePackedProblem(prob_00);
 model_D  = createModel(true, false);
 prob_D   = packSimulationProblem(state0, model_D, schedule, ...
     [baseName '_diffOnly'], 'NonLinearSolver', nls);
-simulatePackedProblem(prob_D,'RestartStep',55);
+simulatePackedProblem(prob_D,'RestartStep',1);
 [wsD, statesD] = getPackedSimulatorOutput(prob_D);
 % 
 % % 6.3 Dispersion only
 model_Dp = createModel(false, true);
 prob_Dp  = packSimulationProblem(state0, model_Dp, schedule, ...
     [baseName '_dispOnly'], 'NonLinearSolver', nls);
-simulatePackedProblem(prob_Dp, 'RestartStep',1);
+simulatePackedProblem(prob_Dp,'RestartStep',1);
 [wsDp, statesDp] = getPackedSimulatorOutput(prob_Dp);
 
 % 6.4 Both diffusion and dispersion

@@ -99,7 +99,7 @@ scenarios{end+1} = struct('name','No Diff, No Disp', 'states',{st00}, 'color',[0
 model_Diff = createModel(true, false);
 probDiff = packSimulationProblem(state0, model_Diff, schedule, 'bio_diffOnly');
 probDiff.SimulatorSetup.model.OutputStateFunctions{end} = 'ComponentPhaseMass';
-simulatePackedProblem(probDiff);
+simulatePackedProblem(probDiff,'RestartStep',1);
 [~, stDiff] = getPackedSimulatorOutput(probDiff);
 scenarios{end+1} = struct('name','Diffusion Only', 'states',{stDiff}, 'color',[0 0.7 0.7], 'line','--');
 
@@ -115,8 +115,8 @@ scenarios{end+1} = struct('name','Dispersion Only', 'states',{stDisp}, 'color',[
 model_Both = createModel(true, true);
 probBoth = packSimulationProblem(state0, model_Both, schedule, 'bio_diffAndDisp');
 probBoth.SimulatorSetup.model.OutputStateFunctions{end} = 'ComponentPhaseMass';
-simulatePackedProblem(probBoth);
-[~, stBoth] = getPackedSimulatorOutput(probBoth, 'RestartStep',1);
+simulatePackedProblem(probBoth,'RestartStep',1);
+[~, stBoth] = getPackedSimulatorOutput(probBoth);
 scenarios{end+1} = struct('name','Both Diff & Disp', 'states',{stBoth}, 'color',[0 0 0], 'line','-');
 
 %% 4. Compare scenarios

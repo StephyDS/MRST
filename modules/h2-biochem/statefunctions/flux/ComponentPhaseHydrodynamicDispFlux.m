@@ -20,7 +20,7 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
         Tref = 273.15 + 40;               % [K]
         pref = 101325;                     % [Pa] (1 atm)
         tortuosityExponent = 7/3;          % Millington–Quirk exponent
-        gasDiffExponent = 1.75;            % Chapman–Enskog temperature exponent (7/4)
+        gasDiffExponent = 1.5;            % Chapman–Enskog temperature exponent (7/4)
         defaultLiquidDiffusivity = 1e-9;   % [m²/s]
         minDiffusivity = 1e-15;            % reasonable floor for diffusivities
         % Lennard–Jones defaults for unknown components
@@ -160,7 +160,6 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                         end
                         D_i = max(D_i, sf.minDiffusivity);
                         D_n = D_n + op.faceAvg(D_i);
-                        D_n = D_n;
                     end
                     % Final face flux – rho applied once
                     J{c, ph} = - rho_f .* phi_f .* A_int .* D_n .* grad_z_n;
@@ -226,7 +225,7 @@ function Dij_ref = localBinaryDiffusionReference(sf, model, paramLJ)
     % --- Fixed: Changed from 1.858e-3 (cm²/s) to 1.858e-7 (m²/s) ---
     const = 1.858e-7;
     Dij_ref = zeros(ncomp);
-    fTref = sf.Tref^1.75;   % temperature factor at reference conditions
+    fTref = sf.Tref^1.5;   % temperature factor at reference conditions
     for i = 1:ncomp
         for j = 1:ncomp
             if i == j, Dij_ref(i,j) = inf; continue; end
