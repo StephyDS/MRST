@@ -142,7 +142,7 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                     D_n = D_disp;
                     if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
                         if ph == L_ix
-                            D_i = tau_MQ .* Dliq_ref(c);          % no rho
+                            D_i = s.*tau_MQ .* Dliq_ref(c);          % no rho
                         else
                             invDi = 0;
                             yAll = model.getProps(state, 'y');
@@ -156,7 +156,7 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                             % --- Fixed: Standard Wilke Multi-component Numerator (1 - yc) ---
                             yc_curr = localGetComponentVector(yAll, c);
                             Di_mix = max(1 - yc_curr, 1e-6) ./ max(invDi, sf.minDiffusivity);
-                            D_i = tau_MQ .* Di_mix;                % no rho
+                            D_i = s.*tau_MQ .* Di_mix;                % no rho
                         end
                         D_i = max(D_i, sf.minDiffusivity);
                         D_n = D_n + op.faceAvg(D_i);
