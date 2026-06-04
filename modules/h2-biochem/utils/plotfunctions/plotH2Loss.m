@@ -1,4 +1,4 @@
-function plotH2Loss(model, schedule, states, ws)
+function [H2Loss,cumInjected,cumProduced] = plotH2Loss(model, schedule, states, ws)
 % plotH2Loss  Compute and plot cumulative H2 loss (% of total introduced)
 %
 %   Uses the well's built-in .H2 field (kg/s) which is:
@@ -48,6 +48,7 @@ initialMass    = currentMass(1);
 totalIntroduced = initialMass + cumInjected;
 consumed        = totalIntroduced - cumProduced - currentMass;   % bacterial consumption
 lossPercent     = max(0, 100 * consumed ./ max(totalIntroduced, 1e-12));
+H2Loss=lossPercent;
 
 % ----- Diagnostic plot -----
 figure;

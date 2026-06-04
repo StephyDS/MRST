@@ -131,7 +131,7 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                 % >>> DIFFUSION PART <<<
                 if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
                     phiS = phi .* s;
-                    tau_MQ = (phiS).^(sf.tortuosityExponent) .* (max(phi, sf.minPorosity)).^(-2);
+                    tau_MQ = s.*(phiS).^(sf.tortuosityExponent) .* (max(phi, sf.minPorosity)).^(-2);
                 else
                     tau_MQ = [];
                 end
