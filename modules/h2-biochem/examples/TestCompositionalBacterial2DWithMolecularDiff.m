@@ -54,7 +54,9 @@ state0Base = convertBlackOilStateToCompositional(modelBo, state0Bo);
 %% Mixture + EOS
 compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Methane'}, ...
     {'H2O',   'H2',      'CO2',           'C1'});
-EOS = EquationOfStateModel([], compFluid, 'sw');
+biochemFluid = TableBioChemMixture({'MethanogenicArchae'});
+
+EOS = SoreideWhitsonEos(G, compFluid);
 
 nc = G.cells.num;
 T0 = 273.15 + 44.35;
@@ -95,14 +97,14 @@ fluidStatic = fluid0;
 fluidStatic.pvMultR = @(p, nbact) 1;
 
 %% Run all 6 cases
-pA_off = runCase([baseName '_A_CLOG_MD_OFF'],  G, rockA,      fluidA,      compFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, true,  false, nbact0);
-pA_on  = runCase([baseName '_A_CLOG_MD_ON'],   G, rockA,      fluidA,      compFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, true,  true,  nbact0);
+pA_off = runCase([baseName '_A_CLOG_MD_OFF'],  G, rockA,      fluidA,      compFluid, biochemFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, true,  false, nbact0);
+pA_on  = runCase([baseName '_A_CLOG_MD_ON'],   G, rockA,      fluidA,      compFluid, biochemFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, true,  true,  nbact0);
 
-pB_off = runCase([baseName '_B_NOCLG_MD_OFF'], G, rockStatic, fluidStatic, compFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, true,  false, nbact0);
-pB_on  = runCase([baseName '_B_NOCLG_MD_ON'],  G, rockStatic, fluidStatic, compFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, true,  true,  nbact0);
+pB_off = runCase([baseName '_B_NOCLG_MD_OFF'], G, rockStatic, fluidStatic, compFluid, biochemFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, true,  false, nbact0);
+pB_on  = runCase([baseName '_B_NOCLG_MD_ON'],  G, rockStatic, fluidStatic, compFluid, biochemFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, true,  true,  nbact0);
 
 %pC_off = runCase([baseName '_C_NOBAC_MD_OFF'], G, rockStatic, fluidStatic, compFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, false, false, 0);
-pC_on  = runCase([baseName '_C_NOBAC_MD_ON'],  G, rockStatic, fluidStatic, compFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, false, true,  0);
+pC_on  = runCase([baseName '_C_NOBAC_MD_ON'],  G, rockStatic, fluidStatic, compFluid, biochemFluid, EOS, modelBo.gravity, state0Base, comp0, schedule, nls, false, true,  0);
 
 %% Extract results
 [wsA_off, stA_off] = getPackedSimulatorOutput(pA_off);
@@ -131,13 +133,13 @@ figure('Name','Wells C OFF vs ON','Color','w'); plotWellSols({wsC_off, wsC_on});
 %% Optional: save problems so you can plot later without rerunning
 save('mdiffPackedProblems.mat', 'pA_off','pA_on','pB_off','pB_on','pC_off','pC_on');
 
-function problem = runCase(caseName, G, rock, fluid, compFluid, EOS, gravity, state0Base, comp0, schedule, nls, bacteriamodel, mdiff, nbact0)
+function problem = runCase(caseName, G, rock, fluid, compFluid, biochemFluid, EOS, gravity, state0Base, comp0, schedule, nls, bacteriamodel, mdiff, nbact0)
 fprintf('Running case: %s\n', caseName);
 
 backend = DiagonalAutoDiffBackend('modifyOperators', true);
 
 model = BiochemistryModel( ...
-    G, rock, fluid, compFluid, ...
+    G, rock, fluid, compFluid, biochemFluid, ...
     false, backend, ...
     'oil', true, 'gas', true, ...
     'bacteriamodel', bacteriamodel, ...

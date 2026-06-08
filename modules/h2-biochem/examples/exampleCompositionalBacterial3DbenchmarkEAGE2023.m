@@ -43,6 +43,8 @@ rock = makeRock(G, perm, 0.2);
 %% Fluid Properties
 compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Methane'}, ...
                                       {'H2O', 'H2', 'CO2', 'C1'});
+biochemFluid = TableBioChemMixture({'MethanogenicArchae'});
+
 
 [rhow, rhog]   = deal(999.7 * kilogram/meter^3, 1.2243 * kilogram/meter^3);
 [viscow, viscog] = deal(1.3059 * centi*poise, 0.01763 * centi*poise);
@@ -115,7 +117,7 @@ s0 = [0.2, 0.8];
 z0 = [0.7, 0.0, 0.02, 0.28];
 
 %% --- Simulation 1: Without bacteria ---
-arg = {G, rock, fluid, compFluid, true, backend, ...
+arg = {G, rock, fluid, compFluid, biochemFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
     'bacteriamodel', false, ...
     'liquidPhase', 'O', 'vaporPhase', 'G'};
@@ -131,19 +133,19 @@ nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ...
     'Benchmark_NoBacteria', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_nobact);
+simulatePackedProblem(problem_nobact,'restartStep', 1);
 [ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
 results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
 %% --- Simulation 2: With bacteria ---
-model_bact = BiochemistryModel(G, rock, fluid, compFluid, true, backend, ...
+model_bact = BiochemistryModel(G, rock, fluid, compFluid, biochemFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
     'bacteriamodel', true, ...
     'liquidPhase', 'O', 'vaporPhase', 'G');
 model_bact.outputFluxes = false;
 model_bact.EOSModel = compEOS;
 
-nbact0 = 1; model_bact.nbactMax = 1e8;
+nbact0 = 1; model_bact.biochemFluid.nbactMax = 1e8;
 state0_bact = initCompositionalStateBacteria(model_bact, P0, T0, s0, z0, nbact0, compEOS);
 
 lsolve = selectLinearSolverAD(model_bact);
@@ -151,17 +153,17 @@ nls.LinearSolver = lsolve;
 
 problem_bact = packSimulationProblem(state0_bact, model_bact, schedule, ...
     'Benchmark_Bacteria', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_bact);
+simulatePackedProblem(problem_bact,'restartStep', 1);
 [ws_bact, states_bact] = getPackedSimulatorOutput(problem_bact);
 results_bact = postProcessResults(states_bact, ws_bact, model_bact, 'bact');
 
 %% --- Efficiency and Comparison ---
 eff_nobact = calculateH2Efficiency(results_nobact.H2_well, ...
-    nbuildUp, nrest, ninject, nidle, nprod, ncycles);
+    nbuildUp, nrest, ninject, nidle, nprod, ncycles,nidle1);
 fprintf('H2 Production Efficiency (No bacteria): %.2f%%\n', eff_nobact);
 
 eff_bact = calculateH2Efficiency(results_bact.H2_well, ...
-    nbuildUp, nrest, ninject, nidle, nprod, ncycles);
+    nbuildUp, nrest, ninject, nidle, nprod, ncycles,nidle1);
 fprintf('H2 Production Efficiency (With bacteria): %.2f%%\n', eff_bact);
 
 % Component changes
@@ -240,7 +242,7 @@ results.caseType = caseType;
 end
 
 %% Efficiency Calculation Function
-function efficiency = calculateH2Efficiency(H2_well, nbuildUp, nrest, ninject, nidle, nprod, ncycles)
+function efficiency = calculateH2Efficiency(H2_well, nbuildUp, nrest, ninject, nidle, nprod, ncycles,nidle1)
 % Calculate H2 production efficiency
 %
 % Parameters:
@@ -249,7 +251,7 @@ function efficiency = calculateH2Efficiency(H2_well, nbuildUp, nrest, ninject, n
 %   ncycles - Number of cycles
 
 ndeb0 = nbuildUp + nrest;
-njcycle = ninject + nidle + nprod;
+njcycle = ninject + nidle + nprod+nidle1;
 
 mH2_injected = sum(H2_well(1:nbuildUp));
 mH2_produced = 0.0;
