@@ -104,6 +104,7 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
             for ph = 1:nph
                 rho_f = op.faceAvg(ifcell(rho, ph));
                 s = model.getProp(state, ['s', nm(ph)]);
+                s_f = op.faceAvg(s);
                 % >>> DISPERSION PART <<<
                 D_disp = 0;   % face‑wise dispersion coefficient
                 if isprop(model, 'molecularDispersion') && model.molecularDispersion
@@ -120,7 +121,7 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                         unorm_sq  = unorm_sq + u_face{d}.^2;
                     end
                     unorm = (unorm_sq + 1e-12).^0.5;   % smooth sqrt
-                    v_pore = unorm ./ phi_f;            % interstitial velocity
+                    v_pore = unorm ./ (phi_f.*s_f+sf.minPorosity);            % interstitial velocity
                     u_dot_n = 0;
                     for d = 1:dim
                         u_dot_n = u_dot_n + (u_face{d} ./ unorm) .* n_unit(:, d);
@@ -142,7 +143,7 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                     D_n = D_disp;
                     if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
                         if ph == L_ix
-                            D_i = s.*tau_MQ .* Dliq_ref(c);          % no rho
+                            D_i = tau_MQ .* Dliq_ref(c);          % no rho
                         else
                             invDi = 0;
                             yAll = model.getProps(state, 'y');
@@ -156,13 +157,13 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                             % --- Fixed: Standard Wilke Multi-component Numerator (1 - yc) ---
                             yc_curr = localGetComponentVector(yAll, c);
                             Di_mix = max(1 - yc_curr, 1e-6) ./ max(invDi, sf.minDiffusivity);
-                            D_i = s.*tau_MQ .* Di_mix;                % no rho
+                            D_i = tau_MQ .* Di_mix;                % no rho
                         end
                         D_i = max(D_i, sf.minDiffusivity);
                         D_n = D_n + op.faceAvg(D_i);
                     end
                     % Final face flux – rho applied once
-                    J{c, ph} = - rho_f .* phi_f .* A_int .* D_n .* grad_z_n;
+                    J{c, ph} = - rho_f .* phi_f .*s_f .* A_int .* D_n .* grad_z_n;
                 end
             end
         end
