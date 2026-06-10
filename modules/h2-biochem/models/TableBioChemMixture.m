@@ -1,126 +1,120 @@
 classdef TableBioChemMixture
-    % Create MRST parameters lis for biochemical reaction from name
+    % Biochemical reaction parameters for a mixture of microorganisms.
+    %
+    % SYNOPSIS:
+    %   biochem = TableBioChemMixture({'MethanogenicArchae'});
+    %
+    % PARAMETERS:
+    %   names - Cell array of valid reaction names. Use
+    %           TableBioChemMixture.getFluidList() to see allowed names.
+    %
+    % RETURNS:
+    %   biochem - Instance with populated property vectors (one entry per
+    %             reaction). All vectors are row vectors of length N.
+    %
+    % SEE ALSO:
+    %   bioChemFluidsStructs
+
     properties
-        metabolicReaction % name of bioreactions :'MethanogenicArchae','SulfateReducingBacteria'
-        rH2 %  Names of bioreactions reactants
-        rsub
-        pH2O%  Names of bioreactions products
-        p2
-        gamrH2 %  Associated Stoichiometric coefficients
-        gamrsub
-        gampH2O
-        gamp2
-        Y_H2 %  Yield coefficient
-        alphaH2 %  Half-saturation constant for H2
-        alphasub %  Half-saturation constant for substrate (CO2 or SO4)
-        Psigrowthmax %  Maximum growth rate
-        bbact %  Constant decay rate
-        nbactMax  %  Maximum number of microorganisms per volume
-        nbioreact %number of metabolic reactions
-        
+        metabolicReaction   % Names of the metabolic reactions (1 x N string)
+        rH2                 % Reactant name – H2 (1 x N string)
+        rsub                % Reactant name – substrate (CO2, SO4, etc.)
+        pH2O                % Product name – water
+        p2                  % Product name – second product (e.g., CH4, H2S)
+        gamrH2              % Stoichiometric coefficient for H2
+        gamrsub             % Stoichiometric coefficient for substrate
+        gampH2O             % Stoichiometric coefficient for water
+        gamp2               % Stoichiometric coefficient for second product
+        Y_H2                % Yield coefficient (cells/mol H2)
+        alphaH2             % Half‑saturation constant for H2 (mol/mol)
+        alphasub            % Half‑saturation constant for substrate (mol/mol)
+        Psigrowthmax        % Maximum specific growth rate (1/s)
+        bbact               % Decay rate constant (1/s)
+        nbactMax            % Maximum microorganism concentration (1/m³)
+    end
+
+    properties (Dependent)
+        nbioreact           % Number of metabolic reactions
     end
 
     methods
-        function biochemmix = TableBioChemMixture(cnames)
-            % Create fluid biochemical reaction from metabolicReaction name
-            %
-            % SYNOPSIS:
-            %   f = TableBioChemMixture({'MethanogenicArchae'});
-            %
-            % PARAMETERS:
-            %   names    - Cell array of valid names. See `getFluidList` for
-            %              valid names.
-            %              (optional).
-            % RETURNS:
-            %   biochemmix - Initialized bacteria mixture.
-            if ischar(cnames)
-                cnames = {cnames};
+        function biochem = TableBioChemMixture(names)
+            % Constructor for TableBioChemMixture.
+            if nargin == 0
+                names = {};
             end
-                     
-            nbioreact = numel(cnames);
-            [metabolicReaction,rH2,rsub,pH2O,p2]=deal(strings(1,nbioreact));
-            [gamrH2,gamrsub,gampH2O,gamp2,Y_H2,alphaH2,alphasub,...
-                Psigrowthmax,bbact,nbactMax] = deal(zeros(1, nbioreact));
-
-            biochemfluids = bioChemFluidsStructs();
-            validChoices = TableBioChemMixture.getFluidList();
-
-            ok = ismember(lower(cnames), lower(validChoices));
-
-            if ~all(ok)
-                s ='Unable to create bioreaction paramaters. The following names were not known: ';
-                msg = [s, sprintf('%s ', cnames{~ok})];
-                error(msg);
+            if ischar(names) || isstring(names)
+                names = {char(names)};
             end
 
-            for i = 1:numel(cnames)
-                isF = strcmpi(cnames{i}, validChoices);
-                str = biochemfluids(isF);
-                metabolicReaction(i)=str.metabolicReaction;
-                rH2(i)=str.rH2;
-                rsub(i)=str.rsub;
-                pH2O(i)=str.pH2O;
-                p2(i)=str.p2;
-                gamrH2(i) = str.gamrH2;
-                gamrsub(i) = str.gamrsub;
-                gampH2O(i) = str.gampH2O;
-                gamp2(i) = str.gamp2;
-                Y_H2(i) = str.Y_H2;
-                alphaH2(i) = str.alphaH2;
-                alphasub(i) = str.alphasub;
-                Psigrowthmax(i) = str.Psigrowthmax;
-                bbact(i) = str.bbact;
-                nbactMax(i) = str.nbactMax;
+            % Load the database of known reactions
+            allReactions = bioChemFluidsStructs();
+            validNames   = {allReactions.metabolicReaction};
+
+            % Validate input
+            [isValid, idx] = ismember(lower(names), lower(validNames));
+            if ~all(isValid)
+                invalid = names(~isValid);
+                error('TableBioChemMixture:UnknownReaction', ...
+                      ['The following reaction names are not recognized: ', ...
+                       strjoin(invalid, ', ')]);
             end
 
-            biochemmix.metabolicReaction=metabolicReaction;
-            biochemmix.rH2=rH2 ;
-            biochemmix.rsub=rsub;
-            biochemmix.pH2O=pH2O;
-            biochemmix.p2=p2;
-            biochemmix.gamrH2=gamrH2;
-            biochemmix.gamrsub=gamrsub;
-            biochemmix.gampH2O=gampH2O;
-            biochemmix.gamp2=gamp2;
-            biochemmix.Y_H2=Y_H2;
-            biochemmix.alphaH2=alphaH2;
-            biochemmix.alphasub=alphasub ;
-            biochemmix.Psigrowthmax=Psigrowthmax;
-            biochemmix.bbact=bbact ;
-            biochemmix.nbactMax=nbactMax;
-            biochemmix.nbioreact=nbioreact;
+            N = numel(names);
+            % Initialize property vectors
+            biochem.metabolicReaction = strings(1, N);
+            biochem.rH2      = strings(1, N);
+            biochem.rsub     = strings(1, N);
+            biochem.pH2O     = strings(1, N);
+            biochem.p2       = strings(1, N);
+            biochem.gamrH2   = zeros(1, N);
+            biochem.gamrsub  = zeros(1, N);
+            biochem.gampH2O  = zeros(1, N);
+            biochem.gamp2    = zeros(1, N);
+            biochem.Y_H2     = zeros(1, N);
+            biochem.alphaH2  = zeros(1, N);
+            biochem.alphasub = zeros(1, N);
+            biochem.Psigrowthmax = zeros(1, N);
+            biochem.bbact    = zeros(1, N);
+            biochem.nbactMax = zeros(1, N);
+
+            % Fill from database
+            for i = 1:N
+                entry = allReactions(idx(i));
+                biochem.metabolicReaction(i) = entry.metabolicReaction;
+                biochem.rH2(i)      = entry.rH2;
+                biochem.rsub(i)     = entry.rsub;
+                biochem.pH2O(i)     = entry.pH2O;
+                biochem.p2(i)       = entry.p2;
+                biochem.gamrH2(i)   = entry.gamrH2;
+                biochem.gamrsub(i)  = entry.gamrsub;
+                biochem.gampH2O(i)  = entry.gampH2O;
+                biochem.gamp2(i)    = entry.gamp2;
+                biochem.Y_H2(i)     = entry.Y_H2;
+                biochem.alphaH2(i)  = entry.alphaH2;
+                biochem.alphasub(i) = entry.alphasub;
+                biochem.Psigrowthmax(i) = entry.Psigrowthmax;
+                biochem.bbact(i)    = entry.bbact;
+                biochem.nbactMax(i) = entry.nbactMax;
+            end
+        end
+
+        function n = get.nbioreact(biochem)
+            n = numel(biochem.metabolicReaction);
         end
     end
 
     methods (Static)
         function varargout = getFluidList()
-            biochemfluids = bioChemFluidsStructs();
-            cnames = {biochemfluids.metabolicReaction};
-            if nargout > 0
-                varargout{1} = cnames;
+            % Return list of available metabolic reaction names.
+            allReactions = bioChemFluidsStructs();
+            names = {allReactions.metabolicReaction};
+            if nargout == 0
+                disp('Available biochemical reactions:');
+                fprintf('  %s\n', names{:});
             else
-                disp('Possible biochemfluids choices are:');
-                fprintf('%s\n', cnames{:});
+                varargout{1} = names(:)';   % row cell array
             end
         end
     end
 end
-
-%{
-Copyright 2009-2024 SINTEF Digital, Mathematics & Cybernetics.
-
-This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
-
-MRST is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-MRST is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with MRST.  If not, see <http://www.gnu.org/licenses/>.
-%}
