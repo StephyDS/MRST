@@ -34,23 +34,16 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         % Compositional fluid mixture
         compFluid
 
-         %parameters for biochemical reactions
+        %parameters for biochemical reactions
         biochemFluid
 
         % Physical quantities and bounds
-        %Y_H2 = 3.90875e11;               % 1/mole(H2)
         gammak   = [];                    % Stoichiometric coefficients
-        %alphaH2  = 3.6e-7;
-        %alphaCO2 = 1.98e-6;
-
-        %Psigrowthmax = 1.338e-4;         % 1/s
-        %b_bact       = 2.35148e-6;       % 1/s
-        %nbactMax     = 1e9;              % 1/m^3
-
         bacteriamodel = true;
-        %metabolicReaction = 'MethanogenicArchae';
+        bact_capProp = 1.e-3; %3.e0 model.capProperty
         molecularDiffusion = false;
         molecularDispersion = false;
+        bactdiffusion = false; %Microbial diffusion
     end
 
     methods
@@ -170,6 +163,9 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 flowprops = flowprops.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('PsiDecayRate',  DecayBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('BactConvRate',  BactConvertionRate(model));
+                if model.bactdiffusion
+                   flowprops = flowprops.setStateFunction('BactFlux',  DiffusiveBactFlux(model)); 
+                end 
             end
 
             pvt = pvtprops.getRegionPVT(model);
@@ -262,6 +258,9 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
                 beqs{1} = beqs{1} - src_growthdecay;
+                if (model.bactdiffusion)
+                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});% Assemble equations
+                end
             else
                 [beqs, bnames, btypes] = deal([]);
             end
@@ -469,7 +468,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         function [state, report] = updateState(model, state, problem, dz, drivingForces)
             [state, report] = updateState@GenericOverallCompositionModel(model, state, problem, dz, drivingForces);
             if model.bacteriamodel
-                state = model.capProperty(state, 'nbact', 3.0e0, 120);
+                state = model.capProperty(state, 'nbact', model.bact_capProp, 120);
 
                 state = model.capProperty(state, 's', 1.0e-8, 1);
                 state.components = ensureMinimumFraction(state.components, model.EOSModel.minimumComposition);

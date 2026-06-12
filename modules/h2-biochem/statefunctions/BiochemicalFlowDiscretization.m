@@ -53,6 +53,9 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                 props = props.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 props = props.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
                 props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
+                props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
+                
+            
             end
         end
 
@@ -71,9 +74,16 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             % Accumulation term
             acc = (bactmass - bactmass0) ./ dt;
 
+            % Add microbial diffusion contributions if present
+            bflux=[];
+            if (model.bactdiffusion)
+                flowState = fd.buildFlowState(model, state, state0, dt);
+                bflux = model.getProp(flowState, 'BactFlux');
+            end
+
             % Convert to cell arrays for AD framework
             acc   = {acc};
-            bflux = {[]};
+            bflux = {bflux};
 
             % Output variable names and types
             name = 'bacteria';
