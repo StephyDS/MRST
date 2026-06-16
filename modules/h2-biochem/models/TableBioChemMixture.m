@@ -31,7 +31,7 @@ classdef TableBioChemMixture
         Psigrowthmax        % Maximum specific growth rate (1/s)
         bbact               % Decay rate constant (1/s)
         nbactMax            % Maximum microorganism concentration (1/m³)
-        bactdiff %microbial diffusion coefficient
+        bactdiff            % microbial diffusion coefficient
     end
 
     properties (Dependent)

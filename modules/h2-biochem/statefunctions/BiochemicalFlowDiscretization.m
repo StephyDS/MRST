@@ -49,12 +49,17 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                         DynamicFlowPoreVolume(model, 'Porosity'));
                 end
 
+               % if model.bactDiffusion
+                    props = props.setStateFunction('MicrobialDiffusivity', MicrobialDiffusivity(model));
+                    props = props.setStateFunction('MicrobialTransmissibility', ...
+                        DynamicFlowTransmissibility(model, 'MicrobialDiffusivity'));
+                    props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
+                %end
+              % end
                 % Add microbial state functions
                 props = props.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 props = props.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
                 props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
-                props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
-                
             
             end
         end
@@ -76,7 +81,7 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
 
             % Add microbial diffusion contributions if present
             bflux=[];
-            if (model.bactdiffusion)
+            if (model.bactDiffusion)
                 flowState = fd.buildFlowState(model, state, state0, dt);
                 bflux = model.getProp(flowState, 'BactFlux');
             end

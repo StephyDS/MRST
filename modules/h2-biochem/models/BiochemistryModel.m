@@ -40,10 +40,10 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         % Physical quantities and bounds
         gammak   = [];                    % Stoichiometric coefficients
         bacteriamodel = true;
-        bact_capProp = 1.e-3; %3.e0 model.capProperty
+        bact_capProp = 1.e-3;             % Min nbact in the model 
         molecularDiffusion = false;
         molecularDispersion = false;
-        bactdiffusion = false; %Microbial diffusion
+        bactDiffusion = false;            % Microbial diffusion
     end
 
     methods
@@ -163,9 +163,12 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 flowprops = flowprops.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('PsiDecayRate',  DecayBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('BactConvRate',  BactConvertionRate(model));
-                if model.bactdiffusion
-                   flowprops = flowprops.setStateFunction('BactFlux',  DiffusiveBactFlux(model)); 
-                end 
+                flowprops = flowprops.setStateFunction('MicrobialDiffusivity', MicrobialDiffusivity(model));
+                flowprops = flowprops.setStateFunction('MicrobialTransmissibility', ...
+                    DynamicFlowTransmissibility(model, 'MicrobialDiffusivity'));
+              %  if model.bactDiffusion
+                    flowprops = flowprops.setStateFunction('BactFlux', DiffusiveBactFlux(model)); 
+           %     end 
             end
 
             pvt = pvtprops.getRegionPVT(model);
@@ -257,10 +260,10 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
-                beqs{1} = beqs{1} - src_growthdecay;
-                if (model.bactdiffusion)
+                if (model.bactDiffusion)
                     beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});% Assemble equations
                 end
+                beqs{1} = beqs{1} - src_growthdecay;
             else
                 [beqs, bnames, btypes] = deal([]);
             end
