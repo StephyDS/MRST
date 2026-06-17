@@ -40,7 +40,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         % Physical quantities and bounds
         gammak   = [];                    % Stoichiometric coefficients
         bacteriamodel = true;
-        bact_capProp = 1.e-3;             % Min nbact in the model 
+        bact_capProp = 3.0e0;             % Min nbact in the model 
         molecularDiffusion = false;
         molecularDispersion = false;
         bactDiffusion = false;            % Microbial diffusion
@@ -260,10 +260,10 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
+                beqs{1} = beqs{1} - src_growthdecay;
                 if (model.bactDiffusion)
                     beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});% Assemble equations
                 end
-                beqs{1} = beqs{1} - src_growthdecay;
             else
                 [beqs, bnames, btypes] = deal([]);
             end
@@ -433,8 +433,8 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             if model.bacteriamodel
                 ix = strcmpi(names, 'bacteria');
                 if any(ix)
-                    scaleChemistry = dt./max(chemistry, dt);
-                    scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
+                    scaleChemistry = dt./chemistry;
+                   % scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
                     scale{ix} = scaleChemistry;
                 end
             end

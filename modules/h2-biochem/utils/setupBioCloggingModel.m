@@ -1,4 +1,4 @@
-function [model, poro0, perm0] = setupBioCloggingModel(model, nbact0, nc, cp)
+function [model, poro0, perm0] = setupBioCloggingModel(model, nbact0, nc, cp, clogModel)
 % setupBioCloggingModel -- Add bio-clogging effects to a compositional model
 %
 % SYNOPSIS:
@@ -17,6 +17,7 @@ function [model, poro0, perm0] = setupBioCloggingModel(model, nbact0, nc, cp)
 %            effects become significant (scalar).
 %   cp     - Dimensionless clogging strength coefficient (scalar).
 %
+%   clogModel - use clogging model
 % RETURNS:
 %   model  - Modified model with porosity and permeability given as
 %            function handles depending on bacterial concentration.
@@ -29,7 +30,7 @@ function [model, poro0, perm0] = setupBioCloggingModel(model, nbact0, nc, cp)
 % Store original rock properties
 poro0 = model.rock.poro;
 perm0 = model.rock.perm(:, 1);
-
+if clogModel
 % Define porosity multiplier (function of bacterial concentration)
 scale = 1 + cp.*(nbact0 / nc).^2;
 pvMult_nbact = @(nbact) 1 ./ (1 + scale.*(nbact./nc).^2);
@@ -44,6 +45,13 @@ tauFun = @(p, nbact) ((1 - poro0) ./ (1 - poroFun(p, nbact))).^2 .* ...
     (poroFun(p, nbact) ./ poro0).^3;
 permFun = @(p, nbact) perm0 .* tauFun(p, nbact);
 model.rock.perm = permFun;
+else
+    model.rock.poro = poro0;
+    model.rock.perm = perm0;
+    model.fluid.pvMultR = @(p, nbact) 1;
+
+end
+
 end
 
 %{
