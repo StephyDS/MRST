@@ -33,17 +33,20 @@ classdef DecayBactRateSRC < StateFunction
             % Constructor for bacterial decay rate calculator
             gp@StateFunction(model, varargin{:});
 
-            % Define dependencies
+            % Define dependencies - kinetic coefficient based on current concentration
             gp = gp.dependsOn({'nbact'}, 'state');          % Bacterial concentration
-            gp = gp.dependsOn({'s'}, 'state');             % Phase saturations
-            gp = gp.dependsOn({'PoreVolume', 'Density'}, 'PVTPropertyFunctions');
 
             % Set label for output
             gp.label = 'Psi_{decay}';
         end
 
         function Psidecay = evaluateOnDomain(prop, model, state)
-            % Compute bacterial decay rate in each grid cell
+            % Compute density-dependent decay rate coefficient
+            %
+            % For density-dependent decay: b*nbact^2 = (b*nbact) * nbact
+            % Returns: bbact * nbact [1/s]
+            % Used with BacterialMass: source = Psidecay * BacterialMass / nbact^(scaling)
+            % Or more directly: decay_contribution = Psidecay * nbact (when multiplied by mass)
             %
             % PARAMETERS:
             %   prop  - Property function instance
@@ -51,7 +54,7 @@ classdef DecayBactRateSRC < StateFunction
             %   state - State struct with fields
             %
             % RETURNS:
-            %   Psidecay - Bacterial decay rate per cell [1/s]
+            %   Psidecay - Decay rate coefficient (depends on current nbact) [1/s]
 
             % Initialize with zeros
             Psidecay = 0;
@@ -60,7 +63,6 @@ classdef DecayBactRateSRC < StateFunction
             rm = model.ReservoirModel;
             bcrm=rm.biochemFluid;
             bbact = bcrm.bbact;
-            nbMax = bcrm.nbactMax;
 
             % Check if bacterial modeling is active
             if ~(rm.bacteriamodel && rm.liquidPhase)
@@ -80,33 +82,12 @@ classdef DecayBactRateSRC < StateFunction
             end
 
             % Get required state variables
-            pv = rm.PVTPropertyFunctions.get(rm, state, 'PoreVolume');
-            rho = rm.PVTPropertyFunctions.get(rm, state, 'Density');
-            s = rm.getProp(state, 's');
             nbact = rm.getProp(state, 'nbact');
-            L_ix = rm.getLiquidIndex();
 
-            % Extract liquid phase properties
-            if iscell(s)
-                sL = s{L_ix};
-                rhoL = rho{L_ix};
-            else
-                sL = s(:, L_ix);
-                rhoL = rho(:, L_ix);
-            end
-
-            % Calculate effective volume with safeguards
-            if iscell(sL)
-                Voln = max(sL{1}, 1.0e-8) .* rhoL{1};
-            else
-                Voln = max(sL, 1.0e-8) .* rhoL;
-            end
-
-            % Compute decay rate
-            Psidecay = pv .* bbact .* nbact .* (nbact .* Voln);
-
-            % Handle negative bacterial concentrations
-            Psidecay(nbact < 0) = -Psidecay(nbact < 0);
+            % Compute density-dependent decay coefficient: b * nbact [1/s]
+            % When multiplied by BacterialMass and divided by nbact, gives b*nbact^2
+            nbact_pos = max(nbact, 0);
+            Psidecay = bbact .* nbact_pos;
         end
     end
 end

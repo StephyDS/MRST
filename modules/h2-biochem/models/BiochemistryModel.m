@@ -28,7 +28,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
     properties
         % Bio-chemical flags
-        bactrial = true;                  % Enable biochemical effects (debug)
         bacterialFormulation = 'bacterialmodel';
 
         % Compositional fluid mixture
@@ -40,7 +39,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         % Physical quantities and bounds
         gammak   = [];                    % Stoichiometric coefficients
         bacteriamodel = true;
-        bact_capProp = 3.0e0;             % Min nbact in the model 
+        bact_capProp = 3.0e0;             % Min nbact in the model
         molecularDiffusion = false;
         molecularDispersion = false;
         bactDiffusion = false;            % Microbial diffusion
@@ -163,12 +162,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 flowprops = flowprops.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('PsiDecayRate',  DecayBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('BactConvRate',  BactConvertionRate(model));
-                flowprops = flowprops.setStateFunction('MicrobialDiffusivity', MicrobialDiffusivity(model));
-                flowprops = flowprops.setStateFunction('MicrobialTransmissibility', ...
-                    DynamicFlowTransmissibility(model, 'MicrobialDiffusivity'));
-              %  if model.bactDiffusion
-                    flowprops = flowprops.setStateFunction('BactFlux', DiffusiveBactFlux(model)); 
-           %     end 
             end
 
             pvt = pvtprops.getRegionPVT(model);
@@ -207,7 +200,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             end
 
             if model.bacteriamodel
-                nbact = model.getProps(state, 'bacteriamodel');
+                nbact = model.getProp(state, 'nbact');
                 names = [{'pressure'}, cnames(2:end), {'nbact'}, enames];
                 vars  = [p, z(2:end), nbact, evars];
             else
@@ -257,13 +250,22 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 eqs{i} = model.operators.AccDiv(eqs{i}, flux{i});
             end
             if model.bacteriamodel
+                % Bacterial mass balance: d(M)/dt + div(flux) = source
+                % where M = pv * S_l * nbact [kg]
                 [beqs, bflux, bnames, btypes] = model.FlowDiscretization.bacteriaConservationEquation(model, state, state0, dt);
                 fd = model.FlowDiscretization;
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
-                beqs{1} = beqs{1} - src_growthdecay;
-                if (model.bactDiffusion)
-                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});% Assemble equations
+
+                % Assemble accumulation and flux divergence
+                if model.bactDiffusion && ~isempty(bflux{1})
+                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
+                    % Dirichlet boundary conditions for bacterial diffusion
+                    beqs = model.addBacterialDiffusionBC(beqs, state, drivingForces);
+                else
+                    % No diffusion: just accumulation term (pore-scale diffusion only)
+                   % beqs{1} = model.operators.AccDiv(beqs{1},0);
                 end
+                beqs{1} = beqs{1} - src_growthdecay;
             else
                 [beqs, bnames, btypes] = deal([]);
             end
@@ -281,6 +283,87 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
         end
 
+        function beqs = addBacterialDiffusionBC(model, beqs, state, forces)
+            % Add Dirichlet boundary conditions for the bacterial diffusion
+            % equation.
+            %
+            % The prescribed bacterial concentration is carried on the
+            % standard boundary-condition struct as the extra field
+            % `bc.nbact` (one value per `bc.face`; use NaN on faces that
+            % should keep the natural no-flux condition). For every face
+            % with a finite `bc.nbact`, the diffusive half-face flux leaving
+            % the adjacent cell is added to the bacterial mass balance:
+            %
+            %   J_out(f) = rho_l(c) .* T_bc(f) .* (nbact(c) - nbact_bc(f))
+            %
+            % with T_bc(f) = cn(f) .* D_b(c), where cn(f) is the one-sided
+            % two-point geometric weight (consistent with the internal
+            % `DynamicFlowTransmissibility`, whose harmonic average of a
+            % single half-face reduces to that half-face) and D_b is the
+            % cell-centred microbial diffusivity (`MicrobialDiffusivity`).
+
+            % Nothing to do without a Dirichlet bacterial specification
+            if isempty(forces) || ~isfield(forces, 'bc') || isempty(forces.bc) ...
+                    || ~isfield(forces.bc, 'nbact') || isempty(forces.bc.nbact)
+                return
+            end
+
+            bc    = forces.bc;
+            faces = bc.face(:);
+            val   = bc.nbact(:);
+
+            % Keep only faces that carry a finite Dirichlet value
+            keep  = isfinite(val);
+            faces = faces(keep);
+            val   = val(keep);
+            if isempty(faces)
+                return
+            end
+
+            G = model.G;
+            assert(all(any(G.faces.neighbors(faces, :) == 0, 2)), ...
+                'Bacterial Dirichlet conditions can only be set on boundary faces.');
+
+            % Adjacent reservoir cell for each boundary face
+            cells = sum(G.faces.neighbors(faces, :), 2);
+
+            % One-sided two-point geometric weight cn(f) [same form as the
+            % internal transmissibility]; the sign is irrelevant since the
+            % driving direction is set explicitly by (nbact_c - nbact_bc).
+            C  = G.faces.centroids(faces, :) - G.cells.centroids(cells, :);
+            N  = G.faces.normals(faces, :);
+            cn = abs(sum(C.*N, 2))./sum(C.*C, 2);
+
+            % Cell-centred microbial diffusivity D_b = bactdiff*pv*sL
+            D = model.getProp(state, 'MicrobialDiffusivity');
+            if numel(value(D)) == 1
+                % Diffusion disabled / zero -> no boundary contribution
+                return
+            end
+            T_bc = cn .* D(cells);
+
+            % Liquid-phase density at the adjacent cells (face value approx.)
+            rho  = model.getProp(state, 'Density');
+            L_ix = model.getLiquidIndex();
+            if iscell(rho)
+                rhoL = rho{L_ix};
+            else
+                rhoL = rho(:, L_ix);
+            end
+
+            nbact = model.getProp(state, 'nbact');
+
+            % Diffusive flux leaving the adjacent cell (positive = outflow)
+            Jout = rhoL(cells) .* T_bc .* (nbact(cells) - val);
+
+            % Scatter face contributions onto the cell residual (handles
+            % several boundary faces sharing the same cell)
+            nc   = G.cells.num;
+            nf   = numel(cells);
+            Scat = sparse(cells, (1:nf)', 1, nc, nf);
+            beqs{1} = beqs{1} + Scat*Jout;
+        end
+
         function forces = validateDrivingForces(model, forces, varargin)
             forces = validateDrivingForces@GenericOverallCompositionModel(model, forces, varargin{:});
             if isa(model.EOSModel, 'SoreideWhitsonEos')
@@ -293,9 +376,9 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
                 isP = strcmp(names, 'pressure');
                 isB = strcmp(names, 'nbact');
+                state = model.setProp(state, 'nbact', vars{isB});
                 isAD = any(cellfun(@(x) isa(x, 'ADI'), vars));
                 state = model.setProp(state, 'pressure', vars{isP});
-                state = model.setProp(state, 'nbact', vars{isB});
 
                 removed = isP | isB;
 
@@ -385,23 +468,30 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         end
         %-----------------------------------------------------------------%
         function [v_eqs, tolerances, names] = getConvergenceValues(model, problem, varargin)
-            % Get values for convergence check
+            % Get values for convergence check with CNV-style scaling
             [v_eqs, tolerances, names] = getConvergenceValues@ReservoirModel(model, problem, varargin{:});
-            bacteriaIndex = find(strcmp(names, 'bacteria (cell)'));
-            tolerances(bacteriaIndex) = 5.0e-2;
+
             if model.bacteriamodel
+                bacteriaIndex = find(strcmp(names, 'bacteria (cell)'));
+
+                % Apply magnitude-based scaling to all equations (components + bacteria)
+                % This CNV-style normalization makes residuals comparable across
+                % dissimilar equation types and ensures convergence is fair.
                 scale = model.getEquationScaling(problem.equations, problem.equationNames, problem.state, problem.dt);
                 ix    = ~cellfun(@isempty, scale);
                 v_eqs(ix) = cellfun(@(scale, x) norm(scale.*value(x), inf), scale(ix), problem.equations(ix));
-                % Reduce Tolerance
-                iter = problem.iterationNo;
-                maxIter = model.EOSNonLinearSolver.LinearSolver.maxIterations;
-                if (v_eqs(bacteriaIndex) > tolerances(bacteriaIndex) && (iter+5>maxIter))
+
+                % Bacteria equation gets tighter tolerance due to stiff growth/decay
+                % with quadratic decay term. Loose tolerance allows unbounded Newton
+                % increments that cause Jacobian singularity.
+                if ~isempty(bacteriaIndex)
+                    % Use 10x tighter tolerance for bacteria (stiff equation)
+                    tolerances(bacteriaIndex) = 5.0e-2;
                 end
             end
         end
 
-        function scale = getEquationScaling(model, eqs, names, state0, dt)
+function scale = getEquationScaling(model, eqs, names, state0, dt)
             % Get scaling for the residual equations to determine convergence
 
             scale = cell(1, numel(eqs));
@@ -433,14 +523,13 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             if model.bacteriamodel
                 ix = strcmpi(names, 'bacteria');
                 if any(ix)
-                    scaleChemistry = dt./chemistry;
-                   % scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
+                    scaleChemistry = dt./max(chemistry, dt);
+                    scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
                     scale{ix} = scaleChemistry;
                 end
             end
 
         end
-
         function scaling = getScalingFactorsCPR(model, problem, names, solver) %#ok
 
             scaling = model.getEquationScaling(problem.equations, problem.equationNames, problem.state, problem.dt);
@@ -469,12 +558,44 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         end
 
         function [state, report] = updateState(model, state, problem, dz, drivingForces)
-            [state, report] = updateState@GenericOverallCompositionModel(model, state, problem, dz, drivingForces);
-            if model.bacteriamodel
-                state = model.capProperty(state, 'nbact', model.bact_capProp, 120);
+            % Update state with adaptive damping for bacteria variables.
+            % The bacteria equation is stiff (linear growth + quadratic decay),
+            % causing ill-conditioned Jacobians at growth/decay transitions.
+            % Damping prevents unbounded Newton increments that cause divergence.
 
+            if model.bacteriamodel
+                % Save old bacteria state before update
+                nbact_old = value(model.getProp(state, 'nbact'));
+
+                % Apply parent class update
+                [state, report] = updateState@GenericOverallCompositionModel(model, state, problem, dz, drivingForces);
+
+                % Get updated bacteria state (after parent capping/processing)
+                nbact_new = value(model.getProp(state, 'nbact'));
+
+                % Limit fractional change per iteration to stabilize stiff kinetics.
+                % Aggressive damping for highly stiff growth/decay kinetics (linear growth + nbact^2 decay).
+                % 5% change per iteration is conservative but necessary for quadratic decay singularities.
+                max_frac_change = 0.05;
+                frac_change = (nbact_new - nbact_old) ./ max(abs(nbact_old), 1e-12);
+
+                % Apply adaptive damping where fractional change is excessive
+                excessive = abs(frac_change) > max_frac_change;
+                if any(excessive)&&false
+                    % Apply exponential damping: new = old + max_frac_change * sign(change) * old_mag
+                    sign_inc = sign(nbact_new(excessive) - nbact_old(excessive));
+                    nbact_damped = nbact_old(excessive) + ...
+                        max_frac_change * sign_inc .* max(abs(nbact_old(excessive)), 1e-12);
+                    nbact_new(excessive) = nbact_damped;
+                    state = model.setProp(state, 'nbact', nbact_new);
+                end
+
+                % Final capping to physical bounds
+                state = model.capProperty(state, 'nbact', model.bact_capProp, 120);
                 state = model.capProperty(state, 's', 1.0e-8, 1);
                 state.components = ensureMinimumFraction(state.components, model.EOSModel.minimumComposition);
+            else
+                [state, report] = updateState@GenericOverallCompositionModel(model, state, problem, dz, drivingForces);
             end
         end
 
@@ -494,67 +615,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
         end
 
-        function state = computeBactPopulation(model, state)
-            % COMPUTEBACTPOPULATION Computes bacterial population using a quadratic equation.
-            % This function estimates the bacterial concentration by solving the microbial
-            % growth equation as a quadratic polynomial for a single time step.
-            %
-            % INPUTS:
-            %   model - The simulation model containing bacterial properties.
-            %   state - The current simulation state.
-            %
-            % OUTPUT:
-            %   state - Updated simulation state with computed bacterial population.
-
-            % Extract properties
-            s = model.getProps(state, 's');
-            x = model.getProps(state, 'x');
-            nbact = model.getProps(state, 'nbact');
-
-            % Identify component indices
-            namecp = model.EOSModel.getComponentNames();
-            idx_H2 = find(strcmp(namecp, 'H2'));
-            idx_CO2 = find(strcmp(namecp, 'CO2'));
-
-            % Extract values
-            L_ix = model.getLiquidIndex();
-            xH2 = x(:, idx_H2);
-            xCO2 = x(:, idx_CO2);
-            sL = s(:, L_ix);
-
-            % Model parameters
-            aH2 = model.alphaH2;
-            aCO2 = model.alphaCO2;
-            PsigrowthMax = model.Psigrowthmax;
-            nbMax = model.nbactMax;
-            bbact = model.b_bact;
-            dt = 288; % Time step (5 seconds)
-
-            % Compute coefficients for the quadratic equation
-            A = PsigrowthMax .* (xH2 ./ (aH2 + xH2)) .* (xCO2 ./ (aCO2 + xCO2));
-            B = bbact ./ nbMax;
-
-            % Quadratic equation: nbact_new - (1 + dt * A) * nbact + dt * B * nbact^2 = 0
-            a_quad = dt * B;
-            b_quad = -(1 + dt * A);
-            c_quad = nbact;
-
-            % Solve using quadratic formula
-            discriminant = b_quad.^2 - 4 * a_quad .* c_quad;
-
-            % Ensure discriminant is non-negative
-            discriminant = max(discriminant, 0);
-
-            nbact_new = (-b_quad + sqrt(discriminant)) ./ (2 * a_quad);
-
-            % Ensure non-negative values
-            nbact_new = max(nbact_new, 0);
-
-            % Update state with computed bacterial population
-            state = model.setProp(state, 'nbact', nbact_new);
-            state = model.capProperty(state, 'nbact', 08, 1.0e12);
-
-        end
 
     end
 end

@@ -34,17 +34,17 @@ classdef GrowthBactRateSRC < StateFunction
             % Initialize base class
             gp@StateFunction(model, varargin{:});
 
-            % Declare dependencies
-            gp = gp.dependsOn({'x'}, 'state');        % Mole fractions
-            gp = gp.dependsOn({'s'}, 'state');        % Saturations
-            gp = gp.dependsOn({'nbact'}, 'state');    % Bacterial concentration
-            gp = gp.dependsOn({'PoreVolume', 'Density'}, 'PVTPropertyFunctions');
+            % Declare dependencies - kinetic term only (no mass, volume, saturation)
+            gp = gp.dependsOn({'x'}, 'state');        % Mole fractions for Monod kinetics
 
             gp.label = '\Psi_{growth}'; % LaTeX-style label
         end
 
         function Psigrowth = evaluateOnDomain(prop, model, state)
-            % Compute bacterial growth rate in each grid cell
+            % Compute specific growth rate coefficient (kinetic term only)
+            %
+            % Returns: Psigrowthmax * axH2 * axsub [1/s]
+            % Used with BacterialMass: source = Psigrowth * BacterialMass
             %
             % PARAMETERS:
             %   prop  - Property function instance
@@ -52,7 +52,7 @@ classdef GrowthBactRateSRC < StateFunction
             %   state - State struct containing fields
             %
             % RETURNS:
-            %   Psigrowth - Bacterial growth rate per cell [1/s]
+            %   Psigrowth - Specific growth rate coefficient [1/s]
 
             % Initialize with zero growth rate
             Psigrowth = 0;
@@ -61,8 +61,8 @@ classdef GrowthBactRateSRC < StateFunction
             rm = model.ReservoirModel;
             bcrm=rm.biochemFluid;
             namecp = rm.getComponentNames();
-            idx_H2 = find(strcmpi(namecp, bcrm.rH2), 1);     % Case-insensitive search
-            idx_sub = find(strcmpi(namecp, bcrm.rsub), 1);   % Case-insensitive search
+            idx_H2 = find(strcmpi(namecp, bcrm.rH2), 1);
+            idx_sub = find(strcmpi(namecp, bcrm.rsub), 1);
 
             % Check if bacterial modeling is active and components exist
             if strcmp(bcrm.metabolicReaction, 'MethanogenicArchae')
@@ -72,45 +72,28 @@ classdef GrowthBactRateSRC < StateFunction
             end
 
             % Get required properties
-            pv = rm.PVTPropertyFunctions.get(rm, state, 'PoreVolume');
-            rho = rm.PVTPropertyFunctions.get(rm, state, 'Density');
-            s = rm.getProp(state, 's');
-            nbact = rm.getProp(state, 'nbact');
             x = rm.getProp(state, 'x');
-            L_ix = rm.getLiquidIndex();
 
-            % Extract liquid phase properties
+            % Extract liquid phase component mole fractions
             if iscell(x)
                 xH2 = x{idx_H2};
                 xsub = x{idx_sub};
-                sL = s{L_ix};
-                rhoL = rho{L_ix};
             else
                 xH2 = x(:, idx_H2);
                 xsub = x(:, idx_sub);
-                sL = s(:, L_ix);
-                rhoL = rho(:, L_ix);
             end
-
-            % Calculate effective volume with safeguards
-            if iscell(sL)
-                Voln = max(sL{1}, 1.0e-8) .* rhoL{1};
-            else
-                Voln = max(sL, 1.0e-8) .* rhoL;
-            end
-            Voln = max(Voln, 1.0e-8);
 
             % Get growth parameters
             alphaH2 = bcrm.alphaH2;
             alphasub = bcrm.alphasub;
             Psigrowthmax = bcrm.Psigrowthmax;
 
-            % Calculate Monod terms for H2 and sub
+            % Calculate Monod kinetics: growth rate coefficient (1/s)
             axH2 = xH2 ./ (alphaH2 + xH2);
             axsub = xsub ./ (alphasub + xsub);
 
-            % Compute growth rate
-            Psigrowth = pv .* Psigrowthmax .* axH2 .* axsub .* nbact .* Voln;
+            % Specific growth rate (kinetic term only; scaling by BacterialMass in flow)
+            Psigrowth = Psigrowthmax .* axH2 .* axsub;
         end
     end
 end

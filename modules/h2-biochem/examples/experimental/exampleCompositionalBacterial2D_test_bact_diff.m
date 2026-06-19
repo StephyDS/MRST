@@ -18,7 +18,7 @@ dataFile = fullfile(dataPath, 'H2STORAGE_RS.DATA');
 deck = readEclipseDeck(dataFile);
 
 % Black‑oil model and schedule (2 injection cycles to speed up)
-[~, ~, state0Bo, modelBo, scheduleBo, ~] = modelForSimple2DAquifer(deck, 'numcycles', 2);
+[~, ~, state0Bo, modelBo, scheduleBo, ~] = modelForSimple2DAquifer(deck, 'numcycles', 10);
 
 % Convert to compositional model
 model0 = convertBlackOilModelToCompositionalModel(modelBo);
@@ -47,6 +47,11 @@ cp = 1.0;                   % clogging coefficient
 
 %% 3. Update schedule controls for compositional injection
 schedule = scheduleBo;
+bc  = addBC([], schedule.control(1).bc.face, 'flux', 0, 'sat',[0.1514 0.8486] );    % no-flow for the flow eqs
+nc = 4; % number of components
+nf = numel(bc.face); % number of boundary faces
+bc.components = repmat([0.0; 0.95; 0.05; 0.0], 1, nf)';
+bc  = addBacterialBC(bc, bc.face, nbact0);          % Dirichlet nbact at those faces
 for i = 1:numel(schedule.control)
     schedule.control(i).W.compi = [0, 1];  % well components (water, oil)
     if strcmp(schedule.control(i).W.name, 'cushion') && i < 3
@@ -56,8 +61,8 @@ for i = 1:numel(schedule.control)
     end
     schedule.control(i).W.T = T0;
     schedule.control(i).bc = [];
-end
 
+end
 %% 4. Common initial state (with bacteria)
 backend = DiagonalAutoDiffBackend('modifyOperators', true);
 
@@ -72,22 +77,80 @@ state0 = initCompositionalStateBacteria(model_noBactDiff, state0.pressure, T0, .
     state0.s, comp0, nbact0, EOS);
 nls = NonLinearSolver();
 nls.LinearSolver = selectLinearSolverAD(model_noBactDiff);
+linsolve = nls.LinearSolver;
+%linsolve = selectLinearSolverAD(model);
+%linsolve.amgcl_setup.block_size = 0;
+%linsolve.verbose=true;
+%linsolve.replaceInf = true;
+%linsolve.replaceNaN = true;
+disp(linsolve)
+nls = NonLinearSolver('LinearSolver',linsolve);
+% ===== AMGCL Tuning for Bacterial Diffusion Cases =====
+% Relax tolerance for faster convergence
+% nls.LinearSolver.tolerance = 1e-3;                % from 1e-4 (~2-3x faster)
+% nls.LinearSolver.maxIterations = 75;              % from 50
+% 
+% % Relax CPR tolerances for coupled equations (most impactful for bacteria)
+% nls.LinearSolver.diagonalTol = 0.3;       % from 0.2
+% nls.LinearSolver.couplingTol = 0.05;      % from 0.02
 
+% Keep decoupling strategy
+%nls.LinearSolver.decoupling = 'quasiimpes';
+
+% Optional: Apply diagonal scaling for better conditioning
+%nls.LinearSolver.applyLeftDiagonalScaling = 1;
+
+% Optional: Reuse AMG hierarchy for better performance across time steps
+%nls.LinearSolver.reuseMode = 1;
+
+% Verbose output to monitor convergence
+%nls.LinearSolver.verbose = true;
 prob_noBactDiff = packSimulationProblem(state0, model_noBactDiff, schedule, ...
     [baseName '_bio_noDiff_noDisp'], 'NonLinearSolver', nls);
-simulatePackedProblem(prob_noBactDiff);
-%[ws_noDiff, states_noDiff] = getPackedSimulatorOutput(prob_noBactDiff);
+simulatePackedProblem(prob_noBactDiff,'Restartstep',1);
+[ws_noDiff, states_noDiff] = getPackedSimulatorOutput(prob_noBactDiff);
 mrstVerbose true;
+fprintf('\n===== Case 1 Complete (No Bacterial Diffusion) =====\n\n');
 % 6.2 With bacterial diffusion
 model_withBactDiff = createModel(true);
 state0_with = initCompositionalStateBacteria(model_withBactDiff, state0.pressure, T0, ...
     state0.s, comp0, nbact0, EOS);
 nls.LinearSolver = selectLinearSolverAD(model_withBactDiff);
+linsolve = nls.LinearSolver;
+%linsolve = selectLinearSolverAD(model);
+%linsolve.amgcl_setup.block_size = 0;
+%linsolve.verbose=true;
+%linsolve.replaceInf = true;
+%linsolve.replaceNaN = true;
+disp(linsolve)
+nls = NonLinearSolver('LinearSolver',linsolve);
+% ===== AMGCL Tuning for Bacterial Diffusion Cases =====
+% Relax tolerance for faster convergence
+%nls.LinearSolver.tolerance = 1e-3;                % from 1e-4 (~2-3x faster)
+%nls.LinearSolver.maxIterations = 12;              % from 50
+%nls.maxIterations = 10;
+% Relax CPR tolerances for coupled equations (most impactful for bacteria)
+%nls.LinearSolver.diagonalTol = 0.3;       % from 0.2
+%nls.LinearSolver.couplingTol = 0.05;      % from 0.02
+
+% Keep decoupling strategy
+%nls.LinearSolver.decoupling = 'quasiimpes';
+
+% Optional: Apply diagonal scaling for better conditioning
+%nls.LinearSolver.applyLeftDiagonalScaling = 1;
+
+% Optional: Reuse AMG hierarchy for better performance across time steps
+%nls.LinearSolver.reuseMode = 1;
+
+% Verbose output to monitor convergence
+%nls.LinearSolver.verbose = true;
+%model_withBactDiff.verbose = true;
+
 prob_withBactDiff = packSimulationProblem(state0_with, model_withBactDiff, schedule, ...
     [baseName '_withBactDiff'], 'NonLinearSolver', nls);
-%prob_withBactDiff.SimulatorSetup.NonLinearSolver.LinearSolver.decoupling = 'quasiimpes';
 simulatePackedProblem(prob_withBactDiff,'RestartStep',1);
 [ws_withDiff, states_withDiff] = getPackedSimulatorOutput(prob_withBactDiff);
+fprintf('\n===== Case 2 Complete (With Bacterial Diffusion + AMGCL Tuning) =====\n\n');
 
 %% 7. Visualise biomass at final time
 figure;

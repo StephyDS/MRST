@@ -5,11 +5,10 @@ classdef BactConvertionRate < StateFunction
     %   gf = BactConvertionRate(model, 'property1', value1, ...)
     %
     % DESCRIPTION:
-    %   This class computes the bacterial conversion rate for components in a
-    %   compositional simulation with microbial activity. The model accounts
-    %   for bacterial growth limited by H2 and CO2 availability and converts
-    %   these substrates into biomass and products according to stoichiometric
-    %   coefficients.
+    %   Computes component conversion rates due to bacterial growth.
+    %   Uses kinetic growth rate (without mass) multiplied by current bacterial mass:
+    %   qbiot = (growth_rate * nbact) * stoichiometric_coefficient
+    %   This ensures consistent treatment of (g-d)*mass formulation in the flow.
     %
     % SEE ALSO:
     %   CompositionalModel, EquationsCompositional
@@ -23,12 +22,11 @@ classdef BactConvertionRate < StateFunction
             % Constructor for bacterial conversion rate calculator
             gp@StateFunction(model, varargin{:});
 
-            % Define dependencies
-            gp = gp.dependsOn({'PsiGrowthRate', 'PsiDecayRate'}, 'FlowDiscretization');
+            % Define dependencies - computes kinetics directly, no pre-computed rates
             gp = gp.dependsOn({'PoreVolume'}, 'PVTPropertyFunctions');
 
             % Set label for output
-            gp.label = 'Q_biot'; %
+            gp.label = 'Q_biot';
         end
 
         function qbiot = evaluateOnDomain(prop, model, state)
@@ -98,16 +96,25 @@ classdef BactConvertionRate < StateFunction
                 nbactMax = bcrm.nbactMax;
                 mc = rm.EOSModel.CompositionalMixture.molarMass;
 
-                % Calculate growth rate using Monod kinetics
+                % Calculate Monod kinetics (specific growth rate)
                 axH2 = xH2 ./ (alphaH2 + xH2);
                 axsub = xsub ./ (alphasub + xsub);
+                growth_kinetic = Psigrowthmax .* axH2 .* axsub;
 
-                Psigrowth = pv .* Psigrowthmax .* axH2 .* axsub .* nbact .* sL;
+                % Theory: q_i = Φ * γ_i^H2 * ψ_growth * S_l / Y_H2
+                % where γ_i^H2 = n0 * γ_i * M_i / γ_H2
+                % and ψ_growth = growth_kinetic * nbact (biomass growth rate)
 
-                % Calculate conversion rates for all components
-                qbiot_temp = Psigrowth ./ Y_H2 ./ abs(gammak(idxH2));
+                % Compute stoichiometric factor for each component
+                % γ_i^H2 = nbactMax * γ_i * M_i / γ_H2
+                stoich_factor = nbactMax .* mc ./ abs(gammak(idxH2));
+
+                % Component source: q_i = pv * γ_i^H2 * (growth_kinetic * nbact) * S_l / Y_H2
+                % Rewrite: q_i = pv * S_l * nbact / Y_H2 * (γ_i^H2 * growth_kinetic)
+                qbiot_temp = pv .* sL .* nbact ./ Y_H2 .* growth_kinetic;
+
                 for c = 1:ncomp
-                    qbiot{c} = gammak(c) .* qbiot_temp .* mc(c) .* nbactMax;
+                    qbiot{c} = gammak(c) .* stoich_factor(c) .* qbiot_temp;
                 end
 
             catch ME

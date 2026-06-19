@@ -8,7 +8,7 @@
 % The script shows the effect on biomass distribution, porosity, and
 % component profiles.
 % ===========================================================================
-
+mrstVerbose true;
 mrstModule add ad-core ad-props deckformat mrst-gui
 mrstModule add compositional h2-biochem
 mrstVerbose off;
@@ -81,15 +81,15 @@ state0 = initCompositionalStateBacteria(model_noDiff, initPress, initTemp, [0,1]
 %% 5. Solve
 nls = NonLinearSolver();
 nls.LinearSolver = selectLinearSolverAD(model_noDiff);
-
+nls.LinearSolver.verbose = true;
 % No bacterial diffusion
-prob_noDiff = packSimulationProblem(state0, model_noDiff, schedule, 'bio_bactDiff_off');
+prob_noDiff = packSimulationProblem(state0, model_noDiff, schedule, 'bio_bactDiff_off',  'NonLinearSolver', nls);
 prob_noDiff.SimulatorSetup.model.OutputStateFunctions{end} = 'ComponentPhaseMass';
 simulatePackedProblem(prob_noDiff);
 [st_noDiff, ws_noDiff] = getPackedSimulatorOutput(prob_noDiff);
 
 % With bacterial diffusion
-prob_withDiff = packSimulationProblem(state0, model_withDiff, schedule, 'bio_bactDiff_on');
+prob_withDiff = packSimulationProblem(state0, model_withDiff, schedule, 'bio_bactDiff_on',  'NonLinearSolver', nls);
 prob_withDiff.SimulatorSetup.model.OutputStateFunctions{end} = 'ComponentPhaseMass';
 simulatePackedProblem(prob_withDiff,'RestartStep',1);
 [st_withDiff, ws_withDiff] = getPackedSimulatorOutput(prob_withDiff);

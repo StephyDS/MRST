@@ -36,7 +36,7 @@ classdef MicrobialDiffusivity < StateFunction
             md = merge_options(md, varargin{:});
 
             % Dependencies: pressure, saturation, and nbact (for dynamic porosity)
-            md = md.dependsOn({'s'}, 'state');
+            md = md.dependsOn({'s','pressure','nbact'}, 'state');
             md = md.dependsOn({'PoreVolume'}, 'PVTPropertyFunctions');
             md.label = 'D_{bact}^{eff}';
         end
@@ -44,14 +44,14 @@ classdef MicrobialDiffusivity < StateFunction
         %-----------------------------------------------------------------%
         function dN = evaluateOnDomain(prop, model, state)
             % Fetch primary state variables
-            [ s, pv] = model.getProps(state, 's', 'PoreVolume');
+            [ s, p, nbact] = model.getProps(state, 's', 'pressure','nbact');
 
-            % % Porosity – dynamic (bio‑clogging) or static
-            % if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
-            %     phi = model.rock.poro(p, nbact);
-            % else
-            %     phi = model.rock.poro;
-            % end
+            % Porosity – dynamic (bio‑clogging) or static
+            if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
+                phi = model.rock.poro(p, nbact);
+            else
+                phi = model.rock.poro;
+            end
 
             % Liquid saturation
             L_ix = model.getLiquidIndex();
@@ -65,7 +65,7 @@ classdef MicrobialDiffusivity < StateFunction
 
             % Effective microbial diffusivity
             if model.bactDiffusion && isprop(model.biochemFluid, 'bactdiff')
-                dN = model.biochemFluid.bactdiff .* pv .* Voln;
+                dN = model.biochemFluid.bactdiff .* phi .* Voln;
             else
                 dN = 0;
             end

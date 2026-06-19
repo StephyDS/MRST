@@ -41,6 +41,9 @@ classdef BacterialMass < StateFunction & ComponentProperty
         function mb = evaluateOnDomain(prop, model, state)
             % Compute bacterial mass in each grid cell
             %
+            % Theory: Mass = pore_volume * saturation * concentration
+            % Units: [m³] * [dimensionless] * [kg/m³] = [kg]
+            %
             % PARAMETERS:
             %   prop  - Property function instance
             %   model - Reservoir model instance
@@ -53,26 +56,28 @@ classdef BacterialMass < StateFunction & ComponentProperty
             s = model.getProp(state, 's');
             nbact = model.getProp(state, 'nbact');
 
-            % Get PVT properties
+            % Get pore volume
             pv = model.PVTPropertyFunctions.get(model, state, 'PoreVolume');
             rho = model.PVTPropertyFunctions.get(model, state, 'Density');
 
-            % Handle liquid phase
+            % Get liquid saturation
             L_ix = model.getLiquidIndex();
-            if ~iscell(rho)
-                rho = {rho};
-            end
-
-            % Calculate volume fraction with safeguards
             if iscell(s)
-                Voln = max(s{L_ix}, 1.0e-8) .* rho{L_ix};
+                sL = max(s{L_ix}, 1.0e-8);
             else
-                Voln = max(s(:, L_ix), 1.0e-8) .* rho{L_ix};
+                sL = max(s(:, L_ix), 1.0e-8);
             end
-            Voln = max(Voln, 1.0e-8);
 
-            % Compute bacterial mass
-            mb = pv .* nbact .* Voln;
+            if iscell(rho)
+                rhoL = rho{L_ix};
+            else
+                rhoL = rho(:, L_ix);
+            end
+
+            % Compute bacterial mass: pv * S_l * *rho_l.*nbact
+            % where nbact is concentration [kg/m³]
+            % Result: [m³] * [1] * [kg/m³] = [kg]
+            mb = pv .* sL .* rhoL .* nbact;
 
             % Ensure minimum derivatives for stability
             mb = ensureMinimumDerivatives(prop,model, mb);

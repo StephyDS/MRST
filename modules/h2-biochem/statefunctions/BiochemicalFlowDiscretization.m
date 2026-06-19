@@ -25,8 +25,8 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
 
             % Optionally register diffusion state functions
             if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
-                props = props.setStateFunction('ComponentTotalMolecularDispFlux', ...
-                    ComponentTotalMolecularDispFlux(model));
+                props = props.setStateFunction('ComponentTotalMolecularDiffFlux', ...
+                    ComponentTotalMolecularDiffFlux(model));
                 props = props.setStateFunction('ComponentPhaseHydrodynamicDispFlux', ...
                     ComponentPhaseHydrodynamicDispFlux(model));
             end
@@ -49,18 +49,12 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                         DynamicFlowPoreVolume(model, 'Porosity'));
                 end
 
-               % if model.bactDiffusion
+                if model.bactDiffusion
                     props = props.setStateFunction('MicrobialDiffusivity', MicrobialDiffusivity(model));
                     props = props.setStateFunction('MicrobialTransmissibility', ...
                         DynamicFlowTransmissibility(model, 'MicrobialDiffusivity'));
                     props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
-                %end
-              % end
-                % Add microbial state functions
-                props = props.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
-                props = props.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
-                props = props.setStateFunction('BactConvRate', BactConvertionRate(model));
-            
+                end
             end
         end
 
@@ -76,7 +70,7 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             bactmass  = model.getProps(state, 'BacterialMass');
             bactmass0 = model.getProps(state0, 'BacterialMass');
 
-            % Accumulation term
+            % Accumulation term: d(bactmass)/dt
             acc = (bactmass - bactmass0) ./ dt;
 
             % Add microbial diffusion contributions if present

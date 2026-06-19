@@ -20,17 +20,16 @@ classdef BiochemistryGenericFacilityModel < GenericFacilityModel
             % Base facility groupings
             model = setupStateFunctionGroupings@GenericFacilityModel(model, useDefaults);
 
-            % Add biochemistry-specific state functions
-            ffd = model.FacilityFlowDiscretization;
-            ffd = ffd.setStateFunction('BacterialMass', BacterialMass(model));
-            ffd = ffd.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
-            ffd = ffd.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
-            ffd = ffd.setStateFunction('BactConvRate', BactConvertionRate(model));
-            % ffd = ffd.setStateFunction('MicrobialDiffusivity', MicrobialDiffusivity(model));
-            % ffd = ffd.setStateFunction('MicrobialTransmissibility', ...
-            %     DynamicFlowTransmissibility(model, 'MicrobialDiffusivity'));
-            % ffd = ffd.setStateFunction('BactFlux', DiffusiveBactFlux(model));
-            model.FacilityFlowDiscretization = ffd;
+            % Add biochemistry-specific state functions only when bacteriamodel is active
+            rm = model.ReservoirModel;
+            if ~isempty(rm) && isprop(rm, 'bacteriamodel') && rm.bacteriamodel
+                ffd = model.FacilityFlowDiscretization;
+                ffd = ffd.setStateFunction('BacterialMass', BacterialMass(model));
+                ffd = ffd.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
+                ffd = ffd.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
+                ffd = ffd.setStateFunction('BactConvRate', BactConvertionRate(model));
+                model.FacilityFlowDiscretization = ffd;
+            end
         end
 
         %-----------------------------------------------------------------%
@@ -64,18 +63,56 @@ classdef BiochemistryGenericFacilityModel < GenericFacilityModel
         end
 
         %-----------------------------------------------------------------%
-        function src_growthdecay = getBacteriaSources(model, fd, state, state0, dt)
-            % Compute bacterial growth and decay sources
-            reg = 1.0e-10;  % Small regularization
+        function src = getBacteriaSources(model, fd, state, state0, dt)
+            % Growth/decay source: src = (g - d) * BacterialMass
+            % where g, d are kinetic rates (1/s) applied to mass directly
+            rm = model.ReservoirModel;
+            if isempty(rm) || ~isprop(rm, 'bacteriamodel') || ~rm.bacteriamodel
+                src = 0;
+                return;
+            end
+
+            reg = 1.0e-10;
             flowState = fd.buildFlowState(model, state, state0, dt);
-            psigrowth = model.getProps(flowState, 'PsiGrowthRate');
-            psidecay  = model.getProps(flowState, 'PsiDecayRate');
-            bmass     = model.getProps(flowState, 'BacterialMass');
+            psigrowth = model.getProps(flowState, 'PsiGrowthRate');  % Psigrowthmax * axH2 * axsub [1/s]
+            psidecay  = model.getProps(flowState, 'PsiDecayRate');   % bbact * nbact [1/s]
+            bmass     = model.getProps(flowState, 'BacterialMass');  % pv * nbact * Voln [kg]
 
-            % Net source term for bacterial population
-            src_growthdecay = (psigrowth - psidecay) - reg .* bmass;
+            % Direct (g-d)*mass formulation using BacterialMass
+            src_growthdecay = (psigrowth - psidecay) .* bmass - reg .* bmass;
+
+            % ===== NEW: Well bacteria source (advective transport) =====
+            map   = model.getProp(state, 'FacilityWellMapping');
+            rm = model.ReservoirModel;
+            if ~isempty(map.cells)
+                q_ph  = model.getProp(state, 'PhaseFlux');
+                rho = rm.PVTPropertyFunctions.get(rm, state, 'Density');
+                nbact = rm.getProp(state, 'nbact');
+                L_ix  = rm.getLiquidIndex();
+
+                % Liquid phase flux per perforation (positive = injection)
+                q_l   = q_ph{L_ix};
+                % Liquid density in perforated cells
+                rho_l = rho{L_ix};
+                % Bacteria mass flux: ρ_l * q_l * ω
+                rho_perf = rho_l(map.cells);
+                % Bacteria mass flux at each perforation
+                q_bact = rho_perf .* q_l .* nbact(map.cells);
+                % Injectors: no bacteria injected → set to 0
+                q_bact(q_l > 0) = 0;
+
+                % Sum perforation contributions to cells (producers give negative)
+                % Sparse summation to cells (AD‑compatible)
+                nc = rm.G.cells.num;
+                S = sparse(map.cells, (1:numel(map.cells))', 1, nc, numel(map.cells));
+                src_well = S * q_bact;
+            else
+                src_well = 0;
+            end
+            % ==============================================================
+
+            src = src_growthdecay + src_well;
         end
-
         %-----------------------------------------------------------------%
         function [eqs, names, types, state] = getModelEquations(model, state0, state, dt, drivingForces)
             % Return facility equations including parent contributions
