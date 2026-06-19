@@ -5,13 +5,13 @@ classdef ComponentTotalMolecularDiffFlux < StateFunction
     methods
         function gp = ComponentTotalMolecularDiffFlux(model, varargin)
             gp@StateFunction(model, varargin{:});
-            gp = gp.dependsOn('ComponentPhaseMolecularDiffFlux');
+            gp = gp.dependsOn('ComponentPhaseHydrodynamicDispFlux');
             gp.label = 'J_i^{mol,diff}';
         end
 
         function v = evaluateOnDomain(prop, model, state)
             % Get phase-wise diffusion fluxes
-            J_phase = prop.getEvaluatedDependencies(state, 'ComponentPhaseMolecularDiffFlux');
+            J_phase = prop.getEvaluatedDependencies(state, 'ComponentPhaseHydrodynamicDispFlux');
 
             ncomp = model.getNumberOfComponents();
             v = cell(ncomp, 1);

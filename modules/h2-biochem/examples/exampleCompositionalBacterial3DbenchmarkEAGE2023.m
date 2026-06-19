@@ -144,7 +144,7 @@ model_bact = BiochemistryModel(G, rock, fluid, compFluid, biochemFluid, true, ba
     'liquidPhase', 'O', 'vaporPhase', 'G');
 model_bact.outputFluxes = false;
 model_bact.EOSModel = compEOS;
-
+model_bact.bact_capProp=1.e-3;
 nbact0 = 1; model_bact.biochemFluid.nbactMax = 1e8;
 state0_bact = initCompositionalStateBacteria(model_bact, P0, T0, s0, z0, nbact0, compEOS);
 

@@ -23,7 +23,7 @@ classdef BactConvertionRate < StateFunction
             gp@StateFunction(model, varargin{:});
 
             % Define dependencies - computes kinetics directly, no pre-computed rates
-            gp = gp.dependsOn({'PoreVolume'}, 'PVTPropertyFunctions');
+            gp = gp.dependsOn({'Density'}, 'PVTPropertyFunctions');
 
             % Set label for output
             gp.label = 'Q_biot';
@@ -67,9 +67,7 @@ classdef BactConvertionRate < StateFunction
 
             try
                 % Get required state variables
-                pv = rm.PVTPropertyFunctions.get(model.ReservoirModel, state, 'PoreVolume');
-                s  =  rm.getProp(state, 's');
-                nbact = rm.getProp(state, 'nbact');
+                rho = rm.PVTPropertyFunctions.get(model.ReservoirModel, state, 'Density');
                 L_ix = rm.getLiquidIndex();
                 x = rm.getProp(state, 'x');
 
@@ -77,15 +75,15 @@ classdef BactConvertionRate < StateFunction
                 if iscell(x)
                     xH2 = x{idxH2};
                     xsub = x{idxsub};
-                    sL = s{L_ix};
+                    rhoL = rho{L_ix};
                 else
                     xH2 = x(:, idxH2);
                     xsub = x(:, idxsub);
-                    sL = s(:, L_ix);
+                    rhoL = rho(:, L_ix);
                 end
 
                 % Ensure non-zero liquid saturation
-                sL = max(value(sL), 1.0e-8);
+                rhoL = max(value(rhoL), 1.0e-8);
 
                 % Get model parameters
                 alphaH2 = bcrm.alphaH2;
@@ -111,7 +109,7 @@ classdef BactConvertionRate < StateFunction
 
                 % Component source: q_i = pv * γ_i^H2 * (growth_kinetic * nbact) * S_l / Y_H2
                 % Rewrite: q_i = pv * S_l * nbact / Y_H2 * (γ_i^H2 * growth_kinetic)
-                qbiot_temp = pv .* sL .* nbact ./ Y_H2 .* growth_kinetic;
+                qbiot_temp =  growth_kinetic ./ (Y_H2 .*rhoL);
 
                 for c = 1:ncomp
                     qbiot{c} = gammak(c) .* stoich_factor(c) .* qbiot_temp;

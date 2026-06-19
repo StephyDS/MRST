@@ -238,10 +238,13 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             if model.bacteriamodel
                 cnames = model.EOSModel.getComponentNames();
                 ncomp = numel(cnames);
+                fd = model.FlowDiscretization;
+                flowState = fd.buildFlowState(model, state, state0, dt);
+                bmass = model.getProps(flowState, 'BacterialMass');  % pv * nbact * Voln [kg]
                 src_rate = model.FacilityModel.getProps(state, 'BactConvRate');
                 for i = 1:ncomp
                     if ~isempty(src_rate{i})
-                        eqs{i} = eqs{i} -src_rate{i};
+                        eqs{i} = eqs{i} -bmass.*src_rate{i};
                     end
                 end
             end
