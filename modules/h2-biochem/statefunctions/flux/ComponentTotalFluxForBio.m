@@ -16,7 +16,8 @@ classdef ComponentTotalFluxForBio < ComponentTotalFlux
                 sf = sf.dependsOn('ComponentTotalMolecularDispFlux');
             end
             if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
-                sf = sf.dependsOn('ComponentTotalMolecularDiffFlux');
+                %sf = sf.dependsOn('ComponentTotalMolecularDiffFlux');
+                sf = sf.dependsOn('ComponentTotalMolecularDispFlux');
             end
 
             sf.label = 'V_i';
@@ -28,23 +29,13 @@ classdef ComponentTotalFluxForBio < ComponentTotalFlux
 
             ncomp = numel(v);   % number of components
 
-            % 2. Optionally add mechanical dispersion (includes molecular diffusion if combined flux)
-            if isprop(model, 'molecularDispersion') && model.molecularDispersion
+            % 2. Optionally add mechanical dispersion or molecular diffusion(includes molecular diffusion if combined flux)
+            if (isprop(model, 'molecularDispersion') && model.molecularDispersion)||...
+                    (isprop(model, 'molecularDiffusion') && model.molecularDiffusion )
                 Jdisp = sf.getEvaluatedDependencies(state, 'ComponentTotalMolecularDispFlux');
                 for c = 1:ncomp
                     if numel(Jdisp) >= c && ~isempty(Jdisp{c})
                         v{c} = v{c} + Jdisp{c};
-                    end
-                end
-            end
-
-            % 3. Optionally add molecular diffusion (when dispersion is not active)
-            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion && ...
-                    ~(isprop(model, 'molecularDispersion') && model.molecularDispersion)
-                Jdiff = sf.getEvaluatedDependencies(state, 'ComponentTotalMolecularDiffFlux');
-                for c = 1:ncomp
-                    if numel(Jdiff) >= c && ~isempty(Jdiff{c})
-                        v{c} = v{c} + Jdiff{c};
                     end
                 end
             end

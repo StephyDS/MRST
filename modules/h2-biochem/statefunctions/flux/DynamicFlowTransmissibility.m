@@ -67,11 +67,18 @@ classdef DynamicFlowTransmissibility < StateFunction
 
             % Handle both cell and array inputs
             if iscell(lambda)
-                T = cell(numel(lambda), 1);
+                T = cell(size(lambda));
                 for i = 1:numel(lambda)
-                    if ~isempty(lambda{i})
-                        T{i} = prop.getTransmissibility(lambda{i});
+                    if isempty(lambda{i})
+                        continue
                     end
+
+                    Ti = prop.getTransmissibility(lambda{i});
+                    % Return only internal connections by default
+                    if nargin < 4 || ~allFaces
+                        Ti = Ti(model.operators.internalConn);
+                    end
+                    T{i}=Ti;
                 end
             else
                 T = prop.getTransmissibility(lambda);

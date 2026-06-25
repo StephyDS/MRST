@@ -43,6 +43,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         molecularDiffusion = false;
         molecularDispersion = false;
         bactDiffusion = false;            % Microbial diffusion
+        chemotaxisEffect = false;         % chemotaxis 
     end
 
     methods
@@ -260,7 +261,13 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
 
                 % Assemble accumulation and flux divergence
-                if model.bactDiffusion && ~isempty(bflux{1})
+                if model.bactDiffusion && ~model.chemotaxisEffect && ~isempty(bflux{1})
+                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
+                    % Dirichlet boundary conditions for bacterial diffusion
+                    beqs = model.addBacterialDiffusionBC(beqs, state, drivingForces);
+                elseif model.chemotaxisEffect && ~model.bactDiffusion && ~isempty(bflux{1})
+                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
+                elseif model.bactDiffusion && model.chemotaxisEffect && ~isempty(bflux{1})
                     beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
                     % Dirichlet boundary conditions for bacterial diffusion
                     beqs = model.addBacterialDiffusionBC(beqs, state, drivingForces);
@@ -268,6 +275,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                     % No diffusion: just accumulation term (pore-scale diffusion only)
                    % beqs{1} = model.operators.AccDiv(beqs{1},0);
                 end
+                
                 beqs{1} = beqs{1} - src_growthdecay;
             else
                 [beqs, bnames, btypes] = deal([]);
