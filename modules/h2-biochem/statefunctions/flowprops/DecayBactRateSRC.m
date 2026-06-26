@@ -34,7 +34,7 @@ classdef DecayBactRateSRC < StateFunction
             gp@StateFunction(model, varargin{:});
 
             % Define dependencies - kinetic coefficient based on current concentration
-            gp = gp.dependsOn({'nbact'}, 'state');          % Bacterial concentration
+            gp = gp.dependsOn('nbact', 'state');          % Bacterial concentration
 
             % Set label for output
             gp.label = 'Psi_{decay}';

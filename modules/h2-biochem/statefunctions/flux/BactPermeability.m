@@ -62,7 +62,7 @@ classdef BactPermeability < StateFunction
                     perm = perm(p, nbact);  % Apply both modifications
                 else
                     % Pressure-only modification
-                    p = model.getProps(state, 'pressure');
+                    p = model.getProp(state, 'pressure');
                     perm = perm(p, 0);  % Zero bacterial effect
                 end
             end

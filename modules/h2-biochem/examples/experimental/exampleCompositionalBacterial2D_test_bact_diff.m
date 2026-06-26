@@ -107,7 +107,7 @@ nls = NonLinearSolver('LinearSolver',linsolve);
 %nls.LinearSolver.verbose = true;
 prob_noBactDiff = packSimulationProblem(state0, model_noBactDiff, schedule, ...
     [baseName '_bio_noDiff_noDisp'], 'NonLinearSolver', nls);
-simulatePackedProblem(prob_noBactDiff,'Restartstep',1);
+%simulatePackedProblem(prob_noBactDiff);
 [ws_noDiff, states_noDiff] = getPackedSimulatorOutput(prob_noBactDiff);
 mrstVerbose true;
 fprintf('\n===== Case 1 Complete (No Bacterial Diffusion) =====\n\n');

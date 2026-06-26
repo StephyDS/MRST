@@ -1,131 +1,152 @@
 classdef BactConvertionRate < StateFunction
-    % Bacterial conversion rate model for compositional simulations
+    % Bacterial conversion rate model for compositional simulations.
     %
     % SYNOPSIS:
-    %   gf = BactConvertionRate(model, 'property1', value1, ...)
+    %   bcr = BactConvertionRate(model)
+    %   bcr = BactConvertionRate(model, 'pn', pv, ...)
     %
     % DESCRIPTION:
-    %   Computes component conversion rates due to bacterial growth.
-    %   Uses kinetic growth rate (without mass) multiplied by current bacterial mass:
-    %   qbiot = (growth_rate * nbact) * stoichiometric_coefficient
-    %   This ensures consistent treatment of (g-d)*mass formulation in the flow.
+    %   Computes component conversion rates due to bacterial growth for
+    %   methanogenic archaea. The conversion rate follows the stoichiometry
+    %   of the metabolic reaction:
+    %
+    %       4 H2 + CO2 -> CH4 + 2 H2O
+    %
+    %   The conversion rate for each component c is computed as:
+    %
+    %       qbiot(c) = γ_c * (bmass / (ρL * Y_H2))
+    %
+    %   where:
+    %       γ_c   = Stoichiometric coefficient for component c
+    %       bmass = Bacterial mass concentration [kg/m^3]
+    %       ρL    = Liquid phase density [kg/m^3]
+    %       Y_H2  = Yield coefficient for H2 [kg_biomass/kg_H2]
+    %
+    %   The stoichiometric coefficients are normalized by the H2 coefficient
+    %   and scaled by the bacterial carrying capacity (nbactMax).
+    %
+    % REQUIRED PARAMETERS:
+    %   model - Model instance with:
+    %           .bacteriamodel (true)
+    %           .biochemFluid.metabolicReaction ('MethanogenicArchae')
+    %           .biochemFluid.rH2 (reactant component name, e.g., 'H2')
+    %           .biochemFluid.rsub (substrate component name, e.g., 'CO2')
+    %           .biochemFluid.Y_H2 (yield coefficient)
+    %           .biochemFluid.nbactMax (carrying capacity)
+    %           .gammak (stoichiometric coefficients)
+    %
+    % RETURNS:
+    %   qbiot - Cell array of conversion rates for each component [kg/s]
     %
     % SEE ALSO:
-    %   CompositionalModel, EquationsCompositional
+    %   StateFunction, BiochemistryModel, ComponentSource
 
     properties
         % No additional properties needed - all parameters come from model
     end
 
     methods
-        function gp = BactConvertionRate(model, varargin)
-            % Constructor for bacterial conversion rate calculator
-            gp@StateFunction(model, varargin{:});
-
-            % Define dependencies - computes kinetics directly, no pre-computed rates
-            gp = gp.dependsOn({'PoreVolume'}, 'PVTPropertyFunctions');
-
-            % Set label for output
-            gp.label = 'Q_biot';
-        end
-
-        function qbiot = evaluateOnDomain(prop, model, state)
-            % Compute bacterial conversion rate for each component
+        %-----------------------------------------------------------------%
+        function bcr = BactConvertionRate(model, varargin)
+            % Constructor for bacterial conversion rate calculator.
             %
             % PARAMETERS:
-            %   prop  - Property function instance
-            %   model - Compositional model instance
-            %   state - State struct with fields
+            %   model - Compositional model with bacterial physics
+            %   varargin - Optional property/value pairs
             %
             % RETURNS:
-            %   qbiot - Cell array of conversion rates per component [kg/s]
+            %   bcr - BactConvertionRate instance
 
-            % Initialize with zeros
-            ncomp = model.ReservoirModel.EOSModel.getNumberOfComponents();
+            bcr@StateFunction(model, varargin{:});
+
+            % Dependencies: pore volume, saturation, and bacterial concentration
+            % Note: Direct calculation avoids redundant Density computation through BacterialMass
+            bcr = bcr.dependsOn('BacterialMass', 'PVTPropertyFunctions');
+            bcr = bcr.dependsOn('PsiGrowthRate', 'state');
+
+            bcr.label = 'Q_biot';
+        end
+
+        %-----------------------------------------------------------------%
+        function qbiot = evaluateOnDomain(bcr, model, state)
+            % Compute bacterial conversion rate for each component.
+            %
+            % PARAMETERS:
+            %   model - Compositional model instance
+            %   state - Reservoir state structure
+            %
+            % RETURNS:
+            %   qbiot - Cell array qbiot{c} containing conversion rates
+            %           for component c (ncells × 1), units [kg/s]
+
+            % Get reservoir model and number of components
+            rm = model.ReservoirModel;
+            ncomp = rm.EOSModel.getNumberOfComponents();
+
+            % Initialize output with zeros
             qbiot = cell(ncomp, 1);
             [qbiot{:}] = deal(0);
 
-            % Check if bacterial modeling is active
-            rm = model.ReservoirModel;
+            % Early return if bacterial model is not active
             if ~(rm.bacteriamodel && rm.liquidPhase)
                 return;
             end
-            bcrm=rm.biochemFluid;
 
-            % Get component indices
-            compNames = rm.EOSModel.getComponentNames();
-            if strcmp(bcrm.metabolicReaction, 'MethanogenicArchae')
-                idxH2  = find(strcmpi(compNames, bcrm.rH2),1);
-                idxsub = find(strcmpi(compNames, bcrm.rsub),1);
+            % Get biochemical fluid properties
+            bcrm = rm.biochemFluid;
 
-                % Validate required components
-                if isempty(idxH2) || isempty(idxsub)
-                    warning('Bacterial model requires H2 and CO2 components');
-                    return;
-                end
+            % Validate metabolic reaction type
+            if ~strcmp(bcrm.metabolicReaction, 'MethanogenicArchae')
+                error('BactConvertionRate:UnsupportedReaction', ...
+                    'Unsupported metabolic reaction: %s', bcrm.metabolicReaction);
             end
 
-            try
-                % Get required state variables
-                pv = rm.PVTPropertyFunctions.get(model.ReservoirModel, state, 'PoreVolume');
-                s  =  rm.getProp(state, 's');
-                nbact = rm.getProp(state, 'nbact');
-                L_ix = rm.getLiquidIndex();
-                x = rm.getProp(state, 'x');
+            % Get component names and find indices of H2 and CO2
+            compNames = rm.EOSModel.getComponentNames();
+            idxH2  = find(strcmpi(compNames, bcrm.rH2), 1);
+            idxsub = find(strcmpi(compNames, bcrm.rsub), 1);
 
-                % Extract liquid phase properties
-                if iscell(x)
-                    xH2 = x{idxH2};
-                    xsub = x{idxsub};
-                    sL = s{L_ix};
-                else
-                    xH2 = x(:, idxH2);
-                    xsub = x(:, idxsub);
-                    sL = s(:, L_ix);
-                end
+            % Validate required components exist
+            if isempty(idxH2)
+                error('BactConvertionRate:MissingH2', ...
+                    'Required component H2 (%s) not found in the system', bcrm.rH2);
+            end
+            if isempty(idxsub)
+                error('BactConvertionRate:MissingCO2', ...
+                    'Required component CO2 (%s) not found in the system', bcrm.rsub);
+            end
 
-                % Ensure non-zero liquid saturation
-                sL = max(value(sL), 1.0e-8);
+            % Get primary state variables directly (avoids redundant Density calculations)
+            bmass = rm.PVTPropertyFunctions.get(rm, state, 'BacterialMass');
+            psigrowth = model.getProps(state, 'PsiGrowthRate');
 
-                % Get model parameters
-                alphaH2 = bcrm.alphaH2;
-                alphasub = bcrm.alphasub;
-                Psigrowthmax = bcrm.Psigrowthmax;
-                Y_H2 = bcrm.Y_H2;
-                gammak = rm.gammak;
-                nbactMax = bcrm.nbactMax;
-                mc = rm.EOSModel.CompositionalMixture.molarMass;
+           
+            % Get model parameters
+            Y_H2 = bcrm.Y_H2;                      % Yield coefficient [kg_biomass/kg_H2]
+            gamma = rm.gammak;                     % Stoichiometric coefficients
+            nbactMax = bcrm.nbactMax;              % Carrying capacity [cells/m^3]
+            mc = rm.EOSModel.CompositionalMixture.molarMass;  % Component molar masses [kg/mol]
 
-                % Calculate Monod kinetics (specific growth rate)
-                axH2 = xH2 ./ (alphaH2 + xH2);
-                axsub = xsub ./ (alphasub + xsub);
-                growth_kinetic = Psigrowthmax .* axH2 .* axsub;
+            % Normalize stoichiometric coefficients by H2 coefficient
+            % γ_c^H2 = (γ_c * m_c) / |γ_H2|
+            % Scaled by nbactMax for consistency with bacterial mass units
+            gamma_norm = nbactMax .* gamma .* mc ./ abs(gamma(idxH2));
 
-                % Theory: q_i = Φ * γ_i^H2 * ψ_growth * S_l / Y_H2
-                % where γ_i^H2 = n0 * γ_i * M_i / γ_H2
-                % and ψ_growth = growth_kinetic * nbact (biomass growth rate)
+            % Calculate base conversion rate
+            % Direct calculation: qbiot = (pv * S_l * nbact) / Y_H2
+            % Note: Density cancels in (pv * S_l * rho_l * nbact) / (rho_l * Y_H2)
+            qbase = psigrowth.*bmass ./ Y_H2;
 
-                % Compute stoichiometric factor for each component
-                % γ_i^H2 = nbactMax * γ_i * M_i / γ_H2
-                stoich_factor = nbactMax .* mc ./ abs(gammak(idxH2));
-
-                % Component source: q_i = pv * γ_i^H2 * (growth_kinetic * nbact) * S_l / Y_H2
-                % Rewrite: q_i = pv * S_l * nbact / Y_H2 * (γ_i^H2 * growth_kinetic)
-                qbiot_temp = pv .* sL .* nbact ./ Y_H2 .* growth_kinetic;
-
-                for c = 1:ncomp
-                    qbiot{c} = gammak(c) .* stoich_factor(c) .* qbiot_temp;
-                end
-
-            catch ME
-                warning('Bacterial conversion rate calculation failed: %s', ME.message);
-                [qbiot{:}] = deal(0);
+            % Apply normalized stoichiometric coefficients to each component
+            for c = 1:ncomp
+                qbiot{c} = gamma_norm(c) .* qbase;
             end
         end
     end
 end
+
 %{
-Copyright 2009-2025 SINTEF Digital, Mathematics & Cybernetics.
+Copyright 2009-2026 SINTEF Digital, Mathematics & Cybernetics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 

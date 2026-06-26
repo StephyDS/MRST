@@ -35,7 +35,7 @@ classdef GrowthBactRateSRC < StateFunction
             gp@StateFunction(model, varargin{:});
 
             % Declare dependencies - kinetic term only (no mass, volume, saturation)
-            gp = gp.dependsOn({'x'}, 'state');        % Mole fractions for Monod kinetics
+            gp = gp.dependsOn('x', 'state');        % Mole fractions for Monod kinetics
 
             gp.label = '\Psi_{growth}'; % LaTeX-style label
         end

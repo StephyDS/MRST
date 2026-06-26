@@ -37,7 +37,7 @@ classdef MicrobialDiffusivity < StateFunction
 
             % Dependencies: pressure, saturation, and nbact (for dynamic porosity)
             md = md.dependsOn({'s','pressure','nbact'}, 'state');
-            md = md.dependsOn({'PoreVolume'}, 'PVTPropertyFunctions');
+            md = md.dependsOn('PoreVolume', 'PVTPropertyFunctions');
             md.label = 'D_{bact}^{eff}';
         end
 

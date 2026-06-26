@@ -29,8 +29,8 @@ classdef DiffusiveBactFlux < StateFunction
             df = merge_options(df, varargin{:});
 
             % Dependencies
-            df = df.dependsOn({'MicrobialTransmissibility'});
-            df = df.dependsOn({'nbact'}, 'state');
+            df = df.dependsOn('MicrobialTransmissibility');
+            df = df.dependsOn('nbact', 'state');
             df = df.dependsOn('Density', 'PVTPropertyFunctions');
 
             df.label = 'J_{bact}^{diff}';
@@ -43,8 +43,9 @@ classdef DiffusiveBactFlux < StateFunction
             % Retrieve microbial transmissibility
             T = prop.getEvaluatedDependencies(state, 'MicrobialTransmissibility');
 
-            % State variables
-            [nbact, rho] = model.getProps(state, 'nbact', 'Density');
+            % State variables and properties
+            nbact = model.getProp(state, 'nbact');
+            rho = prop.getEvaluatedDependencies(state, 'Density');
 
             % Liquid density (face averaged)
             L_ix = model.getLiquidIndex();

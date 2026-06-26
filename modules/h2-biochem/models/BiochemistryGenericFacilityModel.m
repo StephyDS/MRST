@@ -24,7 +24,7 @@ classdef BiochemistryGenericFacilityModel < GenericFacilityModel
             rm = model.ReservoirModel;
             if ~isempty(rm) && isprop(rm, 'bacteriamodel') && rm.bacteriamodel
                 ffd = model.FacilityFlowDiscretization;
-                ffd = ffd.setStateFunction('BacterialMass', BacterialMass(model));
+                % Note: BacterialMass is already registered in ReservoirModel's PVTPropertyFunctions
                 ffd = ffd.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 ffd = ffd.setStateFunction('PsiDecayRate', DecayBactRateSRC(model));
                 ffd = ffd.setStateFunction('BactConvRate', BactConvertionRate(model));
@@ -76,7 +76,7 @@ classdef BiochemistryGenericFacilityModel < GenericFacilityModel
             flowState = fd.buildFlowState(model, state, state0, dt);
             psigrowth = model.getProps(flowState, 'PsiGrowthRate');  % Psigrowthmax * axH2 * axsub [1/s]
             psidecay  = model.getProps(flowState, 'PsiDecayRate');   % bbact * nbact [1/s]
-            bmass     = model.getProps(flowState, 'BacterialMass');  % pv * nbact * Voln [kg]
+            bmass     = rm.PVTPropertyFunctions.get(rm, state, 'BacterialMass');  % pv * S_l * rho_l * nbact [kg]
 
             % Direct (g-d)*mass formulation using BacterialMass
             src_growthdecay = (psigrowth - psidecay) .* bmass - reg .* bmass;

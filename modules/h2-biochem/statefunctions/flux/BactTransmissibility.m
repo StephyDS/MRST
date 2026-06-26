@@ -11,7 +11,7 @@ classdef BactTransmissibility < StateFunction
             btrans@StateFunction(model);
             btrans.postfix = postfix;
             if isfield(model.fluid, ['transMult', postfix])
-                btrans = btrans.dependsOn({'pressure', 'T'}, 'state');
+                btrans = btrans.dependsOn({'pressure', 'nbact'}, 'state');
             end
             name        = strcat('T', postfix);
             btrans.label = ['T_{', postfix, '}'];
@@ -30,7 +30,7 @@ classdef BactTransmissibility < StateFunction
             mname = strcat('transMult', trans.postfix);
             Tb = model.operators.(name);
             if isfield(model.fluid, mname)
-                % Get pressure and temperature
+                % Get pressure and bacterial concentration
                 [p, nbact] = model.getProps(state, 'pressure', 'nbact');
                 p      = model.operators.faceAvg(p);
                 nbact      = model.operators.faceAvg(nbact);

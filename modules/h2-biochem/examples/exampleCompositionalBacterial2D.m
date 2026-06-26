@@ -53,17 +53,17 @@ comp0 = repmat([0.8480, 1.0e-5, 1.0e-5, 0.1530], nc, 1);
 
 %% Bio-clogging parameters
 bacteriamodel = true;
-clogModel = true;
-if clogModel
+clogModel = false;
+%if clogModel
     nbact0 = 5; % Initial bacteria
     nc_bact = 120;
     cp = 1.0;   % Clogging coefficient
-    [model, poro0, perm0] = setupBioCloggingModel(model, nbact0, nc_bact, cp);
+    [model, poro0, perm0] = setupBioCloggingModel(model, nbact0, nc_bact, cp, clogModel);
     caseNameWithClogging = [baseName '_WITH_CLOGGING'];
-else
-    poro0 = model.rock.poro;
-    perm0 = model.rock.perm;
-end
+%else
+ %   poro0 = model.rock.poro;
+ %   perm0 = model.rock.perm;
+%end
 %% Setup model
 diagonal_backend = DiagonalAutoDiffBackend('modifyOperators', true);
 arg = {model.G, model.rock, model.fluid, compFluid, biochemFluid,...

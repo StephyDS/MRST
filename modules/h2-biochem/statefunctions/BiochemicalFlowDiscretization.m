@@ -15,21 +15,18 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             props = props.setStateFunction('ComponentTotalFlux', ...
                 ComponentTotalFluxForBio(model));
 
-            % Optionally register dispersion state functions
-            if isprop(model, 'molecularDispersion') && model.molecularDispersion
-                props = props.setStateFunction('ComponentTotalMolecularDispFlux', ...
-                    ComponentTotalMolecularDispFlux(model));
-                props = props.setStateFunction('ComponentPhaseHydrodynamicDispFlux', ...
-                    ComponentPhaseHydrodynamicDispFlux(model));
+            % Add dispersion state functions
+            if (isprop(model, 'molecularDispersion') && model.molecularDispersion) || ...
+                    (isprop(model, 'molecularDiffusion') && model.molecularDiffusion)
+                props = props.setStateFunction('DispersiveDiffusivity', DispersiveDiffusivity(model));
+                props = props.setStateFunction('DispersiveTransmissibility', ...
+                    DispersiveTransmissibility(model));
+                props = props.setStateFunction('ComponentPhaseDispFlux', ...
+                    ComponentPhaseDispFlux(model));
+                props = props.setStateFunction('ComponentTotalDispFlux', ...
+                    ComponentTotalDispFlux(model));
             end
 
-            % Optionally register diffusion state functions
-            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
-                props = props.setStateFunction('ComponentTotalMolecularDiffFlux', ...
-                    ComponentTotalMolecularDiffFlux(model));
-                props = props.setStateFunction('ComponentPhaseHydrodynamicDispFlux', ...
-                    ComponentPhaseHydrodynamicDispFlux(model));
-            end
             if model.bacteriamodel
                 % Ensure Porosity exists in FlowDiscretization for diffusion (also when no clogging)
                 props = props.setStateFunction('Porosity', PorosityFromRock(model));
@@ -67,8 +64,8 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
         %-----------------------------------------------------------------%
         function [acc, bflux, name, type] = bacteriaConservationEquation(fd, model, state, state0, dt)
             % Computes bacterial mass conservation equation
-            bactmass  = model.getProps(state, 'BacterialMass');
-            bactmass0 = model.getProps(state0, 'BacterialMass');
+            bactmass  = model.getProp(state, 'BacterialMass');
+            bactmass0 = model.getProp(state0, 'BacterialMass');
 
             % Accumulation term: d(bactmass)/dt
             acc = (bactmass - bactmass0) ./ dt;
@@ -95,7 +92,7 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             c = component.getPhaseComposition(model, state);
 
             if nargin < 4
-                rho = model.getProps(state, 'Density');
+                rho = model.getProp(state, 'Density');
             else
                 rho = extra.rho;
             end
@@ -110,7 +107,7 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
 end
 
 %{
-Copyright 2009-2025 SINTEF Digital, Mathematics & Cybernetics.
+Copyright 2009-2026 SINTEF Digital, Mathematics & Cybernetics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 

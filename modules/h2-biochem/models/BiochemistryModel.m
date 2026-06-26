@@ -100,10 +100,9 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             % Set output state functions
             model.OutputStateFunctions = {'ComponentTotalMass', 'Density'};
             model.FlowDiscretization = BiochemicalFlowDiscretization(model);
-        end
 
-        function containers = getStateFunctionGroupings(model)
-            containers = getStateFunctionGroupings@GenericOverallCompositionModel(model);
+            % Set up state function groupings
+            model = model.setupStateFunctionGroupings();
         end
 
         function model = setupOperators(model, G, rock, varargin)
@@ -162,6 +161,9 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 flowprops = flowprops.setStateFunction('PsiGrowthRate', GrowthBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('PsiDecayRate',  DecayBactRateSRC(model));
                 flowprops = flowprops.setStateFunction('BactConvRate',  BactConvertionRate(model));
+
+                % Register bacterial mass as cell property (not a source term)
+                pvtprops = pvtprops.setStateFunction('BacterialMass', BacterialMass(model));
             end
 
             pvt = pvtprops.getRegionPVT(model);
@@ -239,9 +241,16 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 cnames = model.EOSModel.getComponentNames();
                 ncomp = numel(cnames);
                 src_rate = model.FacilityModel.getProps(state, 'BactConvRate');
+                L_ix = model.getLiquidIndex();
+                if iscell(rho)
+                    rhoL = rho{L_ix};
+                else
+                    rhoL = rho(:, L_ix);
+                end
+
                 for i = 1:ncomp
                     if ~isempty(src_rate{i})
-                        eqs{i} = eqs{i} -src_rate{i};
+                        eqs{i} = eqs{i} -src_rate{i}./rhoL;
                     end
                 end
             end

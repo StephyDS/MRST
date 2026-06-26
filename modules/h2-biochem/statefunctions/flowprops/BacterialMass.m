@@ -32,8 +32,8 @@ classdef BacterialMass < StateFunction & ComponentProperty
             % Constructor for bacterial mass calculator
 
             gp@StateFunction(model, varargin{:});
-            gp = gp.dependsOn({'nbact'}, 'state');          % Bacterial concentration
-            gp = gp.dependsOn({'s'}, 'state');              % Phase saturations
+            gp = gp.dependsOn('nbact', 'state');          % Bacterial concentration
+            gp = gp.dependsOn('s', 'state');              % Phase saturations
             gp = gp.dependsOn({'PoreVolume', 'Density'}, 'PVTPropertyFunctions');
             gp.label = 'M_{bio}';
         end

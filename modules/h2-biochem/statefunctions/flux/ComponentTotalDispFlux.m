@@ -1,17 +1,17 @@
-classdef ComponentTotalMolecularDiffFlux < StateFunction
+classdef ComponentTotalDispFlux < StateFunction
     % ComponentTotalMolecularDiffFlux - Total molecular diffusion flux
     % of components summed over all phases.
 
     methods
-        function gp = ComponentTotalMolecularDiffFlux(model, varargin)
+        function gp = ComponentTotalDispFlux(model, varargin)
             gp@StateFunction(model, varargin{:});
-            gp = gp.dependsOn('ComponentPhaseMolecularDiffFlux');
-            gp.label = 'J_i^{mol,diff}';
+            gp = gp.dependsOn('ComponentPhaseDispFlux');
+            gp.label = 'J_i^{mol,disp}';
         end
 
         function v = evaluateOnDomain(prop, model, state)
             % Get phase-wise diffusion fluxes
-            J_phase = prop.getEvaluatedDependencies(state, 'ComponentPhaseMolecularDiffFlux');
+            J_phase = prop.getEvaluatedDependencies(state, 'ComponentPhaseDispFlux');
 
             ncomp = model.getNumberOfComponents();
             v = cell(ncomp, 1);

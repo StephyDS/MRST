@@ -63,7 +63,7 @@ classdef BactPorosity < StateFunction
                     poro = poro(p, nbact); % Apply both modifications
                 else
                     % Pressure-only modification
-                    p = model.getProps(state, 'pressure');
+                    p = model.getProp(state, 'pressure');
                     poro = poro(p, 0); % Zero bacterial effect
                 end
             end

@@ -54,7 +54,8 @@ initPress = 82 * barsa;
 initBact = 9;   % normalized bacteria concentration
 nc       = 180; % critical concentration
 cp       = 0.0; % scaling coefficient
-[model0, poro0, perm0] = setupBioCloggingModel(model0, initBact, nc, cp);
+clogModel = false;
+[model0, poro0, perm0] = setupBioCloggingModel(model0, initBact, nc, cp, clogModel);
 
 % Shut wells (no injection/production, flow driven by initial gradients)
 schedule.control.W(1).components = [0.001, 0.958, 0.001, 0.05];
@@ -90,7 +91,7 @@ state0 = initCompositionalStateBacteria(model_00, initPress, initTemp, [0,1], ..
     initComp, initBact, model_00.EOSModel);
 prob00 = packSimulationProblem(state0, model_00, schedule, 'bio_noDiff_noDisp');
 prob00.SimulatorSetup.model.OutputStateFunctions{end} = 'ComponentPhaseMass';
-simulatePackedProblem(prob00);
+simulatePackedProblem(prob00, 'RestartStep',1);
 [~, st00] = getPackedSimulatorOutput(prob00);
 scenarios{end+1} = struct('name','No Diff, No Disp', 'states',{st00}, 'color',[0.7 0 0], 'line','-');
 
