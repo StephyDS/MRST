@@ -56,13 +56,16 @@ classdef DecayBactRateSRC < StateFunction
             % RETURNS:
             %   Psidecay - Decay rate coefficient (depends on current nbact) [1/s]
 
-            % Initialize with zeros
-            Psidecay = 0;
-
             % Get model parameters
             rm = model.ReservoirModel;
             bcrm=rm.biochemFluid;
-            bbact = bcrm.bbact;
+            nbioreact=bcrm.nbioreact;
+
+
+            % Initialize with zeros
+            Psidecay=cell(1,nbioreact);
+            [Psidecay{:}] = deal(0);
+
 
             % Check if bacterial modeling is active
             if ~(rm.bacteriamodel && rm.liquidPhase)
@@ -71,13 +74,16 @@ classdef DecayBactRateSRC < StateFunction
 
             % Get component names and indices
             namecp = rm.getComponentNames();
-            idx_H2 = find(strcmpi(namecp, bcrm.rH2), 1);
-            idx_sub = find(strcmpi(namecp, bcrm.rsub), 1);
 
             % Validate required components
-            if strcmp(bcrm.metabolicReaction, 'MethanogenicArchae')
-                if isempty(idx_H2) || isempty(idx_sub)
-                    return;
+            for i=1:nbioreact
+                idx_H2 = find(strcmpi(namecp, bcrm.rH2(i)), 1);     % Case-insensitive search
+                idx_sub = find(strcmpi(namecp, bcrm.rsub(i)), 1);   % Case-insensitive search
+                if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
+                        strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
+                    if isempty(idx_H2) || isempty(idx_sub)
+                        return;
+                    end
                 end
             end
 
@@ -86,8 +92,17 @@ classdef DecayBactRateSRC < StateFunction
 
             % Compute density-dependent decay coefficient: b * nbact [1/s]
             % When multiplied by BacterialMass and divided by nbact, gives b*nbact^2
-            nbact_pos = max(nbact, 0);
-            Psidecay = bbact .* nbact_pos;
+            for i=1:nbioreact
+                % Extract liquid phase properties
+                if iscell(nbact)
+                    nbacti=nbact{i};
+                else
+                    nbacti=nbact(:,i);
+                end
+                bbact = bcrm.bbact(i);
+                nbact_pos = max(nbacti, 0);
+                Psidecay{i} = bbact .* nbact_pos;
+            end
         end
     end
 end

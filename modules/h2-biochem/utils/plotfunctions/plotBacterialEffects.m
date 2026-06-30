@@ -32,6 +32,8 @@ function plotBacterialEffects(scenarios, timeYears, poro0, perm0)
 figure('Position', [100, 100, 1000, 800]);
 
 % Identify scenarios with bacterial concentration field
+nbioreact=scenarios{1}.model.biochemFluid.nbioreact;
+
 hasBacteria   = cellfun(@(x) isfield(x.states{1}, 'nbact'), scenarios);
 bioScenarios  = scenarios(hasBacteria);
 
@@ -45,15 +47,20 @@ hold on;
 for scenIdx = 1:numel(bioScenarios)
     scen = bioScenarios{scenIdx};
     nSteps = numel(scen.states);
-    bactData = zeros(nSteps, 1);
+    bactData = zeros(nSteps, nbioreact);
 
     for step = 1:nSteps
-        bactData(step) = mean(scen.states{step}.nbact);
+        for i=1:nbioreact
+            bactData(step,i) = mean(scen.states{step}.nbact(:,i));
+        end
     end
-
-    plot(timeYears, bactData, scen.line, ...
-        'Color', scen.color, 'LineWidth', 2, ...
-        'DisplayName', scen.name);
+    for i=1:nbioreact
+        scenbact=strcat(scen.name,'-',scen.model.biochemFluid.bactnames{i});
+        scencolor=(i-1).*0.25+scen.color;
+        plot(timeYears, bactData(:,i), scen.line, ...
+            'Color', scencolor, 'LineWidth', 2, ...
+            'DisplayName', scenbact);
+    end
 end
 title('Average Bacterial Concentration');
 xlabel('Time (years)');
@@ -73,7 +80,11 @@ for scenIdx = 1:numel(bioScenarios)
         currentPoro = scen.model.rock.poro;
         if isa(currentPoro, 'function_handle')
             nbact = scen.states{step}.nbact;
-            poroData(step) = mean(currentPoro(1, nbact));
+            if nbioreact==1
+                poroData(step) = mean(currentPoro(1, nbact));
+            elseif nbioreact==2
+                poroData(step) = mean(currentPoro(1, nbact(:,1),nbact(:,2)));
+            end
         else
             poroData(step) = mean(currentPoro);
         end
@@ -100,7 +111,11 @@ for scenIdx = 1:numel(bioScenarios)
         currentPerm = scen.model.rock.perm;
         if isa(currentPerm, 'function_handle')
             nbact = scen.states{step}.nbact;
-            permData(step) = mean(currentPerm(1, nbact));
+            if nbioreact==1
+                permData(step) = mean(currentPerm(1, nbact));
+            elseif nbioreact==2
+                permData(step) = mean(currentPerm(1, nbact(:,1),nbact(:,2)));
+            end
         else
             permData(step) = mean(currentPerm(:, 1));
         end

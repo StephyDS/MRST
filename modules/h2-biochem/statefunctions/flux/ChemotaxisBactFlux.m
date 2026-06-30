@@ -41,6 +41,8 @@ classdef ChemotaxisBactFlux < StateFunction
         function DN = evaluateOnDomain(prop, model, state)
             op = model.operators;
             bcrm=model.biochemFluid;
+            nbioreact=bcrm.nbioreact;
+
 
             % Retrieve microbial transmissibility
             T = prop.getEvaluatedDependencies(state, 'ChemotaxisTransmissibility');
@@ -48,9 +50,13 @@ classdef ChemotaxisBactFlux < StateFunction
             % State variables
             [x, rho] = model.getProps(state, 'x', 'Density');
 
+            % Initialize with zero growth rate
+            DN=cell(1,nbioreact);
+            [DN{:}] = deal(0);
+
             % Liquid density (face averaged)
             namecp = model.getComponentNames();
-            indH2= find(strcmpi(namecp, bcrm.rH2), 1);
+
             L_ix = model.getLiquidIndex();
             if iscell(rho)
                 rhoL = rho{L_ix};
@@ -59,14 +65,17 @@ classdef ChemotaxisBactFlux < StateFunction
             end
             rhoLf = model.operators.faceAvg(rhoL);
 
-            if iscell(x)
-                xH2=x{indH2};
-            else
-                xH2=x(:,indH2);
-            end
+            for i=1:nbioreact
+                indH2= find(strcmpi(namecp, bcrm.rH2(i)), 1);
+                if iscell(x)
+                    xH2=x{indH2};
+                else
+                    xH2=x(:,indH2);
+                end
 
-            % Diffusive flux (all faces)
-            DN = + rhoLf .* T .* op.Grad(xH2);
+                % Diffusive flux (all faces)
+                DN{i} = + rhoLf .* T{i} .* op.Grad(xH2);
+            end
         end
     end
 end

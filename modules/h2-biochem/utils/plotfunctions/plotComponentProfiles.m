@@ -33,7 +33,7 @@ nComp = numel(componentNames);
 
 % Loop over all components
 for compIdx = 1:nComp
-    subplot(2, 2, compIdx);
+    subplot(2, round(0.5*nComp), compIdx);
     hold on;
 
     % Loop over all scenarios

@@ -65,7 +65,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
 
              %% Set metabolic reactions
             if isempty(biochemFluid)
-                biochemFluid=TableBioChemMixture({'MethanogenicArchae'});
+                biochemFluid=TableBioChemMixture({'MethanogenicArchae'},{'bactM'});
             end
             model.biochemFluid=biochemFluid;
 
@@ -82,16 +82,19 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             model.compFluid = compFluid;
             model.EOSModel = SoreideWhitsonEos([], compFluid);
             ncomp = compFluid.getNumberOfComponents();
+            nbioreact = numel(model.biochemFluid.metabolicReaction);
             namecp = compFluid.names;
-            model.gammak = zeros(1, ncomp);
-            indH2   = find(strcmp(namecp, model.biochemFluid.rH2));
-            indH2O  = find(strcmp(namecp, model.biochemFluid.pH2O));
-            indsub  = find(strcmp(namecp, model.biochemFluid.rsub));
-            indprod   = find(strcmp(namecp, model.biochemFluid.p2));
-            model.gammak(indH2)  = model.biochemFluid.gamrH2;
-            model.gammak(indH2O) =  model.biochemFluid.gampH2O;
-            model.gammak(indsub) = model.biochemFluid.gamrsub;
-            model.gammak(indprod)  = model.biochemFluid.gamp2;
+            model.gammak = zeros(nbioreact, ncomp);
+            for i=1:nbioreact
+                indH2   = find(strcmp(namecp, model.biochemFluid.rH2(i)));
+                indH2O  = find(strcmp(namecp, model.biochemFluid.pH2O(i)));
+                indsub  = find(strcmp(namecp, model.biochemFluid.rsub(i)));
+                indprod   = find(strcmp(namecp, model.biochemFluid.p2(i)));
+                model.gammak(i,indH2)  = model.biochemFluid.gamrH2(i);
+                model.gammak(i,indH2O) =  model.biochemFluid.gampH2O(i);
+                model.gammak(i,indsub) = model.biochemFluid.gamrsub(i);
+                model.gammak(i,indprod)  = model.biochemFluid.gamp2(i);
+            end
 
 
             % Validate bacterial formulation
@@ -120,8 +123,13 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 % Assign dummy transmissibilities to appease
                 % model.setupOperators
                 drock = rock;
-                nbact0 = 0;
-                drock.perm = rock.perm(1*barsa(),nbact0);
+                if nargin(drock.perm)<3
+                    nbact0 = 0;
+                    drock.perm = rock.perm(1*barsa(),nbact0);
+                elseif nargin(drock.perm)==3
+                    nbact0 = [0,0];
+                    drock.perm = rock.perm(1*barsa(),nbact0(1),nbact0(2));
+                end
             end
 
             if model.dynamicFlowPv()
@@ -129,9 +137,15 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 % model.setupOperators
                 if ~model.dynamicFlowTrans()
                     drock = rock;
-                    nbact0 = 0;
+                    %nbact0 = 0;
                 end
-                drock.poro = rock.poro(1*barsa(),nbact0);
+                if nargin(drock.poro)<3
+                    nbact0 = 0;
+                    drock.poro = rock.poro(1*barsa(),nbact0);
+                elseif nargin(drock.poro)==3
+                    nbact0 = [0,0];
+                    drock.poro = rock.poro(1*barsa(),nbact0(1),nbact0(2));
+                end
             end
             % Let reservoir model set up operators
             model = setupOperators@ReservoirModel(model, G, drock, varargin{:});
@@ -201,8 +215,10 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             end
 
             if model.bacteriamodel
-                nbact = model.getProp(state, 'nbact');
-                names = [{'pressure'}, cnames(2:end), {'nbact'}, enames];
+                nbact = model.getProp(state, 'bacteriamodel');
+                nbact = expandMatrixToCell(nbact);
+                bactnames = model.biochemFluid.bactnames;
+                names = [{'pressure'}, cnames(2:end), bactnames, enames];
                 vars  = [p, z(2:end), nbact, evars];
             else
                 names = [{'pressure'}, cnames(2:end), enames];
@@ -243,9 +259,12 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 flowState = fd.buildFlowState(model, state, state0, dt);
                 bmass = model.getProps(flowState, 'BacterialMass');  % pv * nbact * Voln [kg]
                 src_rate = model.FacilityModel.getProps(state, 'BactConvRate');
+                nbioreact=model.biochemFluid.nbioreact;
                 for i = 1:ncomp
-                    if ~isempty(src_rate{i})
-                        eqs{i} = eqs{i} -bmass.*src_rate{i};
+                    for j=1:nbioreact
+                        if ~isempty(src_rate{i,j})
+                            eqs{i} = eqs{i} -bmass{j}.*src_rate{i,j};
+                        end
                     end
                 end
             end
@@ -261,22 +280,25 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
 
                 % Assemble accumulation and flux divergence
-                if model.bactDiffusion && ~model.chemotaxisEffect && ~isempty(bflux{1})
-                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
-                    % Dirichlet boundary conditions for bacterial diffusion
-                    beqs = model.addBacterialDiffusionBC(beqs, state, drivingForces);
-                elseif model.chemotaxisEffect && ~model.bactDiffusion && ~isempty(bflux{1})
-                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
-                elseif model.bactDiffusion && model.chemotaxisEffect && ~isempty(bflux{1})
-                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
-                    % Dirichlet boundary conditions for bacterial diffusion
-                    beqs = model.addBacterialDiffusionBC(beqs, state, drivingForces);
-                else
-                    % No diffusion: just accumulation term (pore-scale diffusion only)
-                   % beqs{1} = model.operators.AccDiv(beqs{1},0);
+                nbioreact=model.biochemFluid.nbioreact;
+                for i=1:nbioreact
+                    if model.bactDiffusion && ~model.chemotaxisEffect && ~isempty(bflux{i})
+                        beqs{i} = model.operators.AccDiv(beqs{i}, bflux{i});
+                        % Dirichlet boundary conditions for bacterial diffusion
+                        beqs{i} = model.addBacterialDiffusionBC(beqs{i}, state, drivingForces);
+                    elseif model.chemotaxisEffect && ~model.bactDiffusion && ~isempty(bflux{i})
+                        beqs{i} = model.operators.AccDiv(beqs{i}, bflux{i});
+                    elseif model.bactDiffusion && model.chemotaxisEffect && ~isempty(bflux{i})
+                        beqs{i} = model.operators.AccDiv(beqs{i}, bflux{i});
+                        % Dirichlet boundary conditions for bacterial diffusion
+                        beqs{i} = model.addBacterialDiffusionBC(beqs{i}, state, drivingForces);
+                    else
+                        % No diffusion: just accumulation term (pore-scale diffusion only)
+                         %beqs{1} = model.operators.AccDiv(beqs{1},0);
+                    end
+
+                    beqs{i} = beqs{i} - src_growthdecay{i};
                 end
-                
-                beqs{1} = beqs{1} - src_growthdecay;
             else
                 [beqs, bnames, btypes] = deal([]);
             end
@@ -386,12 +408,23 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             if model.bacteriamodel
 
                 isP = strcmp(names, 'pressure');
-                isB = strcmp(names, 'nbact');
-                state = model.setProp(state, 'nbact', vars{isB});
                 isAD = any(cellfun(@(x) isa(x, 'ADI'), vars));
                 state = model.setProp(state, 'pressure', vars{isP});
 
-                removed = isP | isB;
+                removed = isP;
+
+                bactnames=model.biochemFluid.bactnames;
+                nbioreact=model.biochemFluid.nbioreact;
+                nbact=cell(1, nbioreact);
+
+                for i = 1:nbioreact
+                    name = bactnames{i};
+                    sub = strcmp(names, name);
+                    nbact{i} = vars{sub};
+                    removed(sub) = true;
+                end
+                state = model.setProp(state, 'nbact', nbact);
+
 
                 cnames = model.EOSModel.getComponentNames();
                 ncomp = numel(cnames);
@@ -483,7 +516,13 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             [v_eqs, tolerances, names] = getConvergenceValues@ReservoirModel(model, problem, varargin{:});
 
             if model.bacteriamodel
-                bacteriaIndex = find(strcmp(names, 'bacteria (cell)'));
+                nbioreact=model.biochemFluid.nbioreact;
+                bacteriaIndex=zeros(nbioreact,1);
+                for i=1:nbioreact
+                    bact=strcat(model.biochemFluid.bactnames{i},' (cell)');
+                    bacteriaIndex(i) = find(strcmp(names, bact));
+                    tolerances(bacteriaIndex(i)) = 1.0e-2;
+                end
 
                 % Apply magnitude-based scaling to all equations (components + bacteria)
                 % This CNV-style normalization makes residuals comparable across
@@ -495,9 +534,11 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 % Bacteria equation gets tighter tolerance due to stiff growth/decay
                 % with quadratic decay term. Loose tolerance allows unbounded Newton
                 % increments that cause Jacobian singularity.
-                if ~isempty(bacteriaIndex)
-                    % Use 10x tighter tolerance for bacteria (stiff equation)
-                    tolerances(bacteriaIndex) = 5.0e-2;
+                for i=1:nbioreact
+                    if ~isempty(bacteriaIndex(i))
+                        % Use 10x tighter tolerance for bacteria (stiff equation)
+                        tolerances(bacteriaIndex(i)) = 5.0e-2;
+                    end
                 end
             end
         end
@@ -532,11 +573,14 @@ function scale = getEquationScaling(model, eqs, names, state0, dt)
                 scale{ix} = scaleMass;
             end
             if model.bacteriamodel
-                ix = strcmpi(names, 'bacteria');
-                if any(ix)
-                    scaleChemistry = dt./max(chemistry, dt);
-                    scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
-                    scale{ix} = scaleChemistry;
+                nbioreact=model.biochemFluid.nbioreact;
+                for i=1:nbioreact
+                    ix = strcmpi(names, model.biochemFluid.bactnames{i});
+                    if any(ix)
+                        scaleChemistry = dt./max(chemistry, dt);
+                        scaleChemistry = filloutliers(scaleChemistry, "nearest","mean");
+                        scale{ix} = scaleChemistry;
+                    end
                 end
             end
 
@@ -553,8 +597,15 @@ function scale = getEquationScaling(model, eqs, names, state0, dt)
                     index = ':';
                     fn = 'nbact';
                 otherwise
-                    % This will throw an error for us
-                    [fn, index] = getVariableField@OverallCompositionCompositionalModel(model, name, varargin{:});
+                    bactnames = model.biochemFluid.bactnames;
+                    sub = strcmpi(bactnames, name);
+                    if any(sub)
+                        fn = 'nbact';
+                        index = find(sub);
+                    else
+                        % This will throw an error for us
+                        [fn, index] = getVariableField@OverallCompositionCompositionalModel(model, name, varargin{:});
+                    end
             end
         end
 
@@ -587,18 +638,28 @@ function scale = getEquationScaling(model, eqs, names, state0, dt)
                 % Limit fractional change per iteration to stabilize stiff kinetics.
                 % Aggressive damping for highly stiff growth/decay kinetics (linear growth + nbact^2 decay).
                 % 5% change per iteration is conservative but necessary for quadratic decay singularities.
-                max_frac_change = 0.05;
-                frac_change = (nbact_new - nbact_old) ./ max(abs(nbact_old), 1e-12);
+                nbioreact=model.biochemFluid.nbioreact;
+                for i = 1:nbioreact
+                    if iscell(nbact_old)
+                        nbacti_old=nbact_old{i};
+                        nbacti_new=nbact_new{i};
+                    else
+                        nbacti_old=nbact_old(:,i);
+                        nbacti_new=nbact_new(:,i);
+                    end
+                    max_frac_change = 0.05;
+                    frac_change = (nbacti_new - nbacti_old) ./ max(abs(nbacti_old), 1e-12);
 
-                % Apply adaptive damping where fractional change is excessive
-                excessive = abs(frac_change) > max_frac_change;
-                if any(excessive)&&false
-                    % Apply exponential damping: new = old + max_frac_change * sign(change) * old_mag
-                    sign_inc = sign(nbact_new(excessive) - nbact_old(excessive));
-                    nbact_damped = nbact_old(excessive) + ...
-                        max_frac_change * sign_inc .* max(abs(nbact_old(excessive)), 1e-12);
-                    nbact_new(excessive) = nbact_damped;
-                    state = model.setProp(state, 'nbact', nbact_new);
+                    % Apply adaptive damping where fractional change is excessive
+                    excessive = abs(frac_change) > max_frac_change;
+                    if any(excessive)&&false
+                        % Apply exponential damping: new = old + max_frac_change * sign(change) * old_mag
+                        sign_inc = sign(nbacti_new(excessive) - nbacti_old(excessive));
+                        nbacti_damped = nbacti_old(excessive) + ...
+                            max_frac_change * sign_inc .* max(abs(nbacti_old(excessive)), 1e-12);
+                        nbacti_new(excessive) = nbacti_damped;
+                        state = model.setProp(state, 'nbact', nbacti_new);
+                    end
                 end
 
                 % Final capping to physical bounds

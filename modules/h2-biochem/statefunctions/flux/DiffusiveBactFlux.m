@@ -39,24 +39,38 @@ classdef DiffusiveBactFlux < StateFunction
         %-----------------------------------------------------------------%
         function DN = evaluateOnDomain(prop, model, state)
             op = model.operators;
+            bcrm=model.biochemFluid;
+            nbioreact=bcrm.nbioreact;
 
             % Retrieve microbial transmissibility
             T = prop.getEvaluatedDependencies(state, 'MicrobialTransmissibility');
+            
 
             % State variables
             [nbact, rho] = model.getProps(state, 'nbact', 'Density');
 
-            % Liquid density (face averaged)
-            L_ix = model.getLiquidIndex();
-            if iscell(rho)
-                rhoL = rho{L_ix};
-            else
-                rhoL = rho(:, L_ix);
-            end
-            rhoLf = model.operators.faceAvg(rhoL);
+            % Initialize with zero growth rate
+            DN=cell(1,nbioreact);
+            [DN{:}] = deal(0);
 
-            % Diffusive flux (all faces)
-            DN = - rhoLf .* T .* op.Grad(nbact);
+            % Liquid density (face averaged)
+            for i=1:nbioreact
+                L_ix = model.getLiquidIndex();
+                if iscell(rho)
+                    rhoL = rho{L_ix};
+                else
+                    rhoL = rho(:, L_ix);
+                end
+                if iscell(nbact)
+                    nbacti=nbact{i};
+                else
+                    nbacti=nbact(:,i);
+                end
+                rhoLf = model.operators.faceAvg(rhoL);
+
+                % Diffusive flux (all faces)
+                DN{i} = - rhoLf .* T{i} .* op.Grad(nbacti);
+            end
         end
     end
 end

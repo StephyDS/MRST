@@ -43,32 +43,62 @@ classdef MicrobialChemotaxis < StateFunction
 
         %-----------------------------------------------------------------%
         function dN = evaluateOnDomain(prop, model, state)
+            bcrm=model.biochemFluid;
+            nbioreact=bcrm.nbioreact;
             % Fetch primary state variables
             [ s, nbact] = model.getProps(state, 's','nbact');
 
             % Porosity – dynamic (bio‑clogging) or static
             if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
                 phi = model.rock.poro(p, nbact);
+                nbioreact=model.biochemFluid.nbioreact;
+                if nbioreact==1
+                    if iscell(nbact)
+                        phi = model.rock.poro(p, nbact{1}); % Apply both modifications
+                    else
+                        phi = model.rock.poro(p, nbact);
+                    end
+                elseif nbioreact==2
+                    if iscell(nbact)
+                        phi = model.rock.poro(p, nbact{1}, nbact{2}); % Apply both modifications
+                    else
+                        phi = model.rock.poro(p, nbact(:,1), nbact(:,2)); % Apply both modifications
+                    end
+                end
             else
                 phi = model.rock.poro;
             end
 
             % Liquid saturation
             L_ix = model.getLiquidIndex();
-            
+
             if iscell(s)
                 sL = s{L_ix};
             else
                 sL = s(:, L_ix);
             end
-                
+
             Voln = max(sL, 1.0e-8);
-            
-            % Effective microbial diffusivity
-            if model.chemotaxisEffect && isprop(model.biochemFluid, 'xch_seuil')
-                dN = model.biochemFluid.xch_seuil .* phi .* Voln.*nbact.*(1.0-nbact);
-            else
-                dN = 0;
+
+
+
+            % Initialize with zero growth rate
+            dN=cell(1,nbioreact);
+            [dN{:}] = deal(0);
+
+            % Liquid saturation
+            for i=1:nbioreact
+                if iscell(nbact)
+                    nbacti=nbact{i};
+                else
+                    nbacti=nbact(:,i);
+                end
+                % Effective microbial diffusivity
+                if model.chemotaxisEffect && isprop(model.biochemFluid, 'xch_seuil')
+                    dN{i} = model.biochemFluid.xch_seuil(i) .* phi .* Voln.*nbacti.*(1.0-nbacti);
+                else
+                    dN{i} = 0;
+                end
             end
         end
     end

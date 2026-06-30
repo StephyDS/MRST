@@ -43,6 +43,8 @@ classdef MicrobialDiffusivity < StateFunction
 
         %-----------------------------------------------------------------%
         function dN = evaluateOnDomain(prop, model, state)
+            bcrm=model.biochemFluid;
+            nbioreact=bcrm.nbioreact;
             % Fetch primary state variables
             [ s, p, nbact] = model.getProps(state, 's', 'pressure','nbact');
 
@@ -53,21 +55,27 @@ classdef MicrobialDiffusivity < StateFunction
                 phi = model.rock.poro;
             end
 
-            % Liquid saturation
-            L_ix = model.getLiquidIndex();
-            if iscell(s)
-                sL = s{L_ix};
-            else
-                sL = s(:, L_ix);
-            end
-                
-            Voln = max(sL, 1.0e-8);
+            % Initialize with zero growth rate
+            dN=cell(1,nbioreact);
+            [dN{:}] = deal(0);
 
-            % Effective microbial diffusivity
-            if model.bactDiffusion && isprop(model.biochemFluid, 'bactdiff')
-                dN = model.biochemFluid.bactdiff .* phi .* Voln;
-            else
-                dN = 0;
+            % Liquid saturation
+            for i=1:nbioreact
+                L_ix = model.getLiquidIndex();
+                if iscell(s)
+                    sL = s{L_ix};
+                else
+                    sL = s(:, L_ix);
+                end
+
+                Voln = max(sL, 1.0e-8);
+
+                % Effective microbial diffusivity
+                if model.bactDiffusion && isprop(model.biochemFluid, 'bactdiff')
+                    dN{i} = model.biochemFluid.bactdiff(i) .* phi .* Voln;
+                else
+                    dN{i} = 0;
+                end
             end
         end
     end

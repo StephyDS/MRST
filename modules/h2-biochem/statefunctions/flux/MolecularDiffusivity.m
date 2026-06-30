@@ -75,10 +75,24 @@ classdef MolecularDiffusivity < StateFunction
             % Porosity – dynamic (bio‑clogging) or static
             if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
                 nbact = model.getProp(state, 'nbact');
-                phi = model.rock.poro(p, nbact);
+                nbioreact=model.biochemFluid.nbioreact;
+                if nbioreact==1
+                    if iscell(nbact)
+                        phi = model.rock.poro(p, nbact{1}); % Apply both modifications
+                    else
+                        phi = model.rock.poro(p, nbact);
+                    end
+                elseif nbioreact==2
+                    if iscell(nbact)
+                        phi = model.rock.poro(p, nbact{1}, nbact{2}); % Apply both modifications
+                    else
+                        phi = model.rock.poro(p, nbact(:,1), nbact(:,2)); % Apply both modifications
+                    end
+                end
             else
                 phi = model.rock.poro;
             end
+
             % --- Diffusion parameters (if enabled) ------------------------------
             p_safe = max(p, 1e-8*barsa);              % ensure pressure > 0
             gasScale = (T./prop.Tref).^prop.gasDiffExponent .* (prop.pref./p_safe);

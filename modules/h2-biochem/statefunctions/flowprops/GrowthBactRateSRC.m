@@ -54,46 +54,56 @@ classdef GrowthBactRateSRC < StateFunction
             % RETURNS:
             %   Psigrowth - Specific growth rate coefficient [1/s]
 
-            % Initialize with zero growth rate
-            Psigrowth = 0;
 
             % Get component names and indices
             rm = model.ReservoirModel;
             bcrm=rm.biochemFluid;
             namecp = rm.getComponentNames();
-            idx_H2 = find(strcmpi(namecp, bcrm.rH2), 1);
-            idx_sub = find(strcmpi(namecp, bcrm.rsub), 1);
+            nbioreact=bcrm.nbioreact;
+
+            % Initialize with zero growth rate
+            Psigrowth=cell(1,nbioreact);
+            [Psigrowth{:}] = deal(0);
 
             % Check if bacterial modeling is active and components exist
-            if strcmp(bcrm.metabolicReaction, 'MethanogenicArchae')
-                if ~(rm.bacteriamodel && rm.liquidPhase && ~isempty(idx_H2) && ~isempty(idx_sub))
-                    return;
+            for i=1:nbioreact
+                idx_H2 = find(strcmpi(namecp, bcrm.rH2(i)), 1);     % Case-insensitive search
+                idx_sub = find(strcmpi(namecp, bcrm.rsub(i)), 1);   % Case-insensitive search
+
+                if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
+                        strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
+                    if ~(~isempty(idx_H2) && ~isempty(idx_sub))
+                        return;
+                    end
                 end
             end
 
             % Get required properties
             x = rm.getProp(state, 'x');
+            for i=1:nbioreact
+                idx_H2 = find(strcmpi(namecp, bcrm.rH2(i)), 1);     % Case-insensitive search
+                idx_sub = find(strcmpi(namecp, bcrm.rsub(i)), 1);   % Case-insensitive search
+                % Extract liquid phase component mole fractions
+                if iscell(x)
+                    xH2 = x{idx_H2};
+                    xsub = x{idx_sub};
+                else
+                    xH2 = x(:, idx_H2);
+                    xsub = x(:, idx_sub);
+                end
 
-            % Extract liquid phase component mole fractions
-            if iscell(x)
-                xH2 = x{idx_H2};
-                xsub = x{idx_sub};
-            else
-                xH2 = x(:, idx_H2);
-                xsub = x(:, idx_sub);
+                % Get growth parameters
+                alphaH2 = bcrm.alphaH2(i);
+                alphasub = bcrm.alphasub(i);
+                Psigrowthmax = bcrm.Psigrowthmax(i);
+
+                % Calculate Monod kinetics: growth rate coefficient (1/s)
+                axH2 = xH2 ./ (alphaH2 + xH2);
+                axsub = xsub ./ (alphasub + xsub);
+
+                % Specific growth rate (kinetic term only; scaling by BacterialMass in flow)
+                Psigrowth{i} = Psigrowthmax .* axH2 .* axsub;
             end
-
-            % Get growth parameters
-            alphaH2 = bcrm.alphaH2;
-            alphasub = bcrm.alphasub;
-            Psigrowthmax = bcrm.Psigrowthmax;
-
-            % Calculate Monod kinetics: growth rate coefficient (1/s)
-            axH2 = xH2 ./ (alphaH2 + xH2);
-            axsub = xsub ./ (alphasub + xsub);
-
-            % Specific growth rate (kinetic term only; scaling by BacterialMass in flow)
-            Psigrowth = Psigrowthmax .* axH2 .* axsub;
         end
     end
 end

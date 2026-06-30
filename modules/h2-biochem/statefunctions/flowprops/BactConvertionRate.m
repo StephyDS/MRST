@@ -41,27 +41,31 @@ classdef BactConvertionRate < StateFunction
             %   qbiot - Cell array of conversion rates per component [kg/s]
 
             % Initialize with zeros
-            ncomp = model.ReservoirModel.EOSModel.getNumberOfComponents();
-            qbiot = cell(ncomp, 1);
+            rm = model.ReservoirModel;
+            bcrm=rm.biochemFluid;
+            ncomp = rm.EOSModel.getNumberOfComponents();
+            nbioreact=bcrm.nbioreact;
+            qbiot = cell(ncomp, nbioreact);
             [qbiot{:}] = deal(0);
 
             % Check if bacterial modeling is active
-            rm = model.ReservoirModel;
             if ~(rm.bacteriamodel && rm.liquidPhase)
                 return;
             end
-            bcrm=rm.biochemFluid;
 
             % Get component indices
             compNames = rm.EOSModel.getComponentNames();
-            if strcmp(bcrm.metabolicReaction, 'MethanogenicArchae')
-                idxH2  = find(strcmpi(compNames, bcrm.rH2),1);
-                idxsub = find(strcmpi(compNames, bcrm.rsub),1);
+           for i=1:nbioreact
+                if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
+                        strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
+                    idxH2  = find(strcmpi(compNames, bcrm.rH2(i)),1);
+                    idxsub = find(strcmpi(compNames, bcrm.rsub(i)),1);
 
-                % Validate required components
-                if isempty(idxH2) || isempty(idxsub)
-                    warning('Bacterial model requires H2 and CO2 components');
-                    return;
+                    % Validate required components
+                    if isempty(idxH2) || isempty(idxsub)
+                        warning('Bacterial model requires H2 and CO2 components');
+                        return;
+                    end
                 end
             end
 
@@ -72,52 +76,61 @@ classdef BactConvertionRate < StateFunction
                 x = rm.getProp(state, 'x');
 
                 % Extract liquid phase properties
-                if iscell(x)
-                    xH2 = x{idxH2};
-                    xsub = x{idxsub};
-                    rhoL = rho{L_ix};
-                else
-                    xH2 = x(:, idxH2);
-                    xsub = x(:, idxsub);
-                    rhoL = rho(:, L_ix);
-                end
+                for i=1:nbioreact
+                    idxH2  = find(strcmpi(compNames, bcrm.rH2(i)),1);
+                    idxsub = find(strcmpi(compNames, bcrm.rsub(i)),1);
+                    if iscell(x)
+                        xH2 = x{idxH2};
+                        xsub = x{idxsub};
+                    else
+                        xH2 = x(:, idxH2);
+                        xsub = x(:, idxsub);
 
-                % Ensure non-zero liquid saturation
-                rhoL = max(value(rhoL), 1.0e-8);
+                    end
+                    if iscell(rho)
+                        rhoL = rho{L_ix};
+                    else
+                        rhoL = rho(:, L_ix);
+                    end
 
-                % Get model parameters
-                alphaH2 = bcrm.alphaH2;
-                alphasub = bcrm.alphasub;
-                Psigrowthmax = bcrm.Psigrowthmax;
-                Y_H2 = bcrm.Y_H2;
-                gammak = rm.gammak;
-                nbactMax = bcrm.nbactMax;
-                mc = rm.EOSModel.CompositionalMixture.molarMass;
+                    % Ensure non-zero liquid saturation
+                    rhoL = max(rhoL, 1.0e-8);
 
-                % Calculate Monod kinetics (specific growth rate)
-                axH2 = xH2 ./ (alphaH2 + xH2);
-                axsub = xsub ./ (alphasub + xsub);
-                growth_kinetic = Psigrowthmax .* axH2 .* axsub;
+                    % Get model parameters
+                    alphaH2 = bcrm.alphaH2(i);
+                    alphasub = bcrm.alphasub(i);
+                    Psigrowthmax = bcrm.Psigrowthmax(i);
+                    Y_H2 = bcrm.Y_H2(i);
+                    gammak = rm.gammak(i,:);
+                    nbactMax = bcrm.nbactMax(i);
+                    mc = rm.EOSModel.CompositionalMixture.molarMass;
 
-                % Theory: q_i = Φ * γ_i^H2 * ψ_growth * S_l / Y_H2
-                % where γ_i^H2 = n0 * γ_i * M_i / γ_H2
-                % and ψ_growth = growth_kinetic * nbact (biomass growth rate)
+                    % Calculate Monod kinetics (specific growth rate)
+                    axH2 = xH2 ./ (alphaH2 + xH2);
+                    axsub = xsub ./ (alphasub + xsub);
+                    growth_kinetic = Psigrowthmax .* axH2 .* axsub;
 
-                % Compute stoichiometric factor for each component
-                % γ_i^H2 = nbactMax * γ_i * M_i / γ_H2
-                stoich_factor = nbactMax .* mc ./ abs(gammak(idxH2));
+                    % Theory: q_i = Φ * γ_i^H2 * ψ_growth * S_l / Y_H2
+                    % where γ_i^H2 = n0 * γ_i * M_i / γ_H2
+                    % and ψ_growth = growth_kinetic * nbact (biomass growth rate)
 
-                % Component source: q_i = pv * γ_i^H2 * (growth_kinetic * nbact) * S_l / Y_H2
-                % Rewrite: q_i = pv * S_l * nbact / Y_H2 * (γ_i^H2 * growth_kinetic)
-                qbiot_temp =  growth_kinetic ./ (Y_H2 .*rhoL);
+                    % Compute stoichiometric factor for each component
+                    % γ_i^H2 = nbactMax * γ_i * M_i / γ_H2
+                    stoich_factor = nbactMax .* mc ./ abs(gammak(idxH2));
 
-                for c = 1:ncomp
-                    qbiot{c} = gammak(c) .* stoich_factor(c) .* qbiot_temp;
+                    % Component source: q_i = pv * γ_i^H2 * (growth_kinetic * nbact) * S_l / Y_H2
+                    % Rewrite: q_i = pv * S_l * nbact / Y_H2 * (γ_i^H2 * growth_kinetic)
+                    qbiot_temp =  growth_kinetic ./ (Y_H2 .*rhoL);
+
+                    for c = 1:ncomp
+                        qbiot{c,i} = gammak(c) .* stoich_factor(c) .* qbiot_temp;
+                    end
                 end
 
             catch ME
-                warning('Bacterial conversion rate calculation failed: %s', ME.message);
-                [qbiot{:}] = deal(0);
+                rethrow(ME)
+                %warning('Bacterial conversion rate calculation failed: %s', ME.message);
+                %[qbiot{:}] = deal(0);
             end
         end
     end

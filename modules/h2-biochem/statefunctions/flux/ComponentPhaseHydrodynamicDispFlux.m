@@ -63,7 +63,20 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
             % --- Porosity at faces ---------------------------------------------
             if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
                 [p, nbact] = model.getProps(state, 'pressure', 'nbact');
-                phi = model.rock.poro(p, nbact);
+                nbioreact=model.biochemFluid.nbioreact;
+                if nbioreact==1
+                    if iscell(nbact)
+                        phi = model.rock.poro(p, nbact{1}); % Apply both modifications
+                    else
+                        phi = model.rock.poro(p, nbact);
+                    end
+                elseif nbioreact==2
+                    if iscell(nbact)
+                        phi = model.rock.poro(p, nbact{1}, nbact{2}); % Apply both modifications
+                    else
+                        phi = model.rock.poro(p, nbact(:,1), nbact(:,2)); % Apply both modifications
+                    end
+                end
             else
                 phi = model.rock.poro;
             end
@@ -86,10 +99,10 @@ classdef ComponentPhaseHydrodynamicDispFlux < StateFunction
                     aL(V_ix) = sf.alphaL_gas; aT(V_ix) = sf.alphaT_gas;
                 end
             end
-           
+
             % --- Output initialisation ------------------------------------------
             J = cell(ncomp, nph); [J{:}] = deal(0);
-            
+
             % --- Phase loop ----------------------------------------------------
             for ph = 1:nph
                 rho_f = op.faceAvg(ifcell(rho, ph));
