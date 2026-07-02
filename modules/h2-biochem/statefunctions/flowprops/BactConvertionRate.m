@@ -24,6 +24,7 @@ classdef BactConvertionRate < StateFunction
 
             % Define dependencies - computes kinetics directly, no pre-computed rates
             gp = gp.dependsOn({'Density'}, 'PVTPropertyFunctions');
+            gp = gp.dependsOn({'x'}, 'state');
 
             % Set label for output
             gp.label = 'Q_biot';
