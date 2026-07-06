@@ -52,6 +52,12 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                         DynamicFlowTransmissibility(model, 'MicrobialDiffusivity'));
                     props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
                 end
+                 if model.chemotaxisEffect
+                    props = props.setStateFunction('MicrobialChemotaxis', MicrobialChemotaxis(model));
+                    props = props.setStateFunction('ChemotaxisTransmissibility', ...
+                        DynamicFlowTransmissibility(model, 'MicrobialChemotaxis'));
+                    props = props.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
+                end
             end
         end
 
@@ -72,9 +78,16 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
 
             % Add microbial diffusion contributions if present
             bflux=[];
-            if (model.bactDiffusion)
+             if (model.bactDiffusion && ~model.chemotaxisEffect)
                 flowState = fd.buildFlowState(model, state, state0, dt);
                 bflux = model.getProp(flowState, 'BactFlux');
+            elseif (~model.bactDiffusion && model.chemotaxisEffect)
+                flowState = fd.buildFlowState(model, state, state0, dt);
+                bflux = model.getProp(flowState, 'ChemoBactFlux');
+            elseif (model.bactDiffusion && model.chemotaxisEffect)
+                flowState = fd.buildFlowState(model, state, state0, dt);
+                bflux = model.getProp(flowState, 'BactFlux') + ...
+                    model.getProp(flowState, 'ChemoBactFlux');
             end
 
             % Convert to cell arrays for AD framework

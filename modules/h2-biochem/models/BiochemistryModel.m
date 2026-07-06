@@ -39,10 +39,11 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         % Physical quantities and bounds
         gammak   = [];                    % Stoichiometric coefficients
         bacteriamodel = true;
-        bact_capProp = 3.0e0;             % Min nbact in the model
+        bact_capProp = 3.0e-3;             % Min nbact in the model
         molecularDiffusion = false;
         molecularDispersion = false;
         bactDiffusion = false;            % Microbial diffusion
+        chemotaxisEffect = false;         % chemotaxis 
     end
 
     methods
@@ -266,10 +267,16 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 src_growthdecay = model.FacilityModel.getBacteriaSources(fd, state, state0, dt);
 
                 % Assemble accumulation and flux divergence
-                if model.bactDiffusion && ~isempty(bflux{1})
-                    beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
-                    % Dirichlet boundary conditions for bacterial diffusion
-                    beqs = model.addBacterialDiffusionBC(beqs, state, drivingForces);
+                if model.bactDiffusion && ~model.chemotaxisEffect && ~isempty(bflux{1})
+                        beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
+                        % Dirichlet boundary conditions for bacterial diffusion
+                        beqs{1} = model.addBacterialDiffusionBC(beqs{1}, state, drivingForces);
+                    elseif model.chemotaxisEffect && ~model.bactDiffusion && ~isempty(bflux{1})
+                        beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
+                    elseif model.bactDiffusion && model.chemotaxisEffect && ~isempty(bflux{1})
+                        beqs{1} = model.operators.AccDiv(beqs{1}, bflux{1});
+                        % Dirichlet boundary conditions for bacterial diffusion
+                        beqs{1} = model.addBacterialDiffusionBC(beqs{1}, state, drivingForces);
                 else
                     % No diffusion: just accumulation term (pore-scale diffusion only)
                    % beqs{1} = model.operators.AccDiv(beqs{1},0);

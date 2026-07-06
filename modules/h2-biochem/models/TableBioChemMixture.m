@@ -31,6 +31,7 @@ classdef TableBioChemMixture
         Psigrowthmax        % Maximum specific growth rate (1/s)
         bbact               % Decay rate constant (1/s)
         nbactMax            % Maximum microorganism concentration (1/m³)
+        xch_seuil           % Chemotaxis coefficient
         bactdiff            % microbial diffusion coefficient
     end
 
@@ -78,6 +79,7 @@ classdef TableBioChemMixture
             biochem.Psigrowthmax = zeros(1, N);
             biochem.bbact    = zeros(1, N);
             biochem.nbactMax = zeros(1, N);
+            biochem.xch_seuil = zeros(1, N);
             biochem.bactdiff = zeros(1, N);
 
             % Fill from database
@@ -98,6 +100,7 @@ classdef TableBioChemMixture
                 biochem.Psigrowthmax(i) = entry.Psigrowthmax;
                 biochem.bbact(i)    = entry.bbact;
                 biochem.nbactMax(i) = entry.nbactMax;
+                biochem.xch_seuil(i) = entry.xch_seuil;
                 biochem.bactdiff(i) = entry.bactdiff;
             end
         end

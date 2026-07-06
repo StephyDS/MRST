@@ -30,7 +30,7 @@ mrstModule add h2-biochem compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on
 
 %% ============ Grid and Rock Properties =====================
-[nx, ny, nz] = deal(31, 31, 8);
+[nx, ny, nz] = deal(15, 15, 8);
 [Lx, Ly, Lz] = deal(1525, 1525, 50);
 
 G = cartGrid([nx, ny, nz], [Lx, Ly, Lz]);
@@ -94,7 +94,7 @@ W = verticalWell(W, G, rock, n1, n2, 1, ...
 W(end).components = [0.0, 0.95, 0.05, 0.0];
 
 %% Time Schedule
-ncycles    = 6; 
+ncycles    = 1; 
 deltaT     = 5*day;
 nbj_buildUp = 60*day; nbj_rest = 20*day;
 nbj_inject  = 30*day; nbj_idle = 20*day;
@@ -133,14 +133,14 @@ nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ...
     'Benchmark_NoBacteria', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_nobact,'restartStep', 1);
+simulatePackedProblem(problem_nobact);%,'restartStep', 1);
 [ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
 results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
 %% --- Simulation 2: With bacteria ---
 model_bact = BiochemistryModel(G, rock, fluid, compFluid, biochemFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', true, ...
+    'bacteriamodel', true, 'chemotaxisEffect',true,'bactDiffusion',false,...
     'liquidPhase', 'O', 'vaporPhase', 'G');
 model_bact.outputFluxes = false;
 model_bact.EOSModel = compEOS;

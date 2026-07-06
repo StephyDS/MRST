@@ -44,8 +44,9 @@ classdef DiffusiveBactFlux < StateFunction
             T = prop.getEvaluatedDependencies(state, 'MicrobialTransmissibility');
 
             % State variables and properties
-            nbact = model.getProp(state, 'nbact');
-            rho = prop.getEvaluatedDependencies(state, 'Density');
+             [nbact, rho] = model.getProps(state, 'nbact', 'Density');
+            %nbact = model.getProp(state, 'nbact');
+            %rho = prop.getEvaluatedDependencies(state, 'Density');
 
             % Liquid density (face averaged)
             L_ix = model.getLiquidIndex();
