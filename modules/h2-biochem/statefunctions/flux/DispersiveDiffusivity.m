@@ -137,7 +137,20 @@ classdef DispersiveDiffusivity < StateFunction
             % --- Porosity (cell-based) ----------------------------------------
             if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
                 [p, nbact] = model.getProps(state, 'pressure', 'nbact');
-                phi = model.rock.poro(p, nbact);
+                nbioreact=model.biochemFluid.nbioreact;
+                if nbioreact==1
+                    if iscell(nbact)
+                        phi = model.rock.poro(p, nbact{1}); % Apply both modifications
+                    else
+                        phi = model.rock.poro(p, nbact);
+                    end
+                elseif nbioreact==2
+                    if iscell(nbact)
+                        phi = model.rock.poro(p, nbact{1}, nbact{2}); % Apply both modifications
+                    else
+                        phi = model.rock.poro(p, nbact(:,1), nbact(:,2)); % Apply both modifications
+                    end
+                end
             else
                 phi = model.rock.poro;
             end
@@ -261,133 +274,133 @@ end
 % Helper functions
 % ------------------------------------------------------------------------
 function val = ifcell(field, ph)
-    % Extract phase from cell array or matrix.
-    if iscell(field)
-        val = field{ph};
-    else
-        val = field(:, ph);
-    end
+% Extract phase from cell array or matrix.
+if iscell(field)
+    val = field{ph};
+else
+    val = field(:, ph);
+end
 end
 
 function z = pick_mole_frac(ph, L_ix, V_ix, x, y)
-    % Pick mole fraction based on phase type.
-    if ph == L_ix
-        z = x;
-    elseif ph == V_ix
-        z = y;
-    else
-        error('Phase mismatch');
-    end
+% Pick mole fraction based on phase type.
+if ph == L_ix
+    z = x;
+elseif ph == V_ix
+    z = y;
+else
+    error('Phase mismatch');
+end
 end
 
 function [xc, yc] = localGetMoleFractions(model, state)
-    % Get mole fractions as cell arrays.
-    [x, y] = model.getProps(state, 'x', 'y');
-    if ~iscell(x)
-        xc = mat2cell(x, size(x,1), ones(1, size(x,2)));
-    else
-        xc = x;
-    end
-    if ~iscell(y)
-        yc = mat2cell(y, size(y,1), ones(1, size(y,2)));
-    else
-        yc = y;
-    end
+% Get mole fractions as cell arrays.
+[x, y] = model.getProps(state, 'x', 'y');
+if ~iscell(x)
+    xc = mat2cell(x, size(x,1), ones(1, size(x,2)));
+else
+    xc = x;
+end
+if ~iscell(y)
+    yc = mat2cell(y, size(y,1), ones(1, size(y,2)));
+else
+    yc = y;
+end
 end
 
 function v = localGetComponentVector(z, j)
-    % Extract component j from cell array or matrix.
-    if iscell(z)
-        v = z{j};
-    else
-        v = z(:, j);
-    end
+% Extract component j from cell array or matrix.
+if iscell(z)
+    v = z{j};
+else
+    v = z(:, j);
+end
 end
 
 function [Dliq_ref, paramLJ] = localLoadDiffusionDatabase(d, model)
-    % Load liquid diffusion coefficients and Lennard-Jones parameters.
-    % Returns diffusivity in m²/s and LJ parameters [sigma (Å), epsilon (K)]
-    namecp = model.compFluid.names();
-    ncomp  = numel(namecp);
-    Dliq_ref = d.defaultLiquidDiffusivity * ones(ncomp, 1);
-    paramLJ  = repmat([d.defaultSigma, d.defaultEpsilon], ncomp, 1);
+% Load liquid diffusion coefficients and Lennard-Jones parameters.
+% Returns diffusivity in m²/s and LJ parameters [sigma (Å), epsilon (K)]
+namecp = model.compFluid.names();
+ncomp  = numel(namecp);
+Dliq_ref = d.defaultLiquidDiffusivity * ones(ncomp, 1);
+paramLJ  = repmat([d.defaultSigma, d.defaultEpsilon], ncomp, 1);
 
-    db.Dliq = struct('h2',6.44e-9,'c1',2.15e-9,'methane',2.15e-9,'co2',2.72e-9, ...
-        'h2o',3.29e-9,'water',3.29e-9,'n2',2.86e-9,'c2',1.72e-9, ...
-        'ethane',1.72e-9,'c3',1.43e-9,'propane',1.43e-9,'h2s',2.15e-9, ...
-        'nc4',1.15e-9,'butane',1.15e-9);
-    db.LJ = struct('h2',[2.92,59.7],'c1',[3.758,148.6],'methane',[3.758,148.6], ...
-        'co2',[3.996,195.2],'h2o',[2.641,809.1],'water',[2.641,809.1], ...
-        'n2',[3.798,71.4],'c2',[4.443,215.7],'ethane',[4.443,215.7], ...
-        'c3',[5.118,237.1],'propane',[5.118,237.1],'h2s',[3.60,301.0], ...
-        'nc4',[5.206,289.5],'butane',[5.206,289.5]);
+db.Dliq = struct('h2',6.44e-9,'c1',2.15e-9,'methane',2.15e-9,'co2',2.72e-9, ...
+    'h2o',3.29e-9,'water',3.29e-9,'n2',2.86e-9,'c2',1.72e-9, ...
+    'ethane',1.72e-9,'c3',1.43e-9,'propane',1.43e-9,'h2s',2.15e-9, ...
+    'nc4',1.15e-9,'butane',1.15e-9);
+db.LJ = struct('h2',[2.92,59.7],'c1',[3.758,148.6],'methane',[3.758,148.6], ...
+    'co2',[3.996,195.2],'h2o',[2.641,809.1],'water',[2.641,809.1], ...
+    'n2',[3.798,71.4],'c2',[4.443,215.7],'ethane',[4.443,215.7], ...
+    'c3',[5.118,237.1],'propane',[5.118,237.1],'h2s',[3.60,301.0], ...
+    'nc4',[5.206,289.5],'butane',[5.206,289.5]);
 
-    for i = 1:ncomp
-        key = lower(namecp{i});
-        if isfield(db.Dliq, key)
-            Dliq_ref(i) = db.Dliq.(key);
-        end
-        if isfield(db.LJ, key)
-            paramLJ(i,:) = db.LJ.(key);
-        end
+for i = 1:ncomp
+    key = lower(namecp{i});
+    if isfield(db.Dliq, key)
+        Dliq_ref(i) = db.Dliq.(key);
     end
+    if isfield(db.LJ, key)
+        paramLJ(i,:) = db.LJ.(key);
+    end
+end
 end
 
 function Dij_ref = localBinaryDiffusionReference(d, model, paramLJ)
-    % Computes binary gas diffusion coefficients using Chapman-Enskog theory
-    % with Lennard-Jones collision integral (SI units, m²/s at reference T/P).
-    %
-    % Formula: D_ij = (1.858e-7 * T^1.5) / (σ_ij² * √(Mij*) * Ω_D)
-    % where Ω_D is the collision integral (Neufeld fit)
+% Computes binary gas diffusion coefficients using Chapman-Enskog theory
+% with Lennard-Jones collision integral (SI units, m²/s at reference T/P).
+%
+% Formula: D_ij = (1.858e-7 * T^1.5) / (σ_ij² * √(Mij*) * Ω_D)
+% where Ω_D is the collision integral (Neufeld fit)
 
-    ncomp = size(paramLJ, 1);
-    Molmass = 1e3 .* model.compFluid.molarMass;   % g/mol (converted from kg/mol)
-    epsilon = paramLJ(:, 2);                       % Lennard-Jones energy [K]
-    sigma = paramLJ(:, 1);                         % collision diameter [Å]
+ncomp = size(paramLJ, 1);
+Molmass = 1e3 .* model.compFluid.molarMass;   % g/mol (converted from kg/mol)
+epsilon = paramLJ(:, 2);                       % Lennard-Jones energy [K]
+sigma = paramLJ(:, 1);                         % collision diameter [Å]
 
-    const = 1.858e-7;  % Chapman-Enskog constant (m²/s)
-    fTref = d.Tref^1.5;   % temperature factor at reference conditions
-    Dij_ref = zeros(ncomp);
+const = 1.858e-7;  % Chapman-Enskog constant (m²/s)
+fTref = d.Tref^1.5;   % temperature factor at reference conditions
+Dij_ref = zeros(ncomp);
 
-    for i = 1:ncomp
-        for j = 1:ncomp
-            if i == j
-                Dij_ref(i,j) = inf;
-                continue;
-            end
-
-            % Combining rules (Lorentz-Berthelot)
-            sigma_ij = 0.5 * (sigma(i) + sigma(j));
-            epsilon_ij = sqrt(epsilon(i) * epsilon(j));
-
-            % Reduced temperature for collision integral
-            T_star = d.Tref / epsilon_ij;
-
-            % Neufeld collision integral approximation
-            % Ω_D(T*) = A/(T*)^B + C/exp(D*T*) + E/exp(F*T*) + G/exp(H*T*)
-            A = 1.06036;
-            B = 0.15610;
-            C = 0.19300;
-            D = 0.47635;
-            E = 1.03587;
-            F = 1.52996;
-            G = 1.76474;
-            H = 3.89411;
-
-            Omega_D = A * (T_star^(-B)) + C * exp(-D*T_star) + ...
-                      E * exp(-F*T_star) + G * exp(-H*T_star);
-
-            % Molecular mass term
-            sqrtMass = sqrt((1.0 / Molmass(i)) + (1.0 / Molmass(j)));
-            sigma_ij2 = sigma_ij^2;
-
-            % Chapman-Enskog formula with collision integral
-            Dij_ref(i,j) = (const * fTref * sqrtMass) / (sigma_ij2 * Omega_D);
+for i = 1:ncomp
+    for j = 1:ncomp
+        if i == j
+            Dij_ref(i,j) = inf;
+            continue;
         end
-    end
 
-    % Symmetrize matrix: D_ij = D_ji
-    Dij_ref = 0.5 * (Dij_ref + Dij_ref.');
+        % Combining rules (Lorentz-Berthelot)
+        sigma_ij = 0.5 * (sigma(i) + sigma(j));
+        epsilon_ij = sqrt(epsilon(i) * epsilon(j));
+
+        % Reduced temperature for collision integral
+        T_star = d.Tref / epsilon_ij;
+
+        % Neufeld collision integral approximation
+        % Ω_D(T*) = A/(T*)^B + C/exp(D*T*) + E/exp(F*T*) + G/exp(H*T*)
+        A = 1.06036;
+        B = 0.15610;
+        C = 0.19300;
+        D = 0.47635;
+        E = 1.03587;
+        F = 1.52996;
+        G = 1.76474;
+        H = 3.89411;
+
+        Omega_D = A * (T_star^(-B)) + C * exp(-D*T_star) + ...
+            E * exp(-F*T_star) + G * exp(-H*T_star);
+
+        % Molecular mass term
+        sqrtMass = sqrt((1.0 / Molmass(i)) + (1.0 / Molmass(j)));
+        sigma_ij2 = sigma_ij^2;
+
+        % Chapman-Enskog formula with collision integral
+        Dij_ref(i,j) = (const * fTref * sqrtMass) / (sigma_ij2 * Omega_D);
+    end
+end
+
+% Symmetrize matrix: D_ij = D_ji
+Dij_ref = 0.5 * (Dij_ref + Dij_ref.');
 end
 
 %{

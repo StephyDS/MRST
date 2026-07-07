@@ -52,6 +52,12 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                         DynamicFlowTransmissibility(model, 'MicrobialDiffusivity'));
                     props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
                 end
+                 if model.chemotaxisEffect
+                    props = props.setStateFunction('MicrobialChemotaxis', MicrobialChemotaxis(model));
+                    props = props.setStateFunction('ChemotaxisTransmissibility', ...
+                        DynamicFlowTransmissibility(model, 'MicrobialChemotaxis'));
+                    props = props.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
+                end
             end
         end
 
@@ -68,22 +74,31 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
             bactmass0 = model.getProp(state0, 'BacterialMass');
 
             % Accumulation term: d(bactmass)/dt
-            acc = (bactmass - bactmass0) ./ dt;
-
+            nbioreact=model.biochemFluid.nbioreact;
+            acc=cell(1,nbioreact);
+            [acc{:}] = deal(0);
+            for i=1:nbioreact
+                acc{i} = (bactmass{i} - bactmass0{i}) ./ dt;
+            end
             % Add microbial diffusion contributions if present
-            bflux=[];
-            if (model.bactDiffusion)
+             bflux =cell(1,nbioreact);
+            [bflux{:}] = deal(0);
+            if (model.bactDiffusion && ~model.chemotaxisEffect)
                 flowState = fd.buildFlowState(model, state, state0, dt);
                 bflux = model.getProp(flowState, 'BactFlux');
+            elseif (~model.bactDiffusion && model.chemotaxisEffect)
+                flowState = fd.buildFlowState(model, state, state0, dt);
+                bflux = model.getProp(flowState, 'ChemoBactFlux');
+            elseif (model.bactDiffusion && model.chemotaxisEffect)
+                flowState = fd.buildFlowState(model, state, state0, dt);
+                bflux = model.getProp(flowState, 'BactFlux') + ...
+                    model.getProp(flowState, 'ChemoBactFlux');
             end
 
-            % Convert to cell arrays for AD framework
-            acc   = {acc};
-            bflux = {bflux};
-
             % Output variable names and types
-            name = 'bacteria';
-            type = 'cell';
+            name = model.biochemFluid.bactnames;
+            type=cell(1,nbioreact);
+            [type{:}] = deal('cell');
         end
 
         %-----------------------------------------------------------------%

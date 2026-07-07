@@ -67,6 +67,7 @@ classdef BiochemistryGenericFacilityModel < GenericFacilityModel
             % Growth/decay source: src = (g - d) * BacterialMass
             % where g, d are kinetic rates (1/s) applied to mass directly
             rm = model.ReservoirModel;
+            bcrm=rm.biochemFluid;
             if isempty(rm) || ~isprop(rm, 'bacteriamodel') || ~rm.bacteriamodel
                 src = 0;
                 return;
@@ -79,39 +80,52 @@ classdef BiochemistryGenericFacilityModel < GenericFacilityModel
             bmass     = rm.PVTPropertyFunctions.get(rm, state, 'BacterialMass');  % pv * S_l * rho_l * nbact [kg]
 
             % Direct (g-d)*mass formulation using BacterialMass
-            src_growthdecay = (psigrowth - psidecay) .* bmass - reg .* bmass;
+            nbioreact=bcrm.nbioreact;
+            src_growthdecay = cell(1,nbioreact);
+            [src_growthdecay{:}] = deal(0);
+            for i=1:nbioreact
+                src_growthdecay{i} = (psigrowth{i} - psidecay{i}).* bmass{i} - reg .* bmass{i};
+            end
 
             % ===== NEW: Well bacteria source (advective transport) =====
             map   = model.getProp(state, 'FacilityWellMapping');
-            rm = model.ReservoirModel;
+            src_well = cell(1,nbioreact);
+            [src_well{:}] = deal(0);
             if ~isempty(map.cells)
                 q_ph  = model.getProp(state, 'PhaseFlux');
                 rho = rm.PVTPropertyFunctions.get(rm, state, 'Density');
                 nbact = rm.getProp(state, 'nbact');
                 L_ix  = rm.getLiquidIndex();
 
-                % Liquid phase flux per perforation (positive = injection)
-                q_l   = q_ph{L_ix};
-                % Liquid density in perforated cells
-                rho_l = rho{L_ix};
-                % Bacteria mass flux: ρ_l * q_l * ω
-                rho_perf = rho_l(map.cells);
-                % Bacteria mass flux at each perforation
-                q_bact = rho_perf .* q_l .* nbact(map.cells);
-                % Injectors: no bacteria injected → set to 0
-                q_bact(q_l > 0) = 0;
+                for i=1:nbioreact
+                    % Liquid phase flux per perforation (positive = injection)
+                    q_l   = q_ph{L_ix};
+                    % Liquid density in perforated cells
+                    rho_l = rho{L_ix};
+                    % Bacteria mass flux: ρ_l * q_l * ω
+                    rho_perf = rho_l(map.cells);
+                    if iscell(nbact)
+                        nbacti=nbact{i};
+                    else
+                        nbacti=nbact(:,i);
+                    end
+                    q_bact = rho_perf .* q_l .* nbacti(map.cells);
+                    % Injectors: no bacteria injected → set to 0
+                    q_bact(q_l > 0) = 0;
 
-                % Sum perforation contributions to cells (producers give negative)
-                % Sparse summation to cells (AD‑compatible)
-                nc = rm.G.cells.num;
-                S = sparse(map.cells, (1:numel(map.cells))', 1, nc, numel(map.cells));
-                src_well = S * q_bact;
-            else
-                src_well = 0;
+                    % Sum perforation contributions to cells (producers give negative)
+                    % Sparse summation to cells (AD‑compatible)
+                    nc = rm.G.cells.num;
+                    S = sparse(map.cells, (1:numel(map.cells))', 1, nc, numel(map.cells));
+                    src_well{i} = S * q_bact;
+                end
+
             end
             % ==============================================================
-
-            src = src_growthdecay + src_well;
+            src = cell(1,nbioreact);
+            for i=1:nbioreact
+                src{i} = src_growthdecay{i} + src_well{i};
+            end
         end
         %-----------------------------------------------------------------%
         function [eqs, names, types, state] = getModelEquations(model, state0, state, dt, drivingForces)

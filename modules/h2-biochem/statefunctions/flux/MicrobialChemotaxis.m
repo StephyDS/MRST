@@ -1,16 +1,12 @@
-classdef MicrobialDiffusivity < StateFunction
+classdef MicrobialChemotaxis < StateFunction
     % Compute the effective microbial diffusivity in the liquid phase.
     %
     % SYNOPSIS:
-    %   d = MicrobialDiffusivity(model)
-    %   d = MicrobialDiffusivity(model, 'pn', pv, ...)
+    %   d = MicrobialChemotaxis(model)
+    %   d = MicrobialChemotaxis(model, 'pn', pv, ...)
     %
     % DESCRIPTION:
-    %   Evaluates the effective cell‑centred microbial diffusivity [m²/s]
-    %   as φ · S_l · D_b, where D_b is the bacterial diffusion coefficient
-    %   (`model.biochemFluid.bactdiff`) and φ is the current porosity
-    %   (possibly dynamic due to bio‑clogging). If bacterial diffusion is
-    %   disabled or D_b is non‑positive, a zero value is returned.
+    %   Evaluates the effective cell‑centred microbial Chemotaxis [m²/s]
     %
     % REQUIRED PARAMETERS:
     %   model - Model instance, must have fields `bactDiffusion` (logical)
@@ -31,14 +27,14 @@ classdef MicrobialDiffusivity < StateFunction
 
     methods
         %-----------------------------------------------------------------%
-        function md = MicrobialDiffusivity(model, varargin)
+        function md = MicrobialChemotaxis(model, varargin)
             md@StateFunction(model, varargin{:});
             md = merge_options(md, varargin{:});
 
             % Dependencies: pressure, saturation, and nbact (for dynamic porosity)
-            md = md.dependsOn({'s','pressure','nbact'}, 'state');
-            md = md.dependsOn('PoreVolume', 'PVTPropertyFunctions');
-            md.label = 'D_{bact}^{eff}';
+            md = md.dependsOn({'s','nbact'}, 'state');
+            %md = md.dependsOn('PoreVolume', 'PVTPropertyFunctions');
+            md.label = 'D_{chemot}^{eff}';
         end
 
         %-----------------------------------------------------------------%
@@ -46,11 +42,12 @@ classdef MicrobialDiffusivity < StateFunction
             bcrm=model.biochemFluid;
             nbioreact=bcrm.nbioreact;
             % Fetch primary state variables
-            [ s, p, nbact] = model.getProps(state, 's', 'pressure','nbact');
+            [ s, nbact] = model.getProps(state, 's','nbact');
 
             % Porosity – dynamic (bio‑clogging) or static
             if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
-                nbact = model.getProp(state, 'nbact');
+                phi = model.rock.poro(p, nbact);
+                nbioreact=model.biochemFluid.nbioreact;
                 if nbioreact==1
                     if iscell(nbact)
                         phi = model.rock.poro(p, nbact{1}); % Apply both modifications
@@ -69,24 +66,32 @@ classdef MicrobialDiffusivity < StateFunction
             end
 
 
+            % Liquid saturation
+            L_ix = model.getLiquidIndex();
+            if iscell(s)
+                sL = s{L_ix};
+            else
+                sL = s(:, L_ix);
+            end
+
+            Voln = max(sL, 1.0e-8);
+
             % Initialize with zero growth rate
             dN=cell(1,nbioreact);
             [dN{:}] = deal(0);
 
-            % Liquid saturation
+            % Effective microbial diffusivity
             for i=1:nbioreact
-                L_ix = model.getLiquidIndex();
-                if iscell(s)
-                    sL = s{L_ix};
+                if iscell(nbact)
+                    nbacti=nbact{i};
                 else
-                    sL = s(:, L_ix);
+                    nbacti=nbact(:,i);
                 end
-
-                Voln = max(sL, 1.0e-8);
-
                 % Effective microbial diffusivity
-                if model.bactDiffusion && isprop(model.biochemFluid, 'bactdiff')
-                    dN{i} = model.biochemFluid.bactdiff(i) .* phi .* Voln;
+                if model.chemotaxisEffect && isprop(model.biochemFluid, 'xch_seuil')
+                    dN{i} = model.biochemFluid.xch_seuil(i) .* phi .* Voln.*nbacti.*(1.0-nbacti);
+                else
+                    dN{i} = 0;
                 end
             end
         end

@@ -1,15 +1,16 @@
-classdef DiffusiveBactFlux < StateFunction
+classdef ChemotaxisBactFlux < StateFunction
     % Diffusive flux of bacteria (mass‑fraction based).
     %
     % SYNOPSIS:
-    %   flux = DiffusiveBactFlux(model)
+    %   flux = ChemotaxisBactFlux(model)
     %
     % DESCRIPTION:
     %   Computes the face‑wise diffusive flux of bacteria in the liquid
     %   phase as
-    %       J = - ρ_l^f .* T .* Grad(nbact)
-    %   where T is the microbial transmissibility provided by
-    %   `MicrobialTransmissibility` and ρ_l^f is the face‑averaged liquid
+    %Jchemotaxis = Kchemo * nbact *(1 - nbact) * Grad(xH2)
+    % (volume-filling effect, generalized Keller-Segel model)
+    %   where T is the chemotaxis transmissibility provided by
+    %   `chemotaxisTransmissibility` and ρ_l^f is the face‑averaged liquid
     %   density.
     %
     % REQUIRED PARAMETERS:
@@ -24,16 +25,16 @@ classdef DiffusiveBactFlux < StateFunction
 
     methods
         %-----------------------------------------------------------------%
-        function df = DiffusiveBactFlux(model, varargin)
+        function df = ChemotaxisBactFlux(model, varargin)
             df@StateFunction(model, varargin{:});
             df = merge_options(df, varargin{:});
 
             % Dependencies
-            df = df.dependsOn('MicrobialTransmissibility');
-            df = df.dependsOn('nbact', 'state');
+            df = df.dependsOn('ChemotaxisTransmissibility');
+            df = df.dependsOn('x', 'state');
             df = df.dependsOn('Density', 'PVTPropertyFunctions');
 
-            df.label = 'J_{bact}^{diff}';
+            df.label = 'J_{bact}^{chemo}';
         end
 
         %-----------------------------------------------------------------%
@@ -42,33 +43,37 @@ classdef DiffusiveBactFlux < StateFunction
             bcrm=model.biochemFluid;
             nbioreact=bcrm.nbioreact;
 
+
             % Retrieve microbial transmissibility
-            T = prop.getEvaluatedDependencies(state, 'MicrobialTransmissibility');
+            T = prop.getEvaluatedDependencies(state, 'ChemotaxisTransmissibility');
 
             % State variables and properties
-            [nbact, rho] = model.getProps(state, 'nbact', 'Density');
+            [x, rho] = model.getProps(state, 'x', 'Density');
 
             % Initialize with zero growth rate
             DN=cell(1,nbioreact);
             [DN{:}] = deal(0);
 
             % Liquid density (face averaged)
+            namecp = model.getComponentNames();
+            L_ix = model.getLiquidIndex();
+            if iscell(rho)
+                rhoL = rho{L_ix};
+            else
+                rhoL = rho(:, L_ix);
+            end
+            rhoLf = model.operators.faceAvg(rhoL);
+
             for i=1:nbioreact
-                L_ix = model.getLiquidIndex();
-                if iscell(rho)
-                    rhoL = rho{L_ix};
+                indH2= find(strcmpi(namecp, bcrm.rH2(i)), 1);
+                if iscell(x)
+                    xH2=x{indH2};
                 else
-                    rhoL = rho(:, L_ix);
+                    xH2=x(:,indH2);
                 end
-                if iscell(nbact)
-                    nbacti=nbact{i};
-                else
-                    nbacti=nbact(:,i);
-                end
-                rhoLf = model.operators.faceAvg(rhoL);
 
                 % Diffusive flux (all faces)
-                DN{i} = - rhoLf .* T{i} .* op.Grad(nbacti);
+                DN{i} = + rhoLf .* T{i} .* op.Grad(xH2);
             end
         end
     end
