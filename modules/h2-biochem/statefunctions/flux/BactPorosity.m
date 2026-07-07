@@ -60,20 +60,8 @@ classdef BactPorosity < StateFunction
                 if model.bacteriamodel
                     % Get both pressure and bacteria concentration
                     [p, nbact] = model.getProps(state, 'pressure', 'nbact');
-                    nbioreact=model.biochemFluid.nbioreact;
-                    if nbioreact==1
-                        if iscell(nbact)
-                            poro = poro(p, nbact{1}); % Apply both modifications
-                        else
-                            poro = poro(p, nbact); % Apply both modifications
-                        end
-                    elseif nbioreact==2
-                        if iscell(nbact)
-                            poro = poro(p, nbact{1}, nbact{2}); % Apply both modifications
-                        else
-                            poro = poro(p, nbact(:,1), nbact(:,2)); % Apply both modifications
-                        end
-                    end
+                    nbactArray = model.extractBactValues(nbact);
+                    poro = poro(p, nbactArray{:}); % Apply both modifications
                 else
                     % Pressure-only modification
                     p = model.getProps(state, 'pressure');

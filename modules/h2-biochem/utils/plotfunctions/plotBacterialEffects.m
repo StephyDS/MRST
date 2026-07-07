@@ -80,11 +80,8 @@ for scenIdx = 1:numel(bioScenarios)
         currentPoro = scen.model.rock.poro;
         if isa(currentPoro, 'function_handle')
             nbact = scen.states{step}.nbact;
-            if nbioreact==1
-                poroData(step) = mean(currentPoro(1, nbact));
-            elseif nbioreact==2
-                poroData(step) = mean(currentPoro(1, nbact(:,1),nbact(:,2)));
-            end
+            nbactArray = extractNbactValues(nbact, nbioreact);
+            poroData(step) = mean(currentPoro(1, nbactArray{:}));
         else
             poroData(step) = mean(currentPoro);
         end
@@ -111,11 +108,8 @@ for scenIdx = 1:numel(bioScenarios)
         currentPerm = scen.model.rock.perm;
         if isa(currentPerm, 'function_handle')
             nbact = scen.states{step}.nbact;
-            if nbioreact==1
-                permData(step) = mean(currentPerm(1, nbact));
-            elseif nbioreact==2
-                permData(step) = mean(currentPerm(1, nbact(:,1),nbact(:,2)));
-            end
+            nbactArray = extractNbactValues(nbact, nbioreact);
+            permData(step) = mean(currentPerm(1, nbactArray{:}));
         else
             permData(step) = mean(currentPerm(:, 1));
         end
@@ -132,6 +126,20 @@ grid on;
 
 %% Global title
 sgtitle('Bio-Clogging Effects');
+end
+
+function nbactArray = extractNbactValues(nbact, nbioreact)
+% Extract bacterial values as cell array, handling both cell and matrix formats
+nbactArray = cell(1, nbioreact);
+if iscell(nbact)
+    for i = 1:nbioreact
+        nbactArray{i} = nbact{i};
+    end
+else
+    for i = 1:nbioreact
+        nbactArray{i} = nbact(:, i);
+    end
+end
 end
 
 %{

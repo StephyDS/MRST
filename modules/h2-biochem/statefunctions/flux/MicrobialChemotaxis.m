@@ -32,8 +32,7 @@ classdef MicrobialChemotaxis < StateFunction
             md = merge_options(md, varargin{:});
 
             % Dependencies: pressure, saturation, and nbact (for dynamic porosity)
-            md = md.dependsOn({'s','nbact'}, 'state');
-            %md = md.dependsOn('PoreVolume', 'PVTPropertyFunctions');
+            md = md.dependsOn({'s','pressure','nbact'}, 'state');
             md.label = 'D_{chemot}^{eff}';
         end
 
@@ -42,25 +41,12 @@ classdef MicrobialChemotaxis < StateFunction
             bcrm=model.biochemFluid;
             nbioreact=bcrm.nbioreact;
             % Fetch primary state variables
-            [ s, nbact] = model.getProps(state, 's','nbact');
+            [ s, nbact, p] = model.getProps(state, 's','nbact', 'p');
 
             % Porosity – dynamic (bio‑clogging) or static
             if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
-                phi = model.rock.poro(p, nbact);
-                nbioreact=model.biochemFluid.nbioreact;
-                if nbioreact==1
-                    if iscell(nbact)
-                        phi = model.rock.poro(p, nbact{1}); % Apply both modifications
-                    else
-                        phi = model.rock.poro(p, nbact);
-                    end
-                elseif nbioreact==2
-                    if iscell(nbact)
-                        phi = model.rock.poro(p, nbact{1}, nbact{2}); % Apply both modifications
-                    else
-                        phi = model.rock.poro(p, nbact(:,1), nbact(:,2)); % Apply both modifications
-                    end
-                end
+                nbactArray = model.extractBactValues(nbact);
+                phi = model.rock.poro(p, nbactArray{:}); % Apply both modifications
             else
                 phi = model.rock.poro;
             end

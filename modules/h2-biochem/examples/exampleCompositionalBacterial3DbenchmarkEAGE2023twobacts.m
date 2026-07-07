@@ -42,7 +42,7 @@ rock = makeRock(G, perm, 0.2);
 
 %% Fluid Properties
 compFluid = TableCompositionalMixture({'Water', 'Hydrogen', 'CarbonDioxide', 'Methane', 'AceticAcid'}, ...
-                                      {'H2O', 'H2', 'CO2', 'C1', 'CH3COOH'});
+    {'H2O', 'H2', 'CO2', 'C1', 'CH3COOH'});
 biochemFluid = TableBioChemMixture({'MethanogenicArchae','AcetogenicBacteria'},{'bactM','bactA'});
 
 
@@ -94,7 +94,7 @@ W = verticalWell(W, G, rock, n1, n2, 1, ...
 W(end).components = [0.0, 0.95, 0.05, 0.0, 0.0];
 
 %% Time Schedule
-ncycles    = 1; 
+ncycles    = 1;
 deltaT     = 5*day;
 nbj_buildUp = 60*day; nbj_rest = 20*day;
 nbj_inject  = 30*day; nbj_idle = 20*day;
@@ -135,26 +135,24 @@ problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ..
     'Benchmark_NoBacteria3', 'NonLinearSolver', nls);
 simulatePackedProblem(problem_nobact);%,'restartStep', 1);
 [ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
-results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
+%results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
 %% --- Simulation 2: With bacteria ---
 model_bact = BiochemistryModel(G, rock, fluid, compFluid, biochemFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', true, 'molecularDiffusion',true,'chemotaxisEffect',false,...
+    'bacteriamodel', true, 'molecularDiffusion',false,'chemotaxisEffect',false,...
     'liquidPhase', 'O', 'vaporPhase', 'G');
 model_bact.outputFluxes = false;
 model_bact.EOSModel = compEOS;
 model_bact.bact_capProp=1.e-3;
 
 nbioreact=model_bact.biochemFluid.nbioreact;
-if nbioreact==2
-    nbact0 = [1, 1]; model_bact.biochemFluid.nbactMax = [1e8,1e8];
-elseif nbioreact==1
-    nbact0 = 1; model_bact.biochemFluid.nbactMax = 1e8;
-end
+nbact0 = ones(1, nbioreact);
+nbactMax = ones(1, nbioreact) * 1e8;
+model_bact.biochemFluid.nbactMax = nbactMax;
 state0_bact = initCompositionalStateBacteria(model_bact, P0, T0, s0, z0, nbact0, compEOS);
 
-lsolve = selectLinearSolverAD(model_bact);
+lsolve = selectLinearSolverAD(model_bact, 'useAMGCLCPR', true);
 nls.LinearSolver = lsolve;
 
 problem_bact = packSimulationProblem(state0_bact, model_bact, schedule, ...
@@ -182,12 +180,14 @@ fprintf('Total CO2 loss due to bacteria: %.2f%%\n', CO2_loss(end));
 fprintf('Total C1 gain due to bacteria:  %.2f%%\n', C1_gain(end));
 
 %% --- Plot Benchmark Results ---
-if nbioreact==1
+% Choose plotting function based on whether we have only MethanogenicArchae
+hasOnlyMethanogenic = all(strcmp(model_bact.biochemFluid.metabolicReaction, 'MethanogenicArchae'));
+if nbioreact==1 || hasOnlyMethanogenic
     plotBenchmarckAEGE2023(numel(states_nobact), ...
         results_nobact.pressure, results_bact.pressure, ...
         H2_loss, results_nobact.totMassH2, results_bact.totMassH2, ...
         G, states_bact, nbact0);
-elseif nbioreact==2
+else
     plotBenchmarckAEGE2023MetAcet(numel(states_nobact), ...
         results_nobact.pressure, results_bact.pressure, ...
         H2_loss, results_nobact.totMassH2, results_bact.totMassH2, ...
@@ -214,24 +214,26 @@ indCO2 = find(strcmp(namecp, 'CO2'));
 indC1 = find(strcmp(namecp, 'C1'));
 indCH3COOH = find(strcmp(namecp, 'CH3COOH'));
 
-% Initialize result structure
+% Initialize result structure with fields valid for all configurations
 results = struct();
-if nbioreact==2
-    resultFields = {'xH2', 'yH2', 'xCO2', 'yCO2', 'yC1', 'xCH3COOH', 'pressure', ...
-        'H2_well', 'CO2_well', 'C1_well', 'CH3COOH_well', 'totMassH2', ...
-        'totMassCO2', 'totMassC1', 'totMassCH3COOH', 'FractionMassH2', ...
-        'FractionMassCO2', 'FractionMassC1', 'FractionMassCH3COOH', 'totMassComp'};
-elseif nbioreact==1
-    if strcmp(model.biochemFluid.metabolicReaction, 'MethanogenicArchae')
-        resultFields = {'xH2', 'yH2', 'xCO2', 'yCO2', 'yC1', 'pressure', ...
-            'H2_well', 'CO2_well', 'C1_well', 'totMassH2', ...
-            'totMassCO2', 'totMassC1','FractionMassH2', ...
-            'FractionMassCO2', 'FractionMassC1','totMassComp'};
-    elseif strcmp(model.biochemFluid.metabolicReaction, 'AcetogenicBacteria')
-        resultFields = {'xH2', 'yH2', 'xCO2', 'yCO2','xCH3COOH', 'pressure', ...
-            'H2_well', 'CO2_well','CH3COOH_well', 'totMassH2', ...
-            'totMassCO2', 'totMassCH3COOH', 'FractionMassH2', ...
-            'FractionMassCO2','FractionMassCH3COOH', 'totMassComp'};
+baseFields = {'xH2', 'yH2', 'xCO2', 'yCO2', 'pressure', 'H2_well', 'CO2_well', ...
+    'totMassH2', 'totMassCO2', 'FractionMassH2', 'FractionMassCO2', 'totMassComp'};
+
+% Add reactor-specific fields
+resultFields = baseFields;
+for i = 1:nbioreact
+    bactName = model.biochemFluid.bactnames{i};
+    % Get product component for this reactor
+    prodComp = model.biochemFluid.p2{i};
+
+    if ~any(strcmp(resultFields, ['y', prodComp]))
+        resultFields = [resultFields, {['y', prodComp]}];
+    end
+    if ~any(strcmp(resultFields, ['totMass', prodComp]))
+        resultFields = [resultFields, {['totMass', prodComp], ['FractionMass', prodComp]}];
+    end
+    if ~any(strcmp(resultFields, [prodComp, '_well']))
+        resultFields = [resultFields, {[prodComp, '_well']}];
     end
 end
 
@@ -262,33 +264,42 @@ for i = 1:nT
     results.FractionMassCO2(i) = results.totMassCO2(i) / results.totMassComp(i);
 
 end
-if nbioreact==2
-    for i = 1:nT
-        results.yC1(i) = max(states{i}.y(:, indC1));
-        results.xCH3COOH(i) = max(states{i}.x(:, indCH3COOH));
-        results.C1_well(i) = ws{i}.C1;
-        results.CH3COOH_well(i) = ws{i}.CH3COOH;
 
-        results.totMassC1(i) = sum(states{i}.FlowProps.ComponentTotalMass{indC1});
-        results.totMassCH3COOH(i) = sum(states{i}.FlowProps.ComponentTotalMass{indCH3COOH});
-        results.FractionMassC1(i) = results.totMassC1(i) / results.totMassComp(i);
-        results.FractionMassCH3COOH(i) = results.totMassCH3COOH(i) / results.totMassComp(i);
-    end
-elseif nbioreact==1
-    if strcmp(model.biochemFluid.metabolicReaction, 'MethanogenicArchae')
-        for i = 1:nT
-            results.yC1(i) = max(states{i}.y(:, indC1));
-            results.C1_well(i) = ws{i}.C1;
+% Process reactor-specific results
+for i = 1:nT
+    for j = 1:nbioreact
+        % Get product component for this reactor
+        prodComp = model.biochemFluid.p2{j};
+        prodIdx = find(strcmp(namecp, prodComp));
 
-            results.totMassC1(i) = sum(states{i}.FlowProps.ComponentTotalMass{indC1});
-            results.FractionMassC1(i) = results.totMassC1(i) / results.totMassComp(i);
+        % Store phase mole fractions - try to store both phases if available
+        if ~isempty(prodIdx)
+            % Try liquid phase
+            resultsFieldLiq = ['x', prodComp];
+            if isfield(results, resultsFieldLiq) && size(states{i}.x, 2) >= prodIdx
+                results.(resultsFieldLiq)(i) = max(states{i}.x(:, prodIdx));
+            end
+            % Try gas phase
+            resultsFieldGas = ['y', prodComp];
+            if isfield(results, resultsFieldGas) && size(states{i}.y, 2) >= prodIdx
+                results.(resultsFieldGas)(i) = max(states{i}.y(:, prodIdx));
+            end
         end
-    elseif strcmp(model.biochemFluid.metabolicReaction, 'AcetogenicBacteria')
-        for i = 1:nT
-            results.xCH3COOH(i) = max(states{i}.x(:, indCH3COOH));
-            results.CH3COOH_well(i) = ws{i}.CH3COOH;
-            results.totMassCH3COOH(i) = sum(states{i}.FlowProps.ComponentTotalMass{indCH3COOH});
-            results.FractionMassCH3COOH(i) = results.totMassCH3COOH(i) / results.totMassComp(i);
+
+        % Store well flux
+        wellField = [prodComp, '_well'];
+        if isfield(ws{i}, prodComp) && isfield(results, wellField)
+            results.(wellField)(i) = ws{i}.(prodComp);
+        end
+
+        % Store mass balance
+        massField = ['totMass', prodComp];
+        fracField = ['FractionMass', prodComp];
+        if isfield(results, massField)
+            results.(massField)(i) = sum(states{i}.FlowProps.ComponentTotalMass{prodIdx});
+            if isfield(results, fracField)
+                results.(fracField)(i) = results.(massField)(i) / results.totMassComp(i);
+            end
         end
     end
 end

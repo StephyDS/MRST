@@ -59,20 +59,8 @@ classdef BactPermeability < StateFunction
                 if model.bacteriamodel
                     % Get both pressure and bacteria concentration
                     [p, nbact] = model.getProps(state, 'pressure', 'nbact');
-                    nbioreact=model.biochemFluid.nbioreact;
-                    if nbioreact==1
-                        if iscell(nbact)
-                            perm = perm(p, nbact{1});  % Apply both modifications
-                        else
-                            perm = perm(p, nbact);  % Apply both modifications
-                        end
-                    elseif nbioreact==2
-                        if iscell(nbact)
-                            perm = perm(p, nbact{1}, nbact{2});  % Apply both modifications
-                        else
-                            perm = perm(p, nbact(:,1), nbact(:,2));  % Apply both modifications
-                        end
-                    end
+                    nbactArray = model.extractBactValues(nbact);
+                    perm = perm(p, nbactArray{:});  % Apply both modifications
                 else
                     % Pressure-only modification
                     p = model.getProp(state, 'pressure');

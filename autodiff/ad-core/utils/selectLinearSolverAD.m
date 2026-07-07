@@ -32,7 +32,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     solver_arg = ['tolerance', opt.tolerance, solver_arg];
     lsolve = BackslashSolverAD();
     ncomp = getComponentCount(model);
-    ncomp =5;
+    %ncomp = 7;
     ndof = ncomp*model.G.cells.num;
     if ndof <= opt.BackslashThreshold
         % We do not need a custom linear solver

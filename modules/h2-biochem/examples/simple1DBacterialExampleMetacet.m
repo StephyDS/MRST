@@ -72,16 +72,15 @@ initPress = 82*barsa;      % Pressure [Pa]
 
 %% Bio-clogging model
 nbioreact=biochemFluid.nbioreact;
-if nbioreact==2
-    initBact  = [9,9];             % Normalized bacteria concentration
-    nc = [180,180]; % critical bacteria concentration
-    cp = [0.0,0.0]; % scaling cofficient
-    [model, poro0, perm0] = setupBioCloggingModel2bacts(model, initBact,nc, cp);
-elseif nbioreact==1
-    initBact  = 9;             % Normalized bacteria concentration
-    nc = 180; % critical bacteria concentration
-    cp = 0.0; % scaling cofficient
-    [model, poro0, perm0] = setupBioCloggingModel(model, initBact,nc, cp);
+initBact = ones(1, nbioreact) * 9;              % Normalized bacteria concentration
+nc = ones(1, nbioreact) * 180;                 % critical bacteria concentration
+cp = zeros(1, nbioreact);                      % scaling coefficient
+
+% Use appropriate setup function based on number of reactors
+if nbioreact == 1
+    [model, poro0, perm0] = setupBioCloggingModel(model, initBact(1), nc(1), cp(1));
+else
+    [model, poro0, perm0] = setupBioCloggingModel2bacts(model, initBact, nc, cp);
 end
 
 %% Biochemistry model wrapper
@@ -114,11 +113,8 @@ simulatePackedProblem(prob1);
 model2 = model;
 model2.rock.perm = perm0;
 model2.rock.poro = poro0;
-if nbioreact==2
-    model2.fluid.pvMultR = @(p,nb,nb1) 1;
-elseif nbioreact==1
-    model2.fluid.pvMultR = @(p,nb) 1;
-end
+% Create pvMultR function that accepts any number of bacterial arguments
+model2.fluid.pvMultR = @(p, varargin) ones(size(p));
 
 %model2.fluid.pvMultR = @(p,nb) 1;
 prob2 = packSimulationProblem(state0, model2, schedule, 'bio_no_clogMA');

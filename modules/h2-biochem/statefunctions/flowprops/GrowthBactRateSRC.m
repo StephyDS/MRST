@@ -72,6 +72,7 @@ classdef GrowthBactRateSRC < StateFunction
                 if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
                         strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
                     if ~(~isempty(idx_H2) && ~isempty(idx_sub))
+                        % Required components not found; return zero growth
                         return;
                     end
                 end

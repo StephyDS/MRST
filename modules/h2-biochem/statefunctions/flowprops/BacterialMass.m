@@ -78,7 +78,7 @@ classdef BacterialMass < StateFunction & ComponentProperty
             end
 
             for i=1:nbioreact
-                % Compute bacterial mass: pv * S_l * *rho_l.*nbact
+                % Compute bacterial mass: pv * S_l * rho_l * nbact
                 % where nbact is concentration [kg/m³]
                 % Result: [m³] * [1] * [kg/m³] = [kg]
                 if iscell(nbact)
@@ -89,7 +89,7 @@ classdef BacterialMass < StateFunction & ComponentProperty
                 mb{i} = pv .* sL .* rhoL .* nbacti;
 
                 % Ensure minimum derivatives for stability
-                mb{i} = ensureMinimumDerivatives(prop,model, mb{i});
+                mb{i} = ensureMinimumDerivatives(prop, model, mb{i});
             end
         end
 

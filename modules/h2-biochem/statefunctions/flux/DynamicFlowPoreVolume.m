@@ -64,20 +64,8 @@ classdef DynamicFlowPoreVolume < PoreVolume
             if model.bacteriamodel
                 % Include bacterial concentration effect if enabled
                 nbact = model.getProp(state, 'nbact');
-                nbioreact=model.biochemFluid.nbioreact;
-                if nbioreact==1
-                    if iscell(nbact)
-                        pvMult = prop.evaluateFluid(model, 'pvMultR', p, nbact{1});
-                    else
-                        pvMult = prop.evaluateFluid(model, 'pvMultR', p, nbact);
-                    end
-                elseif nbioreact==2
-                    if iscell(nbact)
-                        pvMult = prop.evaluateFluid(model, 'pvMultR', p, nbact{1}, nbact{2});
-                    else
-                        pvMult = prop.evaluateFluid(model, 'pvMultR', p, nbact(:,1), nbact(:,2));
-                    end
-                end
+                nbactArray = model.extractBactValues(nbact);
+                pvMult = prop.evaluateFluid(model, 'pvMultR', p, nbactArray{:});
             else
                 % Pressure-only effect
                 pvMult = prop.evaluateFluid(model, 'pvMultR', p);

@@ -217,7 +217,7 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             end
 
             if model.bacteriamodel
-                nbact = model.getProp(state, 'bacteriamodel');
+                nbact = model.getProp(state, 'nbact');
                 nbact = expandMatrixToCell(nbact);
                 bactnames = model.biochemFluid.bactnames;
                 names = [{'pressure'}, cnames(2:end), bactnames, enames];
@@ -689,6 +689,30 @@ function scale = getEquationScaling(model, eqs, names, state0, dt)
 
         end
 
+        function nbactArray = extractBactValues(model, nbact)
+            % Extract bacterial values as array, handling both cell and matrix formats
+            %   This helper extracts nbact values in a format suitable for
+            %   function calls with variable number of arguments.
+            %
+            % PARAMETERS:
+            %   nbact - Cell array {nbact1, nbact2, ...} or matrix [nbact1, nbact2, ...]
+            %
+            % RETURNS:
+            %   nbactArray - Cell array of extracted values, one per reactor
+
+            nbioreact = model.biochemFluid.nbioreact;
+            nbactArray = cell(1, nbioreact);
+
+            if iscell(nbact)
+                for i = 1:nbioreact
+                    nbactArray{i} = nbact{i};
+                end
+            else
+                for i = 1:nbioreact
+                    nbactArray{i} = nbact(:, i);
+                end
+            end
+        end
 
     end
 end

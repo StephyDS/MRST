@@ -81,9 +81,9 @@ classdef BactConvertionRate < StateFunction
 
             % Get reservoir model and number of components
             rm = model.ReservoirModel;
-            bcrm=rm.biochemFluid;
             ncomp = rm.EOSModel.getNumberOfComponents();
-            nbioreact=bcrm.nbioreact;
+
+            % Initialize output with zeros
             qbiot = cell(ncomp, 1);
             [qbiot{:}] = deal(0);
 
@@ -92,64 +92,80 @@ classdef BactConvertionRate < StateFunction
                 return;
             end
 
-            % Validate metabolic reaction type
-            if ~strcmp(bcrm.metabolicReaction, 'MethanogenicArchae')
-                error('BactConvertionRate:UnsupportedReaction', ...
-                    'Unsupported metabolic reaction: %s', bcrm.metabolicReaction);
-            end
+            % Get biochemical fluid properties
+            bcrm = rm.biochemFluid;
+            nbioreact = bcrm.nbioreact;
 
-            % Get component names and find indices of H2 and CO2
-            compNames = rm.EOSModel.getComponentNames();
-            for i=1:nbioreact
-                if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
-                        strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
-                    idxH2  = find(strcmpi(compNames, bcrm.rH2(i)),1);
-                    idxsub = find(strcmpi(compNames, bcrm.rsub(i)),1);
-
-                    % Validate required components exist
-                    if isempty(idxH2)
-                        error('BactConvertionRate:MissingH2', ...
-                            'Required component H2 (%s) not found in the system', bcrm.rH2);
-                    end
-                    if isempty(idxsub)
-                        error('BactConvertionRate:MissingCO2', ...
-                            'Required component CO2 (%s) not found in the system', bcrm.rsub);
-                    end
+            % Validate reactor types
+            for i = 1:nbioreact
+                rxn = bcrm.metabolicReaction{i};
+                if ~ismember(rxn, {'MethanogenicArchae', 'AcetogenicBacteria'})
+                    error('BactConvertionRate:UnsupportedReaction', ...
+                        'Unsupported metabolic reaction: %s', rxn);
                 end
             end
+
+            % Get component names
+            compNames = rm.EOSModel.getComponentNames();
 
             % Get primary state variables directly (avoids redundant Density calculations)
             bmass = rm.PVTPropertyFunctions.get(rm, state, 'BacterialMass');
             psigrowth = model.getProps(state, 'PsiGrowthRate');
 
             % Get model parameters
-            for i=1:nbioreact
-                idxH2  = find(strcmpi(compNames, bcrm.rH2(i)),1);
-                Y_H2 = bcrm.Y_H2(i);                      % Yield coefficient [kg_biomass/kg_H2]
-                gamma = rm.gammak(i,:);                     % Stoichiometric coefficients
-                nbactMax = bcrm.nbactMax(i);              % Carrying capacity [cells/m^3]
-                mc = rm.EOSModel.CompositionalMixture.molarMass;  % Component molar masses [kg/mol]
+            Y_H2 = bcrm.Y_H2;                      % Yield coefficients [kg_biomass/kg_H2]
+            gamma = rm.gammak;                     % Stoichiometric coefficients (nbioreact x ncomp)
+            nbactMax = bcrm.nbactMax;              % Carrying capacity [cells/m^3]
+            mc = rm.EOSModel.CompositionalMixture.molarMass;  % Component molar masses [kg/mol]
 
-                % Normalize stoichiometric coefficients by H2 coefficient
+            % Calculate conversion rate for each reactor and component
+            for i = 1:nbioreact
+                % Find indices for this reactor's H2 and substrate
+                idxH2  = find(strcmpi(compNames, bcrm.rH2{i}), 1);
+                idxsub = find(strcmpi(compNames, bcrm.rsub{i}), 1);
+
+                % Validate required components exist
+                if isempty(idxH2)
+                    error('BactConvertionRate:MissingH2', ...
+                        'Required component H2 (%s) not found for reactor %d', bcrm.rH2{i}, i);
+                end
+                if isempty(idxsub)
+                    error('BactConvertionRate:MissingSubstrate', ...
+                        'Required component substrate (%s) not found for reactor %d', bcrm.rsub{i}, i);
+                end
+
+                % Get bacterial mass and growth rate for this reactor
+                if iscell(bmass)
+                    bmass_i = bmass{i};
+                else
+                    bmass_i = bmass(:, i);
+                end
+                if iscell(psigrowth)
+                    psigrowth_i = psigrowth{i};
+                else
+                    psigrowth_i = psigrowth(:, i);
+                end
+
+                % Normalize stoichiometric coefficients by H2 coefficient for this reactor
                 % γ_c^H2 = (γ_c * m_c) / |γ_H2|
-                % Scaled by nbactMax for consistency with bacterial mass units
-                gamma_norm = nbactMax .* gamma .* mc ./ abs(gamma(idxH2));
+                gamma_row = gamma(i, :);
+                gamma_norm = nbactMax(i) .* gamma_row .* mc ./ abs(gamma_row(idxH2));
 
                 % Calculate base conversion rate
                 % Direct calculation: qbiot = (pv * S_l * nbact) / Y_H2
                 % Note: Density cancels in (pv * S_l * rho_l * nbact) / (rho_l * Y_H2)
-                qbase = psigrowth{i}.*bmass{i} ./ Y_H2;
+                qbase = psigrowth_i .* bmass_i ./ Y_H2(i);
 
                 % Apply normalized stoichiometric coefficients to each component
                 for c = 1:ncomp
-                    qbiot{c} =qbiot{c}+ gamma_norm(c) .* qbase;
+                    qbiot{c} = qbiot{c} + gamma_norm(c) .* qbase;
                 end
             end
         end
     end
 end
 
-    %{
+%{
 Copyright 2009-2026 SINTEF Digital, Mathematics & Cybernetics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
@@ -166,4 +182,4 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with MRST.  If not, see <http://www.gnu.org/licenses/>.
-    %}
+%}

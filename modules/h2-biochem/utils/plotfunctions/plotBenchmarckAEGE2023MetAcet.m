@@ -127,23 +127,28 @@ for j=1:nbioreact
 end
 f31=figure('Name','nbacteria','NumberTitle','off');
 f31.Position(3:4) = [900 700];
-plot(0:nT,[ncells*nbact0(1);nbacteria(:,1)],'b','MarkerSize',7,'LineWidth',2)
-if nbioreact==2
+
+% Plot each reactor type with different colors
+colors = ['b'; 'r'; 'g'; 'm'; 'c'; 'y'; 'k'];  % Colors for up to 7 reactors
+for j = 1:nbioreact
+    plot(0:nT, [ncells*nbact0(j); nbacteria(:,j)], colors(mod(j-1,length(colors))+1), ...
+        'MarkerSize', 7, 'LineWidth', 2);
     hold on;
-    plot(0:nT,[ncells*nbact0(2);nbacteria(:,2)],'r','MarkerSize',7,'LineWidth',2)
 end
+hold off;
+
 title('Total methanogenic and acetogens Archae populations','FontSize',16,'FontWeight','bold','Color','k')
 xlabel({'time (days)'},'FontWeight','bold','Color','k')
 ylabel({'N_{archae}'},'FontWeight','bold','Color','k')
 ax = gca;
 ax.FontSize = 16;
-if nbioreact==1
-    legend({'N_{Methanogens}'},'FontSize',16,'TextColor','black',...
-        'Location','best')
-elseif nbioreact==2
-    legend({'N_{Methanogens}', 'N_{Acetogens}'},'FontSize',16,'TextColor','black',...
-        'Location','best')
+
+% Build legend dynamically
+bactNames = cell(1, nbioreact);
+for j = 1:nbioreact
+    bactNames{j} = ['N_{', strtrim(model.biochemFluid.bactnames{j}), '}'];
 end
+legend(bactNames,'FontSize',16,'TextColor','black', 'Location','best')
 end
 
 
