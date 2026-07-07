@@ -17,6 +17,7 @@ classdef TableBioChemMixture
 
     properties
         metabolicReaction   % Names of the metabolic reactions (1 x N string)
+        bactnames           % name of bacteria
         rH2                 % Reactant name – H2 (1 x N string)
         rsub                % Reactant name – substrate (CO2, SO4, etc.)
         pH2O                % Product name – water
@@ -40,7 +41,7 @@ classdef TableBioChemMixture
     end
 
     methods
-        function biochem = TableBioChemMixture(names)
+        function biochem = TableBioChemMixture(names,bactnames)
             % Constructor for TableBioChemMixture.
             if nargin == 0
                 names = {};
@@ -48,7 +49,14 @@ classdef TableBioChemMixture
             if ischar(names) || isstring(names)
                 names = {char(names)};
             end
-
+            if nargin == 1
+                bactnames = names;
+            else
+                if ischar(bactnames) || isstring(bactnames)
+                    bactnames = {char(bactnames)};
+                end
+                assert(numel(names) == numel(bactnames));
+            end
             % Load the database of known reactions
             allReactions = bioChemFluidsStructs();
             validNames   = {allReactions.metabolicReaction};
@@ -58,8 +66,8 @@ classdef TableBioChemMixture
             if ~all(isValid)
                 invalid = names(~isValid);
                 error('TableBioChemMixture:UnknownReaction', ...
-                      ['The following reaction names are not recognized: ', ...
-                       strjoin(invalid, ', ')]);
+                    ['The following reaction names are not recognized: ', ...
+                    strjoin(invalid, ', ')]);
             end
 
             N = numel(names);
@@ -83,6 +91,12 @@ classdef TableBioChemMixture
             biochem.bactdiff = zeros(1, N);
 
             % Fill from database
+            for i = 1:numel(bactnames)
+                cts = sum(strcmp(bactnames{i}, bactnames));
+                if cts > 1
+                    warning(['bacteria ', num2str(i), ': ', bactnames{i}, ' occurs multiple times.']);
+                end
+            end
             for i = 1:N
                 entry = allReactions(idx(i));
                 biochem.metabolicReaction(i) = entry.metabolicReaction;
@@ -103,6 +117,7 @@ classdef TableBioChemMixture
                 biochem.xch_seuil(i) = entry.xch_seuil;
                 biochem.bactdiff(i) = entry.bactdiff;
             end
+            biochem.bactnames=bactnames;
         end
 
         function n = get.nbioreact(biochem)

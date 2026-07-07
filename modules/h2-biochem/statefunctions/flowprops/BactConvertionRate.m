@@ -81,9 +81,9 @@ classdef BactConvertionRate < StateFunction
 
             % Get reservoir model and number of components
             rm = model.ReservoirModel;
+            bcrm=rm.biochemFluid;
             ncomp = rm.EOSModel.getNumberOfComponents();
-
-            % Initialize output with zeros
+            nbioreact=bcrm.nbioreact;
             qbiot = cell(ncomp, 1);
             [qbiot{:}] = deal(0);
 
@@ -91,9 +91,6 @@ classdef BactConvertionRate < StateFunction
             if ~(rm.bacteriamodel && rm.liquidPhase)
                 return;
             end
-
-            % Get biochemical fluid properties
-            bcrm = rm.biochemFluid;
 
             % Validate metabolic reaction type
             if ~strcmp(bcrm.metabolicReaction, 'MethanogenicArchae')
@@ -103,49 +100,56 @@ classdef BactConvertionRate < StateFunction
 
             % Get component names and find indices of H2 and CO2
             compNames = rm.EOSModel.getComponentNames();
-            idxH2  = find(strcmpi(compNames, bcrm.rH2), 1);
-            idxsub = find(strcmpi(compNames, bcrm.rsub), 1);
+            for i=1:nbioreact
+                if strcmp(bcrm.metabolicReaction(i), 'MethanogenicArchae') || ...
+                        strcmp(bcrm.metabolicReaction(i), 'AcetogenicBacteria')
+                    idxH2  = find(strcmpi(compNames, bcrm.rH2(i)),1);
+                    idxsub = find(strcmpi(compNames, bcrm.rsub(i)),1);
 
-            % Validate required components exist
-            if isempty(idxH2)
-                error('BactConvertionRate:MissingH2', ...
-                    'Required component H2 (%s) not found in the system', bcrm.rH2);
-            end
-            if isempty(idxsub)
-                error('BactConvertionRate:MissingCO2', ...
-                    'Required component CO2 (%s) not found in the system', bcrm.rsub);
+                    % Validate required components exist
+                    if isempty(idxH2)
+                        error('BactConvertionRate:MissingH2', ...
+                            'Required component H2 (%s) not found in the system', bcrm.rH2);
+                    end
+                    if isempty(idxsub)
+                        error('BactConvertionRate:MissingCO2', ...
+                            'Required component CO2 (%s) not found in the system', bcrm.rsub);
+                    end
+                end
             end
 
             % Get primary state variables directly (avoids redundant Density calculations)
             bmass = rm.PVTPropertyFunctions.get(rm, state, 'BacterialMass');
             psigrowth = model.getProps(state, 'PsiGrowthRate');
 
-           
             % Get model parameters
-            Y_H2 = bcrm.Y_H2;                      % Yield coefficient [kg_biomass/kg_H2]
-            gamma = rm.gammak;                     % Stoichiometric coefficients
-            nbactMax = bcrm.nbactMax;              % Carrying capacity [cells/m^3]
-            mc = rm.EOSModel.CompositionalMixture.molarMass;  % Component molar masses [kg/mol]
+            for i=1:nbioreact
+                idxH2  = find(strcmpi(compNames, bcrm.rH2(i)),1);
+                Y_H2 = bcrm.Y_H2(i);                      % Yield coefficient [kg_biomass/kg_H2]
+                gamma = rm.gammak(i,:);                     % Stoichiometric coefficients
+                nbactMax = bcrm.nbactMax(i);              % Carrying capacity [cells/m^3]
+                mc = rm.EOSModel.CompositionalMixture.molarMass;  % Component molar masses [kg/mol]
 
-            % Normalize stoichiometric coefficients by H2 coefficient
-            % γ_c^H2 = (γ_c * m_c) / |γ_H2|
-            % Scaled by nbactMax for consistency with bacterial mass units
-            gamma_norm = nbactMax .* gamma .* mc ./ abs(gamma(idxH2));
+                % Normalize stoichiometric coefficients by H2 coefficient
+                % γ_c^H2 = (γ_c * m_c) / |γ_H2|
+                % Scaled by nbactMax for consistency with bacterial mass units
+                gamma_norm = nbactMax .* gamma .* mc ./ abs(gamma(idxH2));
 
-            % Calculate base conversion rate
-            % Direct calculation: qbiot = (pv * S_l * nbact) / Y_H2
-            % Note: Density cancels in (pv * S_l * rho_l * nbact) / (rho_l * Y_H2)
-            qbase = psigrowth.*bmass ./ Y_H2;
+                % Calculate base conversion rate
+                % Direct calculation: qbiot = (pv * S_l * nbact) / Y_H2
+                % Note: Density cancels in (pv * S_l * rho_l * nbact) / (rho_l * Y_H2)
+                qbase = psigrowth{i}.*bmass{i} ./ Y_H2;
 
-            % Apply normalized stoichiometric coefficients to each component
-            for c = 1:ncomp
-                qbiot{c} = gamma_norm(c) .* qbase;
+                % Apply normalized stoichiometric coefficients to each component
+                for c = 1:ncomp
+                    qbiot{c} =qbiot{c}+ gamma_norm(c) .* qbase;
+                end
             end
         end
     end
 end
 
-%{
+    %{
 Copyright 2009-2026 SINTEF Digital, Mathematics & Cybernetics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
@@ -162,4 +166,4 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with MRST.  If not, see <http://www.gnu.org/licenses/>.
-%}
+    %}
