@@ -136,7 +136,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 % model.setupOperators
                 if ~model.dynamicFlowTrans()
                     drock = rock;
-                    %nbact0 = 0;
                 end
                 if nargin(drock.poro)<3
                     nbact0 = 0;
@@ -372,6 +371,9 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             cn = abs(sum(C.*N, 2))./sum(C.*C, 2);
 
             % Cell-centred microbial diffusivity D_b = bactdiff*pv*sL
+            bcrm=model.biochemFluid;
+            nbioreact=bcrm.nbioreact;
+
             D = model.getProp(state, 'MicrobialDiffusivity');
             if numel(value(D)) == 1
                 % Diffusion disabled / zero -> no boundary contribution
@@ -391,14 +393,21 @@ classdef BiochemistryModel < GenericOverallCompositionModel
             nbact = model.getProp(state, 'nbact');
 
             % Diffusive flux leaving the adjacent cell (positive = outflow)
-            Jout = rhoL(cells) .* T_bc .* (nbact(cells) - val);
+            for i=1:nbioreact
+                if iscell(nbact)
+                    nbacti=nbact{i};
+                else
+                    nbacti=nbact(:,i);
+                end
+                Jout = rhoL(cells) .* T_bc{i} .* (nbacti(cells) - val{i});
 
-            % Scatter face contributions onto the cell residual (handles
-            % several boundary faces sharing the same cell)
-            nc   = G.cells.num;
-            nf   = numel(cells);
-            Scat = sparse(cells, (1:nf)', 1, nc, nf);
-            beqs{1} = beqs{1} + Scat*Jout;
+                % Scatter face contributions onto the cell residual (handles
+                % several boundary faces sharing the same cell)
+                nc   = G.cells.num;
+                nf   = numel(cells);
+                Scat = sparse(cells, (1:nf)', 1, nc, nf);
+                beqs{i} = beqs{i} + Scat*Jout;
+            end
         end
 
         function forces = validateDrivingForces(model, forces, varargin)

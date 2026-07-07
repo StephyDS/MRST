@@ -26,7 +26,7 @@
 %% Initialization
 clear; clc;
 mrstModule add h2-biochem compositional ad-blackoil ad-core ad-props mrst-gui
-
+mrstVerbose false;
 gravity reset on
 
 %% ============ Grid and Rock Properties =====================
@@ -94,7 +94,7 @@ W = verticalWell(W, G, rock, n1, n2, 1, ...
 W(end).components = [0.0, 0.95, 0.05, 0.0, 0.0];
 
 %% Time Schedule
-ncycles    = 1; 
+ncycles    = 6; 
 deltaT     = 5*day;
 nbj_buildUp = 60*day; nbj_rest = 20*day;
 nbj_inject  = 30*day; nbj_idle = 20*day;
@@ -119,7 +119,7 @@ z0 = [0.7, 0.0, 0.02, 0.28, 0.0];
 %% --- Simulation 1: Without bacteria ---
 arg = {G, rock, fluid, compFluid, biochemFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', false,'molecularDiffusion',true, ...
+    'bacteriamodel', false,'moleculardiffusion',true, ...
     'liquidPhase', 'O', 'vaporPhase', 'G'};
 
 model_nobact = BiochemistryModel(arg{:});
@@ -140,11 +140,11 @@ results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nob
 %% --- Simulation 2: With bacteria ---
 model_bact = BiochemistryModel(G, rock, fluid, compFluid, biochemFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', true, 'molecularDiffusion',true,'chemotaxisEffect',false,...
+    'bacteriamodel', true, 'molecularDiffusion',false,'molecularDispersion',true,'chemotaxisEffect',false,...
     'liquidPhase', 'O', 'vaporPhase', 'G');
 model_bact.outputFluxes = false;
 model_bact.EOSModel = compEOS;
-model_bact.bact_capProp=1.e-3;
+model_bact.bact_capProp=3.e-3;
 
 nbioreact=model_bact.biochemFluid.nbioreact;
 if nbioreact==2
@@ -159,7 +159,7 @@ nls.LinearSolver = lsolve;
 
 problem_bact = packSimulationProblem(state0_bact, model_bact, schedule, ...
     'Benchmark_Bacteria2', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_bact);%,'restartStep', 1);
+simulatePackedProblem(problem_bact,'restartStep', 1);
 [ws_bact, states_bact] = getPackedSimulatorOutput(problem_bact);
 results_bact = postProcessResults(states_bact, ws_bact, model_bact, 'bact');
 
