@@ -82,13 +82,14 @@ function testAllDiffusionEffects()
 
             % Run simulation
             fprintf('  Running simulation...');
-            [states, report] = simulateScheduleAD(state0, model, schedule);
+            [ws, states] = simulateScheduleAD(state0, model, schedule);
             fprintf(' OK\n');
 
             % Store results in scenarios struct
             scenario = struct();
             scenario.name = sceneNames{i};
             scenario.states = states;
+            scenario.ws = ws;
             scenario.model = model;
             scenario.color = colors(i, :);
             scenario.line = '-';

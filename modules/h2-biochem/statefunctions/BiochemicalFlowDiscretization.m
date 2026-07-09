@@ -49,13 +49,13 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                 if model.bactDiffusion
                     props = props.setStateFunction('MicrobialDiffusivity', MicrobialDiffusivity(model));
                     props = props.setStateFunction('MicrobialTransmissibility', ...
-                        DynamicFlowTransmissibility(model, 'MicrobialDiffusivity'));
+                        MicrobialTransmissibility(model));
                     props = props.setStateFunction('BactFlux', DiffusiveBactFlux(model));
                 end
                  if model.chemotaxisEffect
                     props = props.setStateFunction('MicrobialChemotaxis', MicrobialChemotaxis(model));
                     props = props.setStateFunction('ChemotaxisTransmissibility', ...
-                        DynamicFlowTransmissibility(model, 'MicrobialChemotaxis'));
+                        ChemotaxisTransmissibility(model));
                     props = props.setStateFunction('ChemoBactFlux', ChemotaxisBactFlux(model));
                 end
             end

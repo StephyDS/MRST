@@ -71,6 +71,7 @@ createModel = @(doDiff, doDisp) BiochemistryModel( ...
     false, diagonal_backend, ...               % false = don't re‑initialise from deck
     'oil', true, 'gas', true, ...
     'bacteriamodel', true, ...
+    'bactDiffusion', true, ...
     'molecularDiffusion', doDiff, ...
     'molecularDispersion', doDisp, ...
     'liquidPhase', 'O', 'vaporPhase', 'G');
@@ -100,7 +101,7 @@ fprintf('>>> Scenario 1: No Diffusion, No Dispersion\n');
 prob_00 = packSimulationProblem(state0, model_NoNo, schedule, ...
      [baseName '_noDiff_noDisp'], 'NonLinearSolver', nls_00);
 tic;
-simulatePackedProblem(prob_00);
+simulatePackedProblem(prob_00,'RestartStep',1);
 cpu_times.noDiff_noDisp = toc;
 [ws00, states00] = getPackedSimulatorOutput(prob_00);
 fprintf('   CPU Time: %.2f seconds\n\n', cpu_times.noDiff_noDisp);
@@ -116,7 +117,7 @@ state0_D = initCompositionalStateBacteria(model_D, state0.pressure, T0, state0.s
 prob_D = packSimulationProblem(state0_D, model_D, schedule, ...
     [baseName '_diffOnly'], 'NonLinearSolver', nls_D);
 tic;
-simulatePackedProblem(prob_D);
+simulatePackedProblem(prob_D,'RestartStep',1);
 cpu_times.diffOnly = toc;
 [wsD, statesD] = getPackedSimulatorOutput(prob_D);
 fprintf('   CPU Time: %.2f seconds\n\n', cpu_times.diffOnly);
@@ -132,7 +133,7 @@ state0_Dp = initCompositionalStateBacteria(model_Dp, state0.pressure, T0, state0
 prob_Dp = packSimulationProblem(state0_Dp, model_Dp, schedule, ...
     [baseName '_dispOnly'], 'NonLinearSolver', nls_Dp);
 tic;
-simulatePackedProblem(prob_Dp);
+simulatePackedProblem(prob_Dp, 'RestartStep',1);
 cpu_times.dispOnly = toc;
 %[wsDp, statesDp] = getPackedSimulatorOutput(prob_Dp);
 fprintf('   CPU Time: %.2f seconds\n\n', cpu_times.dispOnly);
@@ -148,7 +149,7 @@ state0_DD = initCompositionalStateBacteria(model_DD, state0.pressure, T0, state0
 prob_DD = packSimulationProblem(state0_DD, model_DD, schedule, ...
     [baseName '_bothDiffDisp'], 'NonLinearSolver', nls_DD);
 tic;
-simulatePackedProblem(prob_DD);
+simulatePackedProblem(prob_DD,'RestartStep',1);
 cpu_times.bothDiffDisp = toc;
 [wsDD, statesDD] = getPackedSimulatorOutput(prob_DD);
 fprintf('   CPU Time: %.2f seconds\n\n', cpu_times.bothDiffDisp);
