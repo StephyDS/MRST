@@ -5,12 +5,12 @@ classdef ChemotaxisBactFlux < StateFunction
     %   flux = ChemotaxisBactFlux(model)
     %
     % DESCRIPTION:
-    %   Computes the face‑wise diffusive flux of bacteria in the liquid
+    %   Computes the face-wise diffusive flux of bacteria in the liquid
     %   phase as
     %Jchemotaxis = Kchemo * nbact *(1 - nbact) * Grad(xH2)
     % (volume-filling effect, generalized Keller-Segel model)
     %   where T is the chemotaxis transmissibility provided by
-    %   `chemotaxisTransmissibility` and ρ_l^f is the face‑averaged liquid
+    %   `chemotaxisTransmissibility` and rho_l^f is the face-averaged liquid
     %   density.
     %
     % REQUIRED PARAMETERS:

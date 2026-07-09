@@ -5,9 +5,9 @@ classdef DiffusiveBactFlux < StateFunction
     %   flux = DiffusiveBactFlux(model)
     %
     % DESCRIPTION:
-    %   Computes the face‑wise diffusive flux of bacteria in the liquid
+    %   Computes the face-wise diffusive flux of bacteria in the liquid
     %   phase as
-    %       J = - ρ_l^f .* T .* Grad(nbact)
+    %       J = - rho_l^f * T * Grad(nbact)
     %   where T is the microbial transmissibility provided by
     %   `MicrobialTransmissibility` and ρ_l^f is the face‑averaged liquid
     %   density.

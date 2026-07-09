@@ -1,72 +1,55 @@
 function [model, poro0, perm0] = setupBioCloggingModel(model, nbact0, nc, cp, clogModel)
-% setupBioCloggingModel -- Add bio-clogging effects to a compositional model
-%
-% SYNOPSIS:
-%   [model, poro0, perm0] = setupBioCloggingModel(model, nbact0, nc, cp)
-%
-% DESCRIPTION:
-%   Modifies the input MRST compositional model by including porosity
-%   and permeability reduction due to bacterial growth (bio-clogging).
-%   The reduction is parameterized by a characteristic bacterial
-%   concentration and a clogging strength coefficient.
+% setupBioCloggingModelMulti -- Add multi-species bio-clogging effects
 %
 % PARAMETERS:
-%   model  - MRST compositional model struct with fields `rock` and `fluid`.
-%   nbact0 - Initial bacterial concentration (scalar, dimensionless/normalized).
-%   nc     - Characteristic bacterial concentration at which clogging
-%            effects become significant (scalar).
-%   cp     - Dimensionless clogging strength coefficient (scalar).
-%
-%   clogModel - use clogging model
-% RETURNS:
-%   model  - Modified model with porosity and permeability given as
-%            function handles depending on bacterial concentration.
-%   poro0  - Original porosity vector (before clogging modification).
-%   perm0  - Original permeability vector (before clogging modification).
-%
-% SEE ALSO:
-%   initCompositionalStateBacteria, TableCompositionalMixture
+%   nbact0 - Cell array of initial bacterial concentrations (e.g., {nbact1_0, nbact2_0})
+%   nc     - Vector of characteristic concentrations matching the cell array length [nc1, nc2]
+%   cp     - Vector of clogging strengths matching the cell array length [cp1, cp2]
 
-% Store original rock properties
+if nargin < 5
+    clogModel = true;
+end
+
 poro0 = model.rock.poro;
 perm0 = model.rock.perm(:, 1);
+
 if clogModel
-% Define porosity multiplier (function of bacterial concentration)
-scale = 1 + cp.*(nbact0 / nc).^2;
-pvMult_nbact = @(nbact) 1 ./ (1 + scale.*(nbact./nc).^2);
+    % 1. Compute the cumulative initial "scale" factor across all species
+    num_species = numel(nbact0);
+    scale_sum = 0;
+    for i = 1:num_species
+        scale_sum = scale_sum + cp(i) * (nbact0(:,i) ./ nc(i)).^2;
+    end
+    scale = 1 + scale_sum;
 
-% Assign porosity update function to fluid/rock
-model.fluid.pvMultR = @(p, nbact) pvMult_nbact(nbact);
-poroFun = @(p, nbact) poro0 .* pvMult_nbact(nbact);
-model.rock.poro = poroFun;
+    % 2. Define the dynamic pore volume multiplier for multiple species
+    % pvMult_nbact expects a cell array of concentration vectors
+    pvMult_nbact = @(nbact_cell) 1 ./ (1 + scale .* evalCumulativeClog(nbact_cell, nc));
 
-% Define permeability update function via Kozeny–Carman-like relation
-tauFun = @(p, nbact) ((1 - poro0) ./ (1 - poroFun(p, nbact))).^2 .* ...
-    (poroFun(p, nbact) ./ poro0).^3;
-permFun = @(p, nbact) perm0 .* tauFun(p, nbact);
-model.rock.perm = permFun;
+    % 3. Assign porosity handles
+    % --- FIX: accept varargin to handle expanded cell array from evaluateFluid ---
+    model.fluid.pvMultR = @(p, varargin) pvMult_nbact(varargin);   % <-- only line changed
+
+    poroFun = @(p, nbact) poro0 .* pvMult_nbact(nbact);
+    model.rock.poro = poroFun;
+
+    % 4. Define permeability update function (Kozeny–Carman)
+    tauFun = @(p, nbact) ((1 - poro0) ./ (1 - poroFun(p, nbact))).^2 .* ...
+        (poroFun(p, nbact) ./ poro0).^3;
+    permFun = @(p, nbact) perm0 .* tauFun(p, nbact);
+    model.rock.perm = permFun;
 else
     model.rock.poro = poro0;
     model.rock.perm = perm0;
-    model.fluid.pvMultR = @(p, nbact) 1;
-
+    model.fluid.pvMultR = @(varargin) 1;
 end
 
 end
 
-%{
-Copyright 2009-2025 SINTEF Digital, Mathematics & Cybernetics.
-
-This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
-
-MRST is free software: you can redistribute it and/or modify it under the terms of the GNU 
-General Public License as published by the Free Software Foundation, either version 3 of 
-the License, or (at your option) any later version.
-
-MRST is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without 
-even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with MRST. If not, 
-see <http://www.gnu.org/licenses/>.
-%}
+% Helper function to loop over cell contents during simulation solver steps
+function total_clog = evalCumulativeClog(nbact_cell, nc_vec)
+total_clog = 0;
+for i = 1:numel(nbact_cell)
+    total_clog = total_clog + (nbact_cell{i} ./ nc_vec(i)).^2;
+end
+end

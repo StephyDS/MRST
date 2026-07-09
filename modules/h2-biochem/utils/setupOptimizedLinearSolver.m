@@ -74,14 +74,23 @@ function [nls, lsolve] = setupOptimizedLinearSolver(model, varargin)
     nls.LinearSolver = lsolve;
     nls.maxIterations = opt.maxNonlinIter;
     nls.verbose = false;
-
-    % Display configuration info
-    fprintf('\n--- Optimized Linear Solver Configuration ---\n');
-    fprintf('Complexity Level:   %s\n', upper(opt.complexityLevel));
-    fprintf('Max Nonlin Iters:   %d\n', nls.maxIterations);
-    fprintf('Linear Tolerance:   %e\n', lsolve.tolerance);
-    fprintf('CPR Damping:        %.3f\n', amgclSettings.cpr_damp);
-    fprintf('AMGCL Max Iters:    %d\n', amgclSettings.maxIter);
-    fprintf('AMGCL Eps:          %e\n', amgclSettings.eps);
-    fprintf('-------------------------------------------\n\n');
 end
+
+%{
+Copyright 2009-2026 SINTEF Digital, Mathematics & Cybernetics.
+
+This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
+
+MRST is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+MRST is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with MRST.  If not, see <http://www.gnu.org/licenses/>.
+%}

@@ -87,7 +87,7 @@ classdef ComponentTotalFluxForBio < ComponentTotalFlux
             %   model - MRST model to validate
 
             if sf.hasDispersion_ && ~sf.hasDiffusion_
-                warning(['ComponentTotalFluxForBio: Moleclar diffusion ' ...
+                warning(['ComponentTotalFluxForBio: Molecular diffusion ' ...
                          'is not enabled.']);
             end
         end

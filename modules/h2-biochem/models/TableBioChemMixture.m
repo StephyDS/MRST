@@ -18,20 +18,20 @@ classdef TableBioChemMixture
     properties
         metabolicReaction   % Names of the metabolic reactions (1 x N string)
         bactnames           % name of bacteria
-        rH2                 % Reactant name – H2 (1 x N string)
-        rsub                % Reactant name – substrate (CO2, SO4, etc.)
-        pH2O                % Product name – water
-        p2                  % Product name – second product (e.g., CH4, H2S)
+        rH2                 % Reactant name - H2 (1 x N string)
+        rsub                % Reactant name - substrate (CO2, SO4, etc.)
+        pH2O                % Product name - water
+        p2                  % Product name - second product (e.g., CH4, H2S)
         gamrH2              % Stoichiometric coefficient for H2
         gamrsub             % Stoichiometric coefficient for substrate
         gampH2O             % Stoichiometric coefficient for water
         gamp2               % Stoichiometric coefficient for second product
         Y_H2                % Yield coefficient (cells/mol H2)
-        alphaH2             % Half‑saturation constant for H2 (mol/mol)
+        alphaH2             % Half-saturation constant for H2 (mol/mol)
         alphasub            % Half‑saturation constant for substrate (mol/mol)
         Psigrowthmax        % Maximum specific growth rate (1/s)
         bbact               % Decay rate constant (1/s)
-        nbactMax            % Maximum microorganism concentration (1/m³)
+        nbactMax            % Maximum microorganism concentration (1/m^3)
         xch_seuil           % Chemotaxis coefficient
         bactdiff            % microbial diffusion coefficient
     end

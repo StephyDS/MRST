@@ -63,9 +63,13 @@ classdef BactPorosity < StateFunction
                     nbactArray = model.extractBactValues(nbact);
                     poro = poro(p, nbactArray{:}); % Apply both modifications
                 else
-                    % Pressure-only modification
+                    % Pressure-only modification (guard against multi-bacteria function handles)
                     p = model.getProps(state, 'pressure');
-                    poro = poro(p, 0); % Zero bacterial effect
+                    if nargin(model.rock.poro) < 3
+                        poro = poro(p, 0); % Single-bacteria: pass zero
+                    else
+                        poro = poro(p, 0, 0); % Multi-bacteria: pass zeros for all
+                    end
                 end
             end
         end

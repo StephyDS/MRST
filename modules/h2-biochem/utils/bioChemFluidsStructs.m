@@ -5,18 +5,18 @@ function db = bioChemFluidsStructs()
 %   db - Struct array where each element describes one metabolic
 %        reaction with the following fields:
 %
-%   metabolicReaction  – Name (e.g., 'MethanogenicArchae')
-%   rH2, rsub          – Reactant names
-%   pH2O, p2           – Product names
+%   metabolicReaction  - Name (e.g., 'MethanogenicArchae')
+%   rH2, rsub          - Reactant names
+%   pH2O, p2           - Product names
 %   gamrH2, gamrsub,
-%   gampH2O, gamp2     – Stoichiometric coefficients
-%   Y_H2               – Yield coefficient (cells/mol H2)
-%   alphaH2, alphasub  – Half‑saturation constants (mol/mol)
-%   Psigrowthmax       – Maximum growth rate (1/s)
-%   bbact              – Decay rate (1/s)
-%   nbactMax           – Maximum cell density (1/m³)
-%   bactdiff           - microbial diffusion coefficient (m^2/s)
-%   xch_seuil          -chemotaxis
+%   gampH2O, gamp2     - Stoichiometric coefficients
+%   Y_H2               - Yield coefficient (cells/mol H2)
+%   alphaH2, alphasub  - Half-saturation constants (mol/mol)
+%   Psigrowthmax       - Maximum growth rate (1/s)
+%   bbact              - Decay rate (1/s)
+%   nbactMax           - Maximum cell density (1/m^3)
+%   bactdiff           - Microbial diffusion coefficient (m^2/s)
+%   xch_seuil          - Chemotaxis coefficient
 %   Add new reactions by appending additional struct entries following
 %   the same pattern.
 
@@ -59,13 +59,25 @@ db = [...
     'bactdiff',           1.0e-12),...
     ];
 
-    % Example for adding a second reaction (uncomment and adjust):
-    % db(2) = struct(...
-    %     'metabolicReaction', 'SulfateReducingBacteria', ...
-    %     'rH2',                'H2', ...
-    %     'rsub',               'SO4', ...
-    %     'pH2O',               'H2O', ...
-    %     'p2',                 'H2S', ...
-    %     ...  % fill remaining coefficients
-    %     );
-    end
+    % To add new reactions: append a struct with metabolicReaction name and all required fields
+    % (rH2, rsub, pH2O, p2, stoichiometric coefficients, kinetic parameters, bactdiff, xch_seuil)
+end
+
+%{
+Copyright 2009-2026 SINTEF Digital, Mathematics & Cybernetics.
+
+This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
+
+MRST is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+MRST is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with MRST.  If not, see <http://www.gnu.org/licenses/>.
+%}

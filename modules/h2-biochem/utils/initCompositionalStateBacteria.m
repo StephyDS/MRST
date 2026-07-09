@@ -60,6 +60,7 @@ else
 end
 %==================bacteria model===============
 if model.bacteriamodel
+   %nbr_nbact = model.
     if size(nbact0, 1) == G.cells.num
         state.nbact = nbact0;
     else

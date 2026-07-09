@@ -157,7 +157,7 @@ nls.LinearSolver = lsolve;
 
 problem_bact = packSimulationProblem(state0_bact, model_bact, schedule, ...
     'Benchmark_Bacteria2', 'NonLinearSolver', nls);
-simulatePackedProblem(problem_bact);%,'restartStep', 1);
+simulatePackedProblem(problem_bact,'restartStep', 1);
 [ws_bact, states_bact] = getPackedSimulatorOutput(problem_bact);
 results_bact = postProcessResults(states_bact, ws_bact, model_bact, 'bact');
 

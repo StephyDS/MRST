@@ -91,8 +91,12 @@ classdef BiochemicalFlowDiscretization < FlowDiscretization
                 bflux = model.getProp(flowState, 'ChemoBactFlux');
             elseif (model.bactDiffusion && model.chemotaxisEffect)
                 flowState = fd.buildFlowState(model, state, state0, dt);
-                bflux = model.getProp(flowState, 'BactFlux') + ...
-                    model.getProp(flowState, 'ChemoBactFlux');
+                BactFlux = model.getProp(flowState, 'BactFlux');
+                ChemoFlux = model.getProp(flowState, 'ChemoBactFlux');
+                bflux = cell(size(BactFlux));
+                for i = 1:numel(BactFlux)
+                    bflux{i} = BactFlux{i} + ChemoFlux{i};
+                end
             end
 
             % Output variable names and types

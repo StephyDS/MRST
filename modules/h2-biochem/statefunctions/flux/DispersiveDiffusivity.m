@@ -9,7 +9,7 @@ classdef DispersiveDiffusivity < StateFunction
     %   Evaluates the cell-centred effective dispersive diffusivity for
     %   each component and phase:
     %
-    %       D_eff{i, α} = φ · S_α · (D_disp + D_diff)
+    %       D_eff{i, ph} = phi * S_ph * (D_disp + D_diff)
     %
     %   where:
     %       D_disp = Mechanical dispersion coefficient (phase-dependent)
@@ -34,9 +34,9 @@ classdef DispersiveDiffusivity < StateFunction
     %   pref = 101325           [Pa]
     %   tortuosityExponent = 7/3
     %   gasDiffExponent = 1.5
-    %   defaultLiquidDiffusivity = 1e-9  [m²/s]
-    %   minDiffusivity = 1e-15           [m²/s]
-    %   defaultSigma = 3.5               [Å]
+    %   defaultLiquidDiffusivity = 1e-9  [m^2/s]
+    %   minDiffusivity = 1e-15           [m^2/s]
+    %   defaultSigma = 3.5               [Angstrom]
     %   defaultEpsilon = 150.0           [K]
     %
     % SEE ALSO:
@@ -55,13 +55,13 @@ classdef DispersiveDiffusivity < StateFunction
         % --- Molecular diffusion parameters ---
         Tref = 273.15 + 40;               % [K]
         pref = 101325;                     % [Pa] (1 atm)
-        tortuosityExponent = 7/3;          % Millington–Quirk exponent
-        gasDiffExponent = 1.5;            % Chapman–Enskog temperature exponent
-        defaultLiquidDiffusivity = 1e-9;   % [m²/s]
+        tortuosityExponent = 7/3;          % Millington-Quirk exponent
+        gasDiffExponent = 1.5;            % Chapman-Enskog temperature exponent
+        defaultLiquidDiffusivity = 1e-9;   % [m^2/s]
         minDiffusivity = 1e-15;            % reasonable floor for diffusivities
 
-        % Lennard–Jones defaults for unknown components
-        defaultSigma   = 3.5;              % [Å]
+        % Lennard-Jones defaults for unknown components
+        defaultSigma   = 3.5;              % [Angstrom]
         defaultEpsilon = 150.0;            % [K]
     end
 
@@ -84,16 +84,16 @@ classdef DispersiveDiffusivity < StateFunction
             d = d.dependsOn({'s', 'x', 'y', 'pressure'}, 'state');
 
             % Mechanical dispersion depends on velocity
-            if isprop(model, 'molecularDispersion') && model.molecularDispersion
+            if model.molecularDispersion
                 d = d.dependsOn('PhaseFlux');
             end
 
             % Molecular diffusion depends on temperature
-            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
+            if model.molecularDiffusion
                 d = d.dependsOn('temperature', 'state');
             end
 
-            % Dynamic porosity (e.g., bio‑clogging)
+            % Dynamic porosity (e.g., bio-clogging)
             if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
                 d = d.dependsOn('nbact', 'state');
             end
@@ -114,7 +114,7 @@ classdef DispersiveDiffusivity < StateFunction
             % RETURNS:
             %   D_eff - Cell array D_eff{i, ph} containing cell-based
             %           effective diffusivity for component i in phase ph
-            %           (ncells × 1), units m²/s.
+            %           (ncells x 1), units m^2/s.
 
             if ~isfield(state, 'x')
                 ncomp = model.getNumberOfComponents();
@@ -138,7 +138,7 @@ classdef DispersiveDiffusivity < StateFunction
             if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
                 [p, nbact] = model.getProps(state, 'pressure', 'nbact');
                 nbactArray = model.extractBactValues(nbact);
-                phi = model.rock.poro(p, nbactArray{:}); % Apply both modifications
+                phi = model.rock.poro(p, nbactArray); % Apply both modifications
             else
                 phi = model.rock.poro;
             end
@@ -152,7 +152,7 @@ classdef DispersiveDiffusivity < StateFunction
             D_disp_ph = cell(nph, 1);
             [D_disp_ph{:}] = deal(zeros(ncells, 1));
 
-            if isprop(model, 'molecularDispersion') && model.molecularDispersion
+            if model.molecularDispersion
                 phase_flux = model.getProp(state, 'PhaseFlux');
 
                 % Dispersivity coefficients
@@ -178,7 +178,7 @@ classdef DispersiveDiffusivity < StateFunction
 
                     % Isotropic dispersive diffusivity (Scheidegger)
                     % D_disp = aL*|v| for longitudinal
-                    % Full tensor: D = aL*(vv'/|v|²) + aT*(I - vv'/|v|²)
+                    % Full tensor: D = aL*(vv'/|v|^2) + aT*(I - vv'/|v|^2)
                     % Isotropic approximation: D = ((aL + 2*aT)/3)*|v|
                     D_disp_ph{ph} = ((aL(ph) + 2*aT(ph))/3) .* v_mag;
                     D_disp_ph{ph} = max(D_disp_ph{ph}, 0);
@@ -186,7 +186,7 @@ classdef DispersiveDiffusivity < StateFunction
             end
 
             % --- Pre-compute molecular diffusion parameters -------------------
-            if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
+            if model.molecularDiffusion
                 [p, T] = model.getProps(state, 'pressure', 'temperature');
                 p_safe = max(p, 1e-8*barsa);
                 gasScale = (T./d.Tref).^d.gasDiffExponent .* (d.pref./p_safe);
@@ -207,7 +207,7 @@ classdef DispersiveDiffusivity < StateFunction
                 D_disp = D_disp_ph{ph};
 
                 % >>> Molecular Diffusion (component-dependent) <<<
-                if isprop(model, 'molecularDiffusion') && model.molecularDiffusion
+                if model.molecularDiffusion
                     % Millington-Quirk tortuosity (same for all components in this phase)
                     phiS = phi .* s;
                     tau_MQ = (phiS).^(d.tortuosityExponent) .* (phi.^(-2));
@@ -222,7 +222,7 @@ classdef DispersiveDiffusivity < StateFunction
                             D_i = Dliq_ref(c);
                         else
                             % Gas diffusion (Wilke multi-component)
-                            % D_i,mix = (1 - y_i) / Σ(y_j/D_ij) for j≠i
+                            % D_i,mix = (1 - y_i) / sum(y_j/D_ij) for j!=i
                             yAll = model.getProp(state, 'y');
                             yc_curr = localGetComponentVector(yAll, c);
                             numerator = max(1 - yc_curr, 1e-6);
@@ -307,7 +307,7 @@ end
 
 function [Dliq_ref, paramLJ] = localLoadDiffusionDatabase(d, model)
 % Load liquid diffusion coefficients and Lennard-Jones parameters.
-% Returns diffusivity in m²/s and LJ parameters [sigma (Å), epsilon (K)]
+% Returns diffusivity in m^2/s and LJ parameters [sigma (Angstrom), epsilon (K)]
 namecp = model.compFluid.names();
 ncomp  = numel(namecp);
 Dliq_ref = d.defaultLiquidDiffusivity * ones(ncomp, 1);
@@ -336,17 +336,17 @@ end
 
 function Dij_ref = localBinaryDiffusionReference(d, model, paramLJ)
 % Computes binary gas diffusion coefficients using Chapman-Enskog theory
-% with Lennard-Jones collision integral (SI units, m²/s at reference T/P).
+% with Lennard-Jones collision integral (SI units, m^2/s at reference T/P).
 %
-% Formula: D_ij = (1.858e-7 * T^1.5) / (σ_ij² * √(Mij*) * Ω_D)
-% where Ω_D is the collision integral (Neufeld fit)
+% Formula: D_ij = (1.858e-7 * T^1.5) / (sigma_ij^2 * sqrt(Mij*) * Omega_D)
+% where Omega_D is the collision integral (Neufeld fit)
 
 ncomp = size(paramLJ, 1);
 Molmass = 1e3 .* model.compFluid.molarMass;   % g/mol (converted from kg/mol)
 epsilon = paramLJ(:, 2);                       % Lennard-Jones energy [K]
-sigma = paramLJ(:, 1);                         % collision diameter [Å]
+sigma = paramLJ(:, 1);                         % collision diameter [Angstrom]
 
-const = 1.858e-7;  % Chapman-Enskog constant (m²/s)
+const = 1.858e-7;  % Chapman-Enskog constant (m^2/s)
 fTref = d.Tref^1.5;   % temperature factor at reference conditions
 Dij_ref = zeros(ncomp);
 
@@ -365,7 +365,7 @@ for i = 1:ncomp
         T_star = d.Tref / epsilon_ij;
 
         % Neufeld collision integral approximation
-        % Ω_D(T*) = A/(T*)^B + C/exp(D*T*) + E/exp(F*T*) + G/exp(H*T*)
+        % Omega_D(T*) = A/(T*)^B + C/exp(D*T*) + E/exp(F*T*) + G/exp(H*T*)
         A = 1.06036;
         B = 0.15610;
         C = 0.19300;
@@ -392,7 +392,6 @@ Dij_ref = 0.5 * (Dij_ref + Dij_ref.');
 end
 
 %{
-------------------------------------------------------------------------------
 Copyright 2009-2026 SINTEF Digital, Mathematics & Cybernetics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).

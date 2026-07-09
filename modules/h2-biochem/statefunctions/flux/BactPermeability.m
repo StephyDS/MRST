@@ -62,9 +62,13 @@ classdef BactPermeability < StateFunction
                     nbactArray = model.extractBactValues(nbact);
                     perm = perm(p, nbactArray{:});  % Apply both modifications
                 else
-                    % Pressure-only modification
+                    % Pressure-only modification (guard against multi-bacteria function handles)
                     p = model.getProp(state, 'pressure');
-                    perm = perm(p, 0);  % Zero bacterial effect
+                    if nargin(model.rock.perm) < 3
+                        perm = perm(p, 0);  % Single-bacteria: pass zero
+                    else
+                        perm = perm(p, 0, 0);  % Multi-bacteria: pass zeros for all
+                    end
                 end
             end
         end

@@ -136,7 +136,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
                 % model.setupOperators
                 if ~model.dynamicFlowTrans()
                     drock = rock;
-                    %nbact0 = 0;
                 end
                 if nargin(drock.poro)<3
                     nbact0 = 0;
@@ -237,7 +236,6 @@ classdef BiochemistryModel < GenericOverallCompositionModel
         end
         function [eqs, names, types, state] = getModelEquations(model, state0, state, dt, drivingForces, varargin)
             % Discretize
-            % state = capSaturation(model,state, 's', 1.0e-8, 1-1.0e-8);
             [eqs, flux, names, types] = model.FlowDiscretization.componentConservationEquations(model, state, state0, dt);
             src = model.FacilityModel.getComponentSources(state);
             % Assemble equations and add in sources

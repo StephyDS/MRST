@@ -6,11 +6,11 @@ classdef MicrobialDiffusivity < StateFunction
     %   d = MicrobialDiffusivity(model, 'pn', pv, ...)
     %
     % DESCRIPTION:
-    %   Evaluates the effective cell‑centred microbial diffusivity [m²/s]
-    %   as φ · S_l · D_b, where D_b is the bacterial diffusion coefficient
-    %   (`model.biochemFluid.bactdiff`) and φ is the current porosity
-    %   (possibly dynamic due to bio‑clogging). If bacterial diffusion is
-    %   disabled or D_b is non‑positive, a zero value is returned.
+    %   Evaluates the effective cell-centered microbial diffusivity [m^2/s]
+    %   as phi * S_l * D_b, where D_b is the bacterial diffusion coefficient
+    %   (`model.biochemFluid.bactdiff`) and phi is the current porosity
+    %   (possibly dynamic due to bio-clogging). If bacterial diffusion is
+    %   disabled or D_b is non-positive, a zero value is returned.
     %
     % REQUIRED PARAMETERS:
     %   model - Model instance, must have fields `bactDiffusion` (logical)
@@ -20,7 +20,7 @@ classdef MicrobialDiffusivity < StateFunction
     %   (none defined in this base class; can be extended via `merge_options`)
     %
     % RETURNS:
-    %   dN - Cell‑centred effective diffusivity (ncells × 1), units m²/s.
+    %   dN - Cell-centered effective diffusivity (ncells x 1), units m^2/s.
     %
     % SEE ALSO:
     %   StateFunction, DynamicFlowTransmissibility
@@ -48,11 +48,11 @@ classdef MicrobialDiffusivity < StateFunction
             % Fetch primary state variables
             [ s, p, nbact] = model.getProps(state, 's', 'pressure','nbact');
 
-            % Porosity – dynamic (bio‑clogging) or static
+            % Porosity - dynamic (bio-clogging) or static
             if isprop(model, 'rock') && isa(model.rock.poro, 'function_handle')
                 nbact = model.getProp(state, 'nbact');
                 nbactArray = model.extractBactValues(nbact);
-                phi = model.rock.poro(p, nbactArray{:}); % Apply both modifications
+                phi = model.rock.poro(p, nbactArray); % Apply both modifications
             else
                 phi = model.rock.poro;
             end
@@ -74,7 +74,12 @@ classdef MicrobialDiffusivity < StateFunction
                 Voln = max(sL, 1.0e-8);
 
                 % Effective microbial diffusivity
-                if model.bactDiffusion && isprop(model.biochemFluid, 'bactdiff')
+                if model.bactDiffusion
+                    if model.biochemFluid.bactdiff(i) <= 0
+                        warning(['MicrobialDiffusivity: bactDiffusion flag enabled but ' ...
+                                 'bactdiff coefficient is zero or negative for species %d. ' ...
+                                 'Diffusion will be inactive.'], i);
+                    end
                     dN{i} = model.biochemFluid.bactdiff(i) .* phi .* Voln;
                 end
             end
