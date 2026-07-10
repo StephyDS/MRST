@@ -113,57 +113,52 @@ function [biochemFluid, model, schedule, state0] = setupH2StorageExample(varargi
     injCell = 1;
     prodCell = G.cells.num;
     W = addWell([], G, rock, injCell, ...
-                'Type', 'rate', ...        % controlled by surface rate
-                'Val', 1 * kilogram/day, ... % injection rate (reservoir volume)
-                'components',  [0.0, 0.95, 0.05, 0.0, 0.0],...
-                'Radius', 0.1, ...
-                'Comp_i', [0, 1], ...      % inject pure H2 (mole frac)
-                'Name', 'Injector');
+        'Type', 'rate', ...
+        'Val', 10 * kilogram/day, ...
+        'components', [0.0, 0.95, 0.05, 0.0, 0.0], ...
+        'Comp_i', [0, 1], ...
+        'Name', 'Injector');
     W = addWell(W, G, rock, prodCell, ...
-                'Type', 'bhp', ...         % controlled by bottom-hole pressure
-                'Val', 20*barsa, ...
-                'Radius', 0.1, ...
-                'Comp_i', [0, 1], ...      % inject pure H2 (mole frac)
-                'components',  [0.0, 0.95, 0.05, 0.0, 0.0],...
-                'Name', 'Producer');
+        'Type', 'rate', ...
+        'Val', -4.5 * kilogram/day, ...
+        'Sign', -1, ...
+        'Comp_i', [0, 1], ...
+        'components', [0.0, 0.95, 0.05, 0.0, 0.0], ...
+        'Name', 'Producer');
 
-    %% 7. Create a three-stage schedule: inject -> shut-in -> produce
-    % Stage lengths (days)
+    % Define three distinct well configurations for the three stages
+    W_inj  = W;   W_inj(2).val  = 0;                % producer off
+    W_inj(1).status  = true;   W_inj(2).status  = false;                % producer off
+    W_inj(1).name  = 'INJ_1';   W_inj(2).name  = 'PROD_1';                % producer off
+    W_shut = W;   W_shut(1).val = 0; W_shut(2).val = 0;   % both off
+    W_shut(1).status  = false;   W_shut(2).status  = false;                % injection/producer off
+    W_shut(1).name  = 'INJ_2';   W_shut(2).name  = 'PROD_2';                % producer off
+    W_prod = W;   W_prod(1).val = 0;                % injector off
+    W_prod(1).status  = false;   W_prod(2).status  = true;                % producer off
+    W_prod(1).name  = 'INJ_3';   W_prod(2).name  = 'PROD_3';                % producer off
+    %% 7. Create a three‑stage schedule using simpleSchedule + combineSchedules
     injDays  = 30*day;
     shutDays = 30*day;
     prodDays = 30*day;
+    dt       = 1*day;
 
-    % Timestep size (all stages use 1-day steps)
-    dt = 1*day;
-
-    % Control definitions
-    % Control 1: injection (both wells active)
-    ctrl(1).W = W;                    % as defined (injector on, producer on)
-    % Control 2: shut-in (both wells inactive)
-    ctrl(2).W = W;
-    ctrl(2).W(1).status = false;      % shut injector
-    ctrl(2).W(2).status = false;      % shut producer
-    % Control 3: production (injector off, producer on)
-    ctrl(3).W = W;
-    ctrl(3).W(1).status = false;      % injector shut
-    ctrl(3).W(2).status = true;       % producer open (same BHP as before)
-
-    % Build step arrays
     nStepsInj  = ceil(injDays / day);
     nStepsShut = ceil(shutDays / day);
     nStepsProd = ceil(prodDays / day);
-    nTotal     = nStepsInj + nStepsShut + nStepsProd;
 
-    step.val     = repmat(dt, nTotal, 1);
-    step.control = [ones(nStepsInj, 1); ...
-                    2*ones(nStepsShut, 1); ...
-                    3*ones(nStepsProd, 1)];
+    % Build individual schedules
+    scheduleInj  = simpleSchedule(repmat(dt, nStepsInj, 1),  'W', W_inj);
+    scheduleShut = simpleSchedule(repmat(dt, nStepsShut, 1), 'W', W_shut);
+    scheduleProd = simpleSchedule(repmat(dt, nStepsProd, 1), 'W', W_prod);
 
-    schedule.control = ctrl;
-    schedule.step    = step;
+    % Combine them sequentially
+    schedule = combineSchedules(scheduleInj, scheduleShut, scheduleProd, ...
+        'makeConsistent', false);
 
-    % Remove unnecessary fields (safety)
-    for i = 1:numel(schedule.control(1).W)
-        schedule.control(1).W(i).lims = [];
+    % Clean up well limits (usually not needed, but for safety)
+    for i = 1:numel(schedule.control)
+        for j = 1:numel(schedule.control(i).W)
+            schedule.control(i).W(j).lims = [];
+        end
     end
 end

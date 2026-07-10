@@ -1,4 +1,4 @@
-function testAllDiffusionEffects()
+function scenarios = testAllDiffusionEffects()
 % Test all diffusion/dispersion/chemotaxis/bio-clogging effects in h2-biochem module.
 % Runs setupH2StorageExample with all combinations of flags and compares results.
 %
@@ -66,7 +66,7 @@ function testAllDiffusionEffects()
     figNum = 0;
 
     % Run each test case
-    for i = 10:length(flagSets)
+    for i = 1:length(flagSets)
         flags = flagSets{i};
         fprintf('Test %d/%d: %s\n', i, length(flagSets), sceneNames{i});
 
@@ -139,7 +139,7 @@ function testAllDiffusionEffects()
     figNum = figNum + 1;
     figure(figNum);
     try
-        plotH2Loss(scenarios{1}.model, schedule, [scenarios.states], []);
+        plotH2Loss(scenarios{1}.model, schedule, states, ws);
         title('H2 Mass Loss Analysis');
     catch
         fprintf('  Could not plot H2 loss\n');
