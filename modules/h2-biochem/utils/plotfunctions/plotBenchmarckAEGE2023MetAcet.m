@@ -1,5 +1,5 @@
 function plotBenchmarckAEGE2023MetAcet(nT,pressureNobact,pressurebact,H2loss,...
-    totMassH2Nobact,totMassH2bact,totMassProdbact,G,statesBact,nbact0)
+    totMassH2Nobact,totMassH2bact,totMassProdbact,G,statesBact, model_bact,nbact0)
 %
 % plotEosPRSW -- Plot the pressure, H2 loss due to microbial activity,
 % the total mass of H2 along with time as well as the evolution of the
@@ -146,7 +146,7 @@ ax.FontSize = 16;
 % Build legend dynamically
 bactNames = cell(1, nbioreact);
 for j = 1:nbioreact
-    bactNames{j} = ['N_{', strtrim(model.biochemFluid.bactnames{j}), '}'];
+    bactNames{j} = ['N_{', strtrim(model_bact.biochemFluid.bactnames{j}), '}'];
 end
 legend(bactNames,'FontSize',16,'TextColor','black', 'Location','best')
 end
