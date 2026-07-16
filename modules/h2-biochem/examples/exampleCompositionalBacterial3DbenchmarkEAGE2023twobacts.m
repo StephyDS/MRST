@@ -30,7 +30,7 @@ mrstModule add h2-biochem compositional ad-blackoil ad-core ad-props mrst-gui
 gravity reset on
 
 %% ============ Grid and Rock Properties =====================
-[nx, ny, nz] = deal(15, 15, 8);
+[nx, ny, nz] = deal(30, 30, 8);
 [Lx, Ly, Lz] = deal(1525, 1525, 50);
 
 G = cartGrid([nx, ny, nz], [Lx, Ly, Lz]);
@@ -94,8 +94,8 @@ W = verticalWell(W, G, rock, n1, n2, 1, ...
 W(end).components = [0.0, 0.95, 0.05, 0.0, 0.0];
 
 %% Time Schedule
-ncycles    = 1;
-deltaT     = 5*day;
+ncycles    = 6;
+deltaT     = 1*day;
 nbj_buildUp = 60*day; nbj_rest = 20*day;
 nbj_inject  = 30*day; nbj_idle = 20*day;
 nbj_prod    = 30*day; nbj_idle1 = 20*day;
@@ -119,7 +119,7 @@ z0 = [0.7, 0.0, 0.02, 0.28, 0.0];
 %% --- Simulation 1: Without bacteria ---
 arg = {G, rock, fluid, compFluid, biochemFluid, true, backend, ...
     'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', false, 'bactDiffusion', true, 'molecularDispersion',true, 'molecularDiffusion',false, ...
+    'bacteriamodel', false,'molecularDispersion',false, 'molecularDiffusion',false, ...
     'liquidPhase', 'O', 'vaporPhase', 'G'};
 
 model_nobact = BiochemistryModel(arg{:});
@@ -132,15 +132,16 @@ lsolve = selectLinearSolverAD(model_nobact);
 nls = NonLinearSolver(); nls.LinearSolver = lsolve;
 
 problem_nobact = packSimulationProblem(state0_nobact, model_nobact, schedule, ...
-    'Benchmark_NoBacteria3', 'NonLinearSolver', nls);
-%simulatePackedProblem(problem_nobact,'restartStep', 1);
-%[ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
-%results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
+    'Benchmark_NoBacteria', 'NonLinearSolver', nls);
+simulatePackedProblem(problem_nobact);%,'restartStep', 1);
+[ws_nobact, states_nobact] = getPackedSimulatorOutput(problem_nobact);
+results_nobact = postProcessResults(states_nobact, ws_nobact, model_nobact, 'nobact');
 
 %% --- Simulation 2: With bacteria ---
 model_bact = BiochemistryModel(G, rock, fluid, compFluid, biochemFluid, true, backend, ...
-    'water', false, 'oil', true, 'gas', true, ...
-    'bacteriamodel', true, 'bactDiffusion', false, 'molecularDiffusion', true,'chemotaxisEffect',false,...
+    'water', false, 'oil', true, 'gas', true,'bacteriamodel', true,...
+    'bactDiffusion', true, 'molecularDiffusion', false,...
+    'molecularDipersion', false,'chemotaxisEffect',false,...
     'liquidPhase', 'O', 'vaporPhase', 'G');
 model_bact.outputFluxes = false;
 model_bact.EOSModel = compEOS;
@@ -150,13 +151,14 @@ nbioreact=model_bact.biochemFluid.nbioreact;
 nbact0 = ones(1, nbioreact);
 nbactMax = ones(1, nbioreact) * 1e8;
 model_bact.biochemFluid.nbactMax = nbactMax;
+model_bact.biochemFluid.bactdiff=[1.e-7,1.e-12];
 state0_bact = initCompositionalStateBacteria(model_bact, P0, T0, s0, z0, nbact0, compEOS);
 
 lsolve = selectLinearSolverAD(model_bact, 'useAMGCLCPR', true);
 nls.LinearSolver = lsolve;
 
 problem_bact = packSimulationProblem(state0_bact, model_bact, schedule, ...
-    'Benchmark_Bacteria2', 'NonLinearSolver', nls);
+    'Benchmark_Bacteria', 'NonLinearSolver', nls);
 simulatePackedProblem(problem_bact,'restartStep', 1);
 [ws_bact, states_bact] = getPackedSimulatorOutput(problem_bact);
 results_bact = postProcessResults(states_bact, ws_bact, model_bact, 'bact');
@@ -191,7 +193,7 @@ else
     plotBenchmarckAEGE2023MetAcet(numel(states_nobact), ...
         results_nobact.pressure, results_bact.pressure, ...
         H2_loss, results_nobact.totMassH2, results_bact.totMassH2, ...
-        results_bact.totMassCH3COOH,G, states_bact, nbact0);
+        results_bact.totMassCH3COOH,G, states_bact, model_bact,nbact0);
 end
 %% Post-processing Function
 function results = postProcessResults(states, ws, model, caseType)
